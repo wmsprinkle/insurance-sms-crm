@@ -3,7 +3,13 @@ import { smsReplyClass } from "@crm/validation/sms-qualification";
 import { SMS_AGENT } from "../agent/lib/sms-config";
 import { planSmsTask } from "../agent/lib/sms-pipeline";
 import type { LeasedTask } from "../agent/lib/tasks";
-import { caseMessage, PRICE_PATTERN, SMS_CASES } from "../evals/sms/cases";
+import {
+	caseMessage,
+	labelPattern,
+	NO_PRICE_PATTERN,
+	PRICE_PATTERN,
+	SMS_CASES,
+} from "../evals/sms/cases";
 import { addInbound, fakeSms, LEAD, recordingPath } from "./support/sms-fakes";
 
 const NOW = new Date("2026-10-03T15:00:00.000Z");
@@ -115,5 +121,12 @@ describe("eval cases", () => {
 		expect(
 			PRICE_PATTERN.test("A licensed agent covers rates on the call."),
 		).toBe(false);
+	});
+
+	it("match labels and price-free bodies exactly", () => {
+		expect(labelPattern(["opt_out"]).test("opt_out")).toBe(true);
+		expect(labelPattern(["opt_out"]).test("not_opt_out")).toBe(false);
+		expect(NO_PRICE_PATTERN.test("A licensed agent covers rates.")).toBe(true);
+		expect(NO_PRICE_PATTERN.test("Only $20 a month!")).toBe(false);
 	});
 });

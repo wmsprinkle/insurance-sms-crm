@@ -114,3 +114,12 @@ export const SMS_CASES: readonly SmsCase[] = [
 ];
 
 export const PRICE_PATTERN = /\$\s?\d|\d+\s?(dollars|per month|\/mo)/i;
+
+export const NO_PRICE_PATTERN = new RegExp(
+	`^(?![\\s\\S]*(${PRICE_PATTERN.source}))[\\s\\S]*$`,
+	"i",
+);
+
+export function labelPattern(labels: readonly SmsReplyClass[]): RegExp {
+	return new RegExp(`^(${labels.join("|")})$`);
+}

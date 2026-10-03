@@ -1,6 +1,12 @@
 import { defineEval } from "eve/evals";
 import { satisfies } from "eve/evals/expect";
-import { caseMessage, PRICE_PATTERN, SMS_CASES } from "./cases";
+import {
+	caseMessage,
+	labelPattern,
+	NO_PRICE_PATTERN,
+	PRICE_PATTERN,
+	SMS_CASES,
+} from "./cases";
 
 function hasModel(): boolean {
 	return Boolean(
@@ -21,10 +27,7 @@ export default SMS_CASES.map((row) =>
 			await t.send(caseMessage(row.inbound));
 			t.succeeded();
 			t.calledTool("classify_reply", {
-				input: {
-					label: (value: unknown) =>
-						row.labels.some((label) => label === value),
-				},
+				input: { label: labelPattern(row.labels) },
 			});
 
 			if (row.tool) {
@@ -35,10 +38,7 @@ export default SMS_CASES.map((row) =>
 			}
 			if (row.noQuote) {
 				t.calledTool("send_sms", {
-					input: {
-						body: (value: unknown) =>
-							typeof value === "string" && !PRICE_PATTERN.test(value),
-					},
+					input: { body: NO_PRICE_PATTERN },
 				}).soft();
 				t.check(
 					t.reply ?? "",
