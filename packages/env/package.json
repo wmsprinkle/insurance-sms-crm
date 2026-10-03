@@ -6,7 +6,8 @@
 	"exports": {
 		".": "./src/index.ts",
 		"./load": "./src/load.ts",
-		"./features": "./src/features.ts"
+		"./features": "./src/features.ts",
+		"./sms": "./src/sms.ts"
 	},
 	"scripts": {
 		"check-types": "tsc --noEmit",

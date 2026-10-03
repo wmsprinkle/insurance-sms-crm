@@ -126,6 +126,30 @@ export class EnvironmentVariables {
 	@IsOptional()
 	@IsString()
 	CRM_TELEMETRY_DISABLED?: string;
+
+	@IsOptional()
+	@IsString()
+	DRY_RUN?: string;
+
+	@IsOptional()
+	@IsString()
+	TELNYX_API_KEY?: string;
+
+	@IsOptional()
+	@IsString()
+	TELNYX_MESSAGING_PROFILE_ID?: string;
+
+	@IsOptional()
+	@IsString()
+	TELNYX_FROM_NUMBER?: string;
+
+	@IsOptional()
+	@IsString()
+	TELNYX_PUBLIC_KEY?: string;
+
+	@IsOptional()
+	@IsString()
+	TELNYX_MPS?: string;
 }
 
 export type RawEnvironment = Record<string, string | undefined>;
