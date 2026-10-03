@@ -57,6 +57,7 @@ import { LocalDateTime, LocalRelativeDate } from "@/components/local-date-time";
 import { factsByField } from "@/lib/contact-facts";
 import { ENRICHMENT_POLL_MS, isEnriching } from "@/lib/enrichment-status";
 import { savingField } from "@/lib/pending-field";
+import { safeHttpUrl } from "@/lib/safe-url";
 import { hasContactLinks } from "@/lib/social-links";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
@@ -461,9 +462,9 @@ function Background({ brief }: { brief: NonNullable<Contact["brief"]> }) {
 			title="Background"
 			action={
 				<span className="text-muted-foreground text-xs">
-					{brief.sourceUrl ? (
+					{safeHttpUrl(brief.sourceUrl) ? (
 						<a
-							href={brief.sourceUrl}
+							href={safeHttpUrl(brief.sourceUrl) ?? undefined}
 							target="_blank"
 							rel="noreferrer noopener"
 							className="underline-offset-2 hover:underline"

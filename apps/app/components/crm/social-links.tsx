@@ -1,6 +1,7 @@
 import { Button } from "@crm/ui/components/button";
 import type { CarbonIcon } from "@crm/ui/components/icon";
 import { Icon } from "@crm/ui/components/icon";
+import { safeHttpUrl } from "@/lib/safe-url";
 import {
 	type CompanyLinks,
 	type ContactLinks,
@@ -22,14 +23,20 @@ function SocialLinks({
 
 	return (
 		<div className="flex flex-wrap items-center gap-2">
-			{rows.map((link) => (
-				<Button key={String(link.key)} asChild variant="outline" size="sm">
-					<a href={link.href} target="_blank" rel="noreferrer noopener">
-						<Icon icon={link.icon} data-icon="inline-start" />
-						{link.label}
-					</a>
-				</Button>
-			))}
+			{rows
+				.filter((link) => safeHttpUrl(link.href) !== null)
+				.map((link) => (
+					<Button key={String(link.key)} asChild variant="outline" size="sm">
+						<a
+							href={safeHttpUrl(link.href) ?? undefined}
+							target="_blank"
+							rel="noreferrer noopener"
+						>
+							<Icon icon={link.icon} data-icon="inline-start" />
+							{link.label}
+						</a>
+					</Button>
+				))}
 		</div>
 	);
 }

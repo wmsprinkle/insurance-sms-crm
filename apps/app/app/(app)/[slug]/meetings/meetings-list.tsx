@@ -16,6 +16,7 @@ import { Spinner } from "@crm/ui/components/spinner";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { LocalDateTime } from "@/components/local-date-time";
+import { safeHttpUrl } from "@/lib/safe-url";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
@@ -150,10 +151,10 @@ function MeetingSection({
 								) : null}
 							</div>
 							<div className="flex shrink-0 items-center gap-2">
-								{meeting.conferenceUrl ? (
+								{safeHttpUrl(meeting.conferenceUrl) ? (
 									<Button asChild size="sm" variant="outline">
 										<a
-											href={meeting.conferenceUrl}
+											href={safeHttpUrl(meeting.conferenceUrl) ?? undefined}
 											target="_blank"
 											rel="noreferrer"
 										>

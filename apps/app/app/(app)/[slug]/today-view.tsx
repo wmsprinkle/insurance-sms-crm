@@ -35,6 +35,7 @@ import { toast } from "sonner";
 import { AutoSendSwitch } from "@/components/crm/auto-send-switch";
 import { BulkDraftActions } from "@/components/crm/bulk-drafts";
 import { LocalDateTime, LocalRelativeTime } from "@/components/local-date-time";
+import { safeHttpUrl } from "@/lib/safe-url";
 import { firstMessageDrafts, smsOutcomeNotice } from "@/lib/sms-drafts";
 import {
 	type GetStartedAction,
@@ -435,10 +436,10 @@ function MeetingsCard({ meetings }: { meetings: Meeting[] }) {
 									/>
 								</span>
 							</div>
-							{meeting.conferenceUrl ? (
+							{safeHttpUrl(meeting.conferenceUrl) ? (
 								<Button asChild size="sm" variant="outline">
 									<a
-										href={meeting.conferenceUrl}
+										href={safeHttpUrl(meeting.conferenceUrl) ?? undefined}
 										target="_blank"
 										rel="noreferrer"
 									>

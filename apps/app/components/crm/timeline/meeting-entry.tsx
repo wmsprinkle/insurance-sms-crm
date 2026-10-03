@@ -6,6 +6,7 @@ import {
 	LocalDateTime,
 	LocalDateTimeRange,
 } from "@/components/local-date-time";
+import { safeHttpUrl } from "@/lib/safe-url";
 import { useTRPC } from "@/lib/trpc/client";
 
 const RANGE_OPTIONS: Intl.DateTimeFormatOptions = {
@@ -62,9 +63,9 @@ export function MeetingEntry({
 				<AttendeeList attendees={event.data.attendees} />
 			) : null}
 
-			{conferenceUrl ? (
+			{safeHttpUrl(conferenceUrl) ? (
 				<a
-					href={conferenceUrl}
+					href={safeHttpUrl(conferenceUrl) ?? undefined}
 					target="_blank"
 					rel="noreferrer"
 					className="text-muted-foreground text-xs underline underline-offset-3 hover:text-foreground"
