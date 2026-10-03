@@ -51,6 +51,7 @@ export type FunnelFacts = {
 	outbound: number;
 	inbound: number;
 	modelTurns: number;
+	failedTurn?: boolean;
 };
 
 export function deriveFunnelStatus(facts: FunnelFacts): FunnelStatus {
@@ -72,7 +73,7 @@ export function deriveFunnelStatus(facts: FunnelFacts): FunnelStatus {
 		return "not_interested";
 	}
 
-	if (hold) return "needs_you";
+	if (hold || facts.failedTurn) return "needs_you";
 	if (qualified || facts.modelTurns > 0) return "interested";
 	if (facts.inbound > 0) return "replied";
 	if (facts.outbound > 0) return "texted";

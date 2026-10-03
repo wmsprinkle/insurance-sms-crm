@@ -11,6 +11,7 @@ import {
 	type SmsTurnStart,
 	shouldIdentify,
 	smsSessionToken,
+	smsTurnFailureOutcome,
 	smsTurnMessage,
 } from "../agent/lib/sms-pipeline";
 import type { LeasedTask } from "../agent/lib/tasks";
@@ -376,6 +377,25 @@ describe("runSmsTask", () => {
 		);
 		expect(run.noted).toHaveLength(0);
 	});
+
+	it("settles the task with a typed failure when the model turn cannot start", async () => {
+		const fake = fakeSms();
+		addInbound(fake, "m1", "yes tell me more", NOW);
+		const run = runDeps(fake);
+
+		await runSmsTask(
+			replyTask(["m1"]),
+			async () => {
+				throw new Error("eve is down");
+			},
+			run.value,
+		);
+
+		expect(run.completed).toEqual([
+			{ taskId: "t-reply", outcome: "failed: turn-failed" },
+		]);
+		expect(run.noted).toHaveLength(0);
+	});
 });
 
 describe("closeSmsTurn", () => {
@@ -456,5 +476,20 @@ describe("business name in the turn", () => {
 		if (plan.kind !== "model") throw new Error("expected a model turn");
 		expect(plan.turn.message).toContain("Identify the business: no.");
 		expect(plan.turn.auth(APP_AUTH).attributes?.identify).toBe("");
+	});
+});
+
+describe("smsTurnFailureOutcome", () => {
+	it("types a model call failure so the app can say what to fix", () => {
+		expect(
+			smsTurnFailureOutcome({ code: "MODEL_CALL_FAILED", message: "x" }),
+		).toBe("failed: model-unavailable");
+	});
+
+	it("types any other failure, and a payload nobody can read", () => {
+		expect(smsTurnFailureOutcome({ code: "TOOL_ERROR", message: "x" })).toBe(
+			"failed: turn-failed",
+		);
+		expect(smsTurnFailureOutcome("garbage")).toBe("failed: turn-failed");
 	});
 });

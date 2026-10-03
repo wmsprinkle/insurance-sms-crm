@@ -62,6 +62,7 @@ export const todayLeadsOutput = z.object({
 			name: z.string(),
 			phone: z.string().nullable(),
 			status: leadStatus,
+			attention: z.string().nullable(),
 			createdAt: z.string(),
 			lastMessage: z
 				.object({
@@ -89,6 +90,7 @@ export const todayLeadOutput = z.object({
 	phone: z.string().nullable(),
 	email: z.string().nullable(),
 	status: leadStatus,
+	attention: z.string().nullable(),
 	dryRun: z.boolean(),
 	handoffOpen: z.boolean(),
 	consent: z

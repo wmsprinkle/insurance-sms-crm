@@ -338,7 +338,14 @@ export function LeadsTable() {
 										</div>
 									</TableCell>
 									<TableCell>
-										<LeadStatusPill status={row.status} />
+										<div className="flex flex-col items-start gap-1">
+											<LeadStatusPill status={row.status} />
+											{row.attention ? (
+												<span className="line-clamp-2 max-w-48 text-muted-foreground text-xs">
+													{row.attention}
+												</span>
+											) : null}
+										</div>
 									</TableCell>
 									<TableCell className="hidden max-w-xs md:table-cell">
 										<div className="flex flex-col">

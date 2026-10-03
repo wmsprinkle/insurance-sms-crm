@@ -103,6 +103,11 @@ export function LeadDetail({ contactId }: { contactId: string }) {
 							<CardTitle>Status</CardTitle>
 							<CardDescription>{meta.help}</CardDescription>
 						</CardHeader>
+						{data.attention ? (
+							<CardContent>
+								<p className="text-sm">{data.attention}</p>
+							</CardContent>
+						) : null}
 						{data.handoffOpen ? (
 							<CardContent>
 								<p className="text-sm">

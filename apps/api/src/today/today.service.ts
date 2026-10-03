@@ -2,7 +2,7 @@ import { type Db, SmsDirection } from "@crm/db";
 import { readSmsEnv } from "@crm/env/sms";
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
-import { loadFunnelStatuses } from "../sms/sms-funnel";
+import { loadFunnelView } from "../sms/sms-funnel";
 import {
 	contactDisplayName,
 	previewOf,
@@ -39,6 +39,7 @@ type LastMessage = {
 type Scan = {
 	contacts: LeadContact[];
 	statuses: Map<string, LeadStatus>;
+	attention: Map<string, string>;
 	lastMessages: Map<string, LastMessage>;
 	truncated: boolean;
 };
@@ -242,6 +243,7 @@ export class TodayService {
 				name: contactDisplayName(c),
 				phone: c.phone,
 				status: scan.statuses.get(c.id) ?? ("new" as const),
+				attention: scan.attention.get(c.id) ?? null,
 				createdAt: c.createdAt.toISOString(),
 				lastMessage: last
 					? {
@@ -308,7 +310,7 @@ export class TodayService {
 			]);
 
 		const [funnel, unknownSends] = await Promise.all([
-			loadFunnelStatuses(this.db, [contact]),
+			loadFunnelView(this.db, [contact]),
 			this.db.agentEvent.count({
 				where: {
 					contactId: contact.id,
@@ -363,7 +365,8 @@ export class TodayService {
 			name: contactDisplayName(contact),
 			phone,
 			email: contact.email,
-			status: leadStatusOf(funnel.get(contact.id) ?? "new", {
+			attention: funnel.get(contact.id)?.attention ?? null,
+			status: leadStatusOf(funnel.get(contact.id)?.status ?? "new", {
 				booked: bookings.length > 0,
 				pendingDraft: drafts.length > 0,
 				unknownSend: unknownSends > 0,
@@ -412,7 +415,7 @@ export class TodayService {
 
 		const [funnel, bookings, drafts, unknowns, lastMessages] =
 			await Promise.all([
-				loadFunnelStatuses(this.db, scanned),
+				loadFunnelView(this.db, scanned),
 				this.db.calendarEvent.groupBy({
 					by: ["contactId"],
 					where: {
@@ -453,7 +456,7 @@ export class TodayService {
 		for (const contact of scanned) {
 			statuses.set(
 				contact.id,
-				leadStatusOf(funnel.get(contact.id) ?? "new", {
+				leadStatusOf(funnel.get(contact.id)?.status ?? "new", {
 					booked: booked.has(contact.id),
 					pendingDraft: pendingDraft.has(contact.id),
 					unknownSend: unknownSend.has(contact.id),
@@ -464,6 +467,11 @@ export class TodayService {
 		return {
 			contacts: scanned,
 			statuses,
+			attention: new Map(
+				[...funnel].flatMap(([id, view]) =>
+					view.attention ? [[id, view.attention] as const] : [],
+				),
+			),
 			lastMessages: new Map(lastMessages.map((m) => [m.contactId, m])),
 			truncated,
 		};

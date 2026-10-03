@@ -31,7 +31,11 @@ import { settle } from "../lib/enrichment";
 import { finishRun, runResultOf } from "../lib/run-runtime";
 import { attribute } from "../lib/session-purpose";
 import { createSlackChannel } from "../lib/slack-membership";
-import { closeSmsTurn, smsSessionToken } from "../lib/sms-pipeline";
+import {
+	closeSmsTurn,
+	smsSessionToken,
+	smsTurnFailureOutcome,
+} from "../lib/sms-pipeline";
 import { finishSmsTurns } from "../lib/sms-runtime";
 import { reconcileStaleTasks } from "../lib/stale-tasks";
 import { completeTask, taskSubject } from "../lib/tasks";
@@ -294,7 +298,11 @@ export default defineChannel({
 
 		async "turn.failed"(data, channel) {
 			if (
-				await closeSmsTurn(channel.continuationToken, "failed", finishSmsTurns)
+				await closeSmsTurn(
+					channel.continuationToken,
+					smsTurnFailureOutcome(data),
+					finishSmsTurns,
+				)
 			)
 				return;
 			const taskId = taskFromToken(channel.continuationToken);

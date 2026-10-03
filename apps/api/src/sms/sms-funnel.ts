@@ -4,21 +4,33 @@ import {
 	FUNNEL_OUTCOMES,
 	type FunnelStatus,
 } from "@crm/validation/funnel-status";
+import { smsFailureMessage } from "@crm/validation/sms-failure";
 import { SMS_REPLY_TASK_KIND } from "@crm/validation/sms-reply-task";
 
 export type FunnelContact = { id: string; phone: string | null };
+
+export type FunnelView = { status: FunnelStatus; attention: string | null };
 
 export async function loadFunnelStatuses(
 	db: Db,
 	contacts: readonly FunnelContact[],
 ): Promise<Map<string, FunnelStatus>> {
+	const view = await loadFunnelView(db, contacts);
+
+	return new Map([...view].map(([id, row]) => [id, row.status]));
+}
+
+export async function loadFunnelView(
+	db: Db,
+	contacts: readonly FunnelContact[],
+): Promise<Map<string, FunnelView>> {
 	const ids = contacts.map((contact) => contact.id);
 	const phones = contacts.flatMap((contact) =>
 		contact.phone ? [contact.phone] : [],
 	);
 	if (ids.length === 0) return new Map();
 
-	const [suppressions, handoffs, deals, counts, declines, turns] =
+	const [suppressions, handoffs, deals, counts, declines, turns, latest] =
 		await Promise.all([
 			db.phoneSuppression.findMany({
 				where: { e164: { in: phones } },
@@ -54,7 +66,26 @@ export async function loadFunnelStatuses(
 				},
 				_count: { _all: true },
 			}),
+			db.agentTask.findMany({
+				where: {
+					contactId: { in: ids },
+					kind: SMS_REPLY_TASK_KIND,
+					finishedAt: { not: null },
+				},
+				orderBy: { finishedAt: "desc" },
+				distinct: ["contactId"],
+				select: { contactId: true, outcome: true },
+			}),
 		]);
+
+	const failureBy = new Map(
+		latest.flatMap((row) => {
+			const message = smsFailureMessage(row.outcome);
+			return row.contactId && message
+				? [[row.contactId, message] as const]
+				: [];
+		}),
+	);
 
 	const suppressed = new Set(suppressions.map((row) => row.e164));
 	const handoffBy = new Map(handoffs.map((row) => [row.contactId, row]));
@@ -75,9 +106,8 @@ export async function loadFunnelStatuses(
 		)?._count._all ?? 0;
 
 	return new Map(
-		contacts.map((contact) => [
-			contact.id,
-			deriveFunnelStatus({
+		contacts.map((contact) => {
+			const status = deriveFunnelStatus({
 				suppressed: contact.phone ? suppressed.has(contact.phone) : false,
 				handoff: handoffBy.get(contact.id) ?? null,
 				dealStages: stagesBy.get(contact.id) ?? [],
@@ -85,8 +115,13 @@ export async function loadFunnelStatuses(
 				outbound: messages(contact.id, SmsDirection.OUTBOUND),
 				inbound: messages(contact.id, SmsDirection.INBOUND),
 				modelTurns: turnsBy.get(contact.id) ?? 0,
-			}),
-		]),
+				failedTurn: failureBy.has(contact.id),
+			});
+			const attention =
+				status === "needs_you" ? (failureBy.get(contact.id) ?? null) : null;
+
+			return [contact.id, { status, attention }];
+		}),
 	);
 }
 

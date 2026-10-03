@@ -21,6 +21,7 @@
 		"./outbound-guard": "./src/outbound-guard.ts",
 		"./phone": "./src/phone.ts",
 		"./saved-view": "./src/saved-view.ts",
+		"./sms-failure": "./src/sms-failure.ts",
 		"./sms-first-message": "./src/sms-first-message.ts",
 		"./sms-qualification": "./src/sms-qualification.ts",
 		"./sms-reply-task": "./src/sms-reply-task.ts",

@@ -102,6 +102,13 @@ export function SmsThread({ contactId }: { contactId: string }) {
 				</Button>
 			</div>
 
+			{data.attention ? (
+				<Alert variant="warning">
+					<AlertTitle>Needs you</AlertTitle>
+					<AlertDescription>{data.attention}</AlertDescription>
+				</Alert>
+			) : null}
+
 			{notices.map((notice) => (
 				<Alert key={notice.title} variant={notice.tone}>
 					<AlertTitle>{notice.title}</AlertTitle>

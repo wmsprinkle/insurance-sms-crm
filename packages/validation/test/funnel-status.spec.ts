@@ -155,6 +155,23 @@ describe("deriveFunnelStatus", () => {
 		).toBe("needs_you");
 	});
 
+	it("is needs_you when the last model turn failed, even after a model turn started", () => {
+		expect(
+			deriveFunnelStatus(
+				facts({ failedTurn: true, modelTurns: 1, inbound: 1, outbound: 1 }),
+			),
+		).toBe("needs_you");
+	});
+
+	it("keeps a declined or opted out lead closed despite a failed turn", () => {
+		expect(
+			deriveFunnelStatus(facts({ failedTurn: true, declined: true })),
+		).toBe("not_interested");
+		expect(
+			deriveFunnelStatus(facts({ failedTurn: true, suppressed: true })),
+		).toBe("opted_out");
+	});
+
 	it("labels every status", () => {
 		for (const status of FUNNEL_STATUSES) {
 			expect(FUNNEL_STATUS_LABELS[status].length).toBeGreaterThan(0);

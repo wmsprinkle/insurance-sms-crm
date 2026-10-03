@@ -2,7 +2,11 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { type Db, db, SmsDirection } from "@crm/db";
 import { DealStage } from "@crm/db/enums";
 import { FUNNEL_HOLD_REASONS } from "@crm/validation/funnel-status";
-import { loadFunnelStatuses, settleClosedThreads } from "../src/sms/sms-funnel";
+import {
+	loadFunnelStatuses,
+	loadFunnelView,
+	settleClosedThreads,
+} from "../src/sms/sms-funnel";
 
 const suffix = crypto.randomUUID().slice(0, 8);
 const ownerId = `funnel-owner-${suffix}`;
@@ -231,5 +235,73 @@ describe("settleClosedThreads", () => {
 		expect(await unhandled(abusive.id)).toBe(0);
 		expect(await statusOf(optedOut)).toBe("opted_out");
 		expect(await statusOf(abusive)).toBe("abusive");
+	});
+});
+
+describe("a model turn that failed", () => {
+	async function turn(contactId: string, outcome: string, finishedAt: Date) {
+		await db.agentTask.create({
+			data: {
+				contactId,
+				kind: "sms-reply",
+				reason: "Lead replied",
+				dueAt: finishedAt,
+				finishedAt,
+				sessionId: `crm:sms:${crypto.randomUUID()}`,
+				outcome,
+			},
+		});
+	}
+
+	it("shows as needs_you with a plain reason and keeps the reply open", async () => {
+		const person = await lead("fail-model", 30);
+		await text(person.id, SmsDirection.OUTBOUND);
+		await text(person.id, SmsDirection.INBOUND, "yes");
+		await turn(person.id, "failed: model-unavailable", new Date());
+
+		const view = (await loadFunnelView(db as Db, [person])).get(person.id);
+
+		expect(view?.status).toBe("needs_you");
+		expect(view?.attention).toBe(
+			"The assistant could not reply: model unavailable. Check the AI key.",
+		);
+		await settleClosedThreads(db as Db);
+		expect(
+			await db.smsMessage.count({
+				where: {
+					contactId: person.id,
+					direction: SmsDirection.INBOUND,
+					handledAt: null,
+				},
+			}),
+		).toBe(1);
+	});
+
+	it("reads an outcome written before reasons were typed", async () => {
+		const person = await lead("fail-legacy", 31);
+		await text(person.id, SmsDirection.INBOUND, "yes");
+		await turn(person.id, "failed", new Date());
+
+		expect((await loadFunnelView(db as Db, [person])).get(person.id)).toEqual({
+			status: "needs_you",
+			attention:
+				"The assistant could not reply: the turn failed. Read the reply and answer yourself.",
+		});
+	});
+
+	it("clears once a later turn succeeds", async () => {
+		const person = await lead("fail-then-ok", 32);
+		await text(person.id, SmsDirection.INBOUND, "yes");
+		await turn(
+			person.id,
+			"failed: model-unavailable",
+			new Date(Date.now() - 60_000),
+		);
+		await turn(person.id, "replied", new Date());
+
+		const view = (await loadFunnelView(db as Db, [person])).get(person.id);
+
+		expect(view?.status).toBe("interested");
+		expect(view?.attention).toBeNull();
 	});
 });

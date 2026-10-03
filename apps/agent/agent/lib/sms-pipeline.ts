@@ -1,5 +1,10 @@
+import { eveTurnFailure } from "@crm/validation/eve-stream";
 import { parseFirstTouchTaskPayload } from "@crm/validation/first-touch-task";
 import { detectInjection } from "@crm/validation/outbound-guard";
+import {
+	classifyTurnFailure,
+	smsFailureOutcome,
+} from "@crm/validation/sms-failure";
 import { parseSmsReplyTaskPayload } from "@crm/validation/sms-reply-task";
 import { OUTBOUND_GUARD } from "../hooks/outbound-guard";
 import type { AppAuth } from "./app-auth";
@@ -315,11 +320,26 @@ export async function runSmsTask(
 			);
 			return;
 		case "model": {
-			const session = await start(plan.turn);
+			let session: { id: string };
+			try {
+				session = await start(plan.turn);
+			} catch (error) {
+				console.error(
+					`[sms] Task ${task.id} could not start a model turn: ${error instanceof Error ? error.message : String(error)}`,
+				);
+				await deps.complete(task.id, smsFailureOutcome("turn-failed"));
+				return;
+			}
 			await deps.noteSession(task.id, session.id);
 			return;
 		}
 	}
+}
+
+export function smsTurnFailureOutcome(data: unknown): string {
+	return smsFailureOutcome(
+		classifyTurnFailure(eveTurnFailure.parse(data).code),
+	);
 }
 
 export async function closeSmsTurn(

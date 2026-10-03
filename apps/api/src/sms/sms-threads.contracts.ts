@@ -23,6 +23,7 @@ const smsThreadRow = z.object({
 	}),
 	openCount: z.number().int(),
 	funnelStatus: z.enum(FUNNEL_STATUSES),
+	attention: z.string().nullable(),
 });
 
 type SmsThreadRow = z.infer<typeof smsThreadRow>;
@@ -61,6 +62,7 @@ export const smsThreadOutput = z.object({
 	suppressed: z.boolean(),
 	consented: z.boolean(),
 	funnelStatus: z.enum(FUNNEL_STATUSES),
+	attention: z.string().nullable(),
 	openCount: z.number().int(),
 	truncated: z.boolean(),
 	messages: z.array(smsMessageRow),

@@ -1,6 +1,7 @@
 import { DealStage } from "@crm/db/enums";
 import { FIRST_TOUCH_TASK_KIND } from "@crm/validation/first-touch-task";
 import { FUNNEL_OUTCOMES } from "@crm/validation/funnel-status";
+import { smsFailureOutcome } from "@crm/validation/sms-failure";
 import { SMS_REPLY_TASK_KIND } from "@crm/validation/sms-reply-task";
 
 const SECOND_MS = 1000;
@@ -154,7 +155,7 @@ export const SMS_AGENT = {
 		drafted: "drafted",
 		blocked: "blocked",
 		skipped: "skipped",
-		planFailed: "failed: the task could not be planned",
+		planFailed: smsFailureOutcome("plan-failed"),
 	},
 	sendBlocks: {
 		suppressed: "the number is suppressed",

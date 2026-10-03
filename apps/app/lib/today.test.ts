@@ -17,6 +17,7 @@ function thread(contactId: string, openCount: number, createdAt: string) {
 		phone: null,
 		openCount,
 		funnelStatus: "replied" as const,
+		attention: null as string | null,
 		lastMessage: {
 			preview: "yes please",
 			direction: "INBOUND" as const,
@@ -35,6 +36,28 @@ describe("needsYouItems", () => {
 				threads: NO_THREADS,
 			}),
 		).toEqual([]);
+	});
+
+	it("explains why the assistant could not answer a positive reply", () => {
+		const items = needsYouItems({
+			summary: NO_UNKNOWN,
+			queue: NO_QUEUE,
+			threads: {
+				rows: [
+					{
+						...thread("a", 1, "2026-10-03T09:00:00.000Z"),
+						funnelStatus: "needs_you" as const,
+						attention:
+							"The assistant could not reply: model unavailable. Check the AI key.",
+					},
+				],
+			},
+		});
+
+		expect(items).toHaveLength(1);
+		expect(items[0]?.detail).toBe(
+			"The assistant could not reply: model unavailable. Check the AI key. They wrote: yes please",
+		);
 	});
 
 	it("leaves out leads who declined, opted out or were abusive", () => {

@@ -130,15 +130,18 @@ export function needsYouItems({
 		if (thread.openCount === 0 || CLOSED_THREADS.has(thread.funnelStatus)) {
 			continue;
 		}
+		const reply = preview(thread.lastMessage.preview);
 		raise(
 			thread.contactId,
 			thread.name,
 			"reply",
-			`${thread.openCount === 1 ? "New reply" : `${thread.openCount} new replies`}: ${preview(thread.lastMessage.preview)}`,
+			thread.attention
+				? `${thread.attention} They wrote: ${reply}`
+				: `${thread.openCount === 1 ? "New reply" : `${thread.openCount} new replies`}: ${reply}`,
 			thread.lastMessage.createdAt,
 			{
 				unhandledReplies: thread.openCount,
-				lastReply: preview(thread.lastMessage.preview),
+				lastReply: reply,
 			},
 		);
 	}
