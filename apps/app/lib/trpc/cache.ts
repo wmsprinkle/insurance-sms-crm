@@ -41,6 +41,7 @@ export type CrmCache = {
 	sso(options?: Options): Promise<void>;
 	apiKeys(options?: Options): Promise<void>;
 	tracking(options?: Options): Promise<void>;
+	sms(options?: Options): Promise<void>;
 	everything(): Promise<void>;
 };
 
@@ -277,6 +278,7 @@ export function useCrmCache(): CrmCache {
 					trpc.settings.agentModel.queryKey(),
 					trpc.settings.researchKey.queryKey(),
 					trpc.settings.archiveRetention.queryKey(),
+					trpc.settings.sms.queryKey(),
 				],
 				[],
 				options,
@@ -321,6 +323,13 @@ export function useCrmCache(): CrmCache {
 			run(
 				[trpc.tracking.settings.queryKey()],
 				[trpc.tracking.sources.queryKey()],
+				options,
+			),
+
+		sms: (options) =>
+			run(
+				[trpc.sms.thread.pathKey()],
+				[trpc.sms.threadList.pathKey()],
 				options,
 			),
 

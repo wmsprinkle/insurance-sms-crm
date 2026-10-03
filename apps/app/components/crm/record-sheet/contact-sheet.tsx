@@ -36,6 +36,7 @@ import {
 	savingValue,
 } from "@/components/crm/inline-field";
 import { OwnerCell } from "@/components/crm/owner-cell";
+import { SmsThread } from "@/components/crm/sms-thread";
 import { ContactSocials } from "@/components/crm/social-links";
 import { DealStageMenu } from "@/components/crm/stage-change";
 import { Timeline } from "@/components/crm/timeline/timeline";
@@ -124,6 +125,11 @@ export function ContactSheet({ contactId }: { contactId: string }) {
 					label: "Deals",
 					count: contact.deals.length,
 					content: <ContactDeals contact={contact} />,
+				},
+				{
+					value: "texts",
+					label: "Texts",
+					content: <SmsThread contactId={contact.id} />,
 				},
 				{
 					value: "activity",

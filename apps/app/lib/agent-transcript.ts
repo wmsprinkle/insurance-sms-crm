@@ -81,6 +81,11 @@ const VERBS: ToolVerbs = {
 	set_chat_title: "Named this chat",
 	list_fields: "Read what this workspace tracks",
 	set_field_value: "Filled in a custom field",
+	send_sms: "Sent a text",
+	classify_reply: "Read the reply",
+	opt_out_contact: "Stopped texting this contact",
+	handoff_to_human: "Handed the conversation to a person",
+	record_qualification: "Recorded what the lead needs",
 	manage_fields: "Changed what the CRM tracks",
 	archive_field: "Asked to retire a field",
 

@@ -27,6 +27,10 @@ export const SEARCH_PARAM = {
 	overview: {
 		scope: "scope",
 	},
+	inbox: {
+		contact: "conversation",
+		filter: "show",
+	},
 } as const;
 
 export const RESERVED_SEARCH_PARAM_KEYS: ReadonlySet<string> = new Set(
