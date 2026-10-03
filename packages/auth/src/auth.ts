@@ -13,22 +13,17 @@ import { devLoginPlugin } from "./dev-login-plugin";
 import { env } from "./env";
 import { ensureWorkspaceMembership } from "./organization";
 import {
-	GOOGLE_PROVIDER_ID,
-	MICROSOFT_PROVIDER_ID,
 	MICROSOFT_SYNC_SCOPES,
 	SLACK_PROVIDER_ID,
 	SYNC_SCOPES,
 } from "./scopes";
+import { checkSignIn } from "./sign-in-policy";
 import { notifySignedIn } from "./signed-in";
 import { slackConnectGuard } from "./slack-connect";
 import { rememberSlackInstall, replaceSlackConnection } from "./slack-grant";
 import { SLACK_REQUESTED_SCOPES, SLACK_USER_SCOPES } from "./slack-scopes";
 import { queueSlackInventorySync } from "./slack-sync";
-import {
-	hasSignInAllowList,
-	isWorkspaceEmail,
-	primaryWorkspaceDomain,
-} from "./workspace";
+import { primaryWorkspaceDomain } from "./workspace";
 
 const socialProviders: NonNullable<BetterAuthOptions["socialProviders"]> = {};
 const slackOAuth = env.slack;
@@ -87,7 +82,6 @@ export const auth = betterAuth({
 	account: {
 		accountLinking: {
 			enabled: true,
-			trustedProviders: [GOOGLE_PROVIDER_ID, MICROSOFT_PROVIDER_ID],
 		},
 	},
 
@@ -261,20 +255,9 @@ export const auth = betterAuth({
 		user: {
 			create: {
 				before: async (user) => {
-					if (!hasSignInAllowList()) {
-						throw new APIError("FORBIDDEN", {
-							message:
-								'No one can sign in yet: set ALLOWED_SIGN_IN in .env to your email domain (for example ALLOWED_SIGN_IN="acme.com") and restart.',
-						});
-					}
-
-					if (!isWorkspaceEmail(user.email)) {
-						const domain = primaryWorkspaceDomain();
-						throw new APIError("FORBIDDEN", {
-							message: domain
-								? `This CRM is private. Sign in with your @${domain} account.`
-								: "This CRM is private. That address is not on the allow-list.",
-						});
+					const verdict = checkSignIn(user);
+					if (!verdict.ok) {
+						throw new APIError("FORBIDDEN", { message: verdict.message });
 					}
 
 					return { data: user };
@@ -285,6 +268,17 @@ export const auth = betterAuth({
 		session: {
 			create: {
 				before: async (session) => {
+					const signingIn = await db.user.findUnique({
+						where: { id: session.userId },
+						select: { email: true, emailVerified: true },
+					});
+					const verdict = checkSignIn(
+						signingIn ?? { email: null, emailVerified: false },
+					);
+					if (!verdict.ok) {
+						throw new APIError("FORBIDDEN", { message: verdict.message });
+					}
+
 					const workspaceId = await ensureWorkspaceMembership(session.userId);
 
 					return {

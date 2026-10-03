@@ -73,7 +73,7 @@ async function SignIn({
 	}
 
 	const configured: MailboxProviderId[] = [];
-	if (options?.google ?? true) configured.push("google");
+	if (options?.google ?? false) configured.push("google");
 	if (options?.microsoft ?? false) configured.push("microsoft");
 
 	const devLogin = devLoginFromEnvironment(process.env);
@@ -99,9 +99,8 @@ async function SignIn({
 
 				<p className="text-center text-muted-foreground text-sm/5">
 					Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET — or MICROSOFT_CLIENT_ID
-					and MICROSOFT_CLIENT_SECRET — in the root .env file and restart. Your
-					own identity provider can be added from Settings once somebody is
-					signed in.
+					and MICROSOFT_CLIENT_SECRET — in the root .env file and restart. Steps:
+					docs/OAUTH_SETUP.md.
 				</p>
 			</>
 		);
