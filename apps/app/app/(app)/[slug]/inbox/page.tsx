@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { SmsNavLink } from "@/components/crm/sms-nav-link";
 import {
 	PageShell,
+	PageShellActions,
 	PageShellContent,
 	PageShellDescription,
 	PageShellHeader,
@@ -32,6 +34,9 @@ export default function InboxPage({
 						handled yet.
 					</PageShellDescription>
 				</PageShellHeading>
+				<PageShellActions>
+					<SmsNavLink path="/inbox/drafts" label="Drafts" />
+				</PageShellActions>
 			</PageShellHeader>
 
 			<PageShellContent className="min-h-0">

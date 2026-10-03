@@ -17,8 +17,14 @@ import { Spinner } from "@crm/ui/components/spinner";
 import { StatusIndicator } from "@crm/ui/components/status-indicator";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { SmsComposer } from "@/components/crm/sms-composer";
 import { LocalDateTime } from "@/components/local-date-time";
-import { smsFailed, smsStatus, smsThreadNotices } from "@/lib/sms-presentation";
+import {
+	smsComposerBlock,
+	smsFailed,
+	smsStatus,
+	smsThreadNotices,
+} from "@/lib/sms-presentation";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
@@ -127,6 +133,11 @@ export function SmsThread({ contactId }: { contactId: string }) {
 					))}
 				</BubbleGroup>
 			)}
+
+			<SmsComposer
+				contactId={contactId}
+				blockedReason={smsComposerBlock(data)}
+			/>
 		</div>
 	);
 }

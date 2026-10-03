@@ -70,3 +70,14 @@ export function smsThreadNotices(thread: {
 	}
 	return notices;
 }
+
+export function smsComposerBlock(thread: {
+	phone: string | null;
+	suppressed: boolean;
+	consented: boolean;
+}): string | null {
+	if (!thread.phone) return "Add a phone number to text this contact.";
+	if (thread.suppressed) return "This number opted out. Texting is off.";
+	if (!thread.consented) return "No consent on file. Texting is off.";
+	return null;
+}

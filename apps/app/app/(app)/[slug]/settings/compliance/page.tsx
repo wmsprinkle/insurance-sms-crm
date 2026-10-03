@@ -51,6 +51,7 @@ async function Compliance() {
 	await Promise.all([
 		queryClient.prefetchQuery(trpc.settings.sms.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.quietHours.queryOptions()),
+		queryClient.prefetchQuery(trpc.smsDrafts.queue.queryOptions()),
 	]);
 
 	return (
