@@ -272,3 +272,54 @@ Date: 2026-10-03. SMS plumbing, DRY_RUN by default. Plan: `../RESEARCH.md` §2.1
   State holidays are not modelled.
 - Inbound from a number no contact has: keywords are honoured, other text is logged and dropped.
 - No `SMS` `Activity` row on the timeline yet (P5 task 19).
+
+# Build status — P2b (task 9, integration, P1 keyword gap) (worker-crm-p2b-firsttouch)
+
+Date: 2026-10-03. bun 1.3.12.
+
+## Task 9 — first touch (`apps/api/src/leads/first-touch*.ts`)
+
+- `LeadWriterService` calls `FirstTouchService.enqueue(tx, …)` inside the same transaction that
+  creates the contact and its consent row. A failed enqueue rolls back the lead.
+- `planFirstTouch` order: task already exists → `already-queued`; `PhoneSuppression` → `suppressed`;
+  no un-revoked `ConsentRecord` → `no-consent`; no window in the 8-day horizon → `no-send-window`.
+  Otherwise one `AgentTask` kind `first-touch`, `dueAt` = `nextSendWindow(now, sendWindowFor(phone))`.
+- Idempotent per contact: advisory lock `agent-task:first-touch:<contactId>`, then any existing
+  `first-touch` task (finished or not) blocks a second one.
+- Message text: `AppSetting.sms.firstMessageTemplate` (P5 `@crm/validation/sms-settings`, default
+  names the agency, the insurance quote request, and STOP). Rendered at enqueue time with the
+  contact's first name and the workspace name (fallback `LEADS.firstTouch.agencyFallback`).
+  A queued task keeps the text it was queued with. An unreadable `sms` setting throws.
+- Payload: `@crm/validation/first-touch-task` `{ type: "lead.created", to, message, origin }`,
+  parse with `parseFirstTouchTaskPayload`. Tunables in `LEADS.firstTouch`.
+- No Prisma change: the setting reuses P5's `AppSetting.sms` column.
+
+## Integration
+
+- `apps/api/src/generated/server.ts` regenerated twice (P2 `leads` router, then P5 `sms` router and
+  settings). Every contracts file it imports is committed.
+- oxlint fixes: `calendar-write.client.ts` (`id: booking.eventId`, same JSON output),
+  `calendar-write-client.spec.ts` (named `FakeFetch` type, no `typeof`).
+- `CalendarWriteModule` imported into `AppModule`.
+
+## P1 gap — keyword retry from an unknown number
+
+- `KeywordService` writes an `AgentEvent` with id `sms-keyword:<telnyxId>` (session `sms:keyword`,
+  type `sms.keyword.received`) when no contact owns the sender. A Telnyx retry hits the primary key,
+  answers `duplicate`, and sends no second reply. Known contacts still dedupe on `SmsMessage.telnyxId`.
+
+## Commands and results
+
+| Command | Result |
+|---|---|
+| `bun test test/lead-*.spec.ts test/sms-*.spec.ts test/calendar-write-client.spec.ts` (apps/api, unreachable `TEST_DATABASE_URL`) | pass (37 lead, 48 sms, 17 calendar) |
+| `bun test` (packages/validation) | pass, 19 |
+| `bun run check-types` (root, turbo) | pass, 13/13 |
+| `bun run lint:slop` (root oxlint) | pass |
+| `bun run lint` (root, turbo) | fails only on `packages/validation/src/sms-send.ts` (another temp, uncommitted, formatting) |
+
+## Not run / not done
+
+- No Postgres: the enqueue is tested against the in-memory fake, not a real transaction or lock.
+- Nest boot with `CalendarWriteModule` and `ComplianceModule` in `LeadsModule` was not run.
+- The agent does not yet handle `first-touch` tasks (P3b: send `payload.message` through `send_sms`).
