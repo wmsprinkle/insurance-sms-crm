@@ -20,6 +20,10 @@ export const SMS = {
 		priority: 90,
 		budget: 4,
 	},
+	threads: {
+		previewLength: 160,
+		maxMessages: 200,
+	},
 	pausedTaskKinds: ["sms-reply", "first-touch", "sms-follow-up"],
 	keywords: {
 		stop: [

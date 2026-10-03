@@ -5,20 +5,29 @@ import {
 	readAgentModel,
 	readArchiveRetentionDays,
 	readContextDevKey,
+	SETTINGS_ID,
 	writeAgentModel,
 	writeArchiveRetentionDays,
 	writeContextDevKey,
 } from "@crm/db/settings";
+import {
+	DEFAULT_SMS_SETTINGS,
+	parseSmsSettings,
+	type SmsSettings,
+} from "@crm/validation/sms-settings";
 import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import { ResearchKeyService } from "../agent/research-key.service";
 import { BackfillService } from "../backfill/backfill.service";
 import { InjectDatabase } from "../database/database.constants";
 import { ModelCatalogService } from "./model-catalog.service";
+import { quietHoursTable } from "./quiet-hours-table";
 import type {
 	AgentModelSettings,
 	ArchiveRetentionSettings,
 	ModelCatalogResult,
+	QuietHoursResult,
 	ResearchKeySettings,
+	SmsSettingsResult,
 } from "./settings.contracts";
 
 @Injectable()
@@ -143,5 +152,37 @@ export class SettingsService {
 		});
 
 		return { days: saved };
+	}
+
+	async sms(): Promise<SmsSettingsResult> {
+		const row = await this.db.appSetting.findUnique({
+			where: { id: SETTINGS_ID },
+			select: { sms: true },
+		});
+
+		return {
+			settings: parseSmsSettings(row?.sms),
+			defaults: { ...DEFAULT_SMS_SETTINGS },
+		};
+	}
+
+	async setSms(settings: SmsSettings): Promise<SmsSettingsResult> {
+		await this.db.appSetting.upsert({
+			where: { id: SETTINGS_ID },
+			create: { id: SETTINGS_ID, sms: settings },
+			update: { sms: settings },
+		});
+
+		this.logger.log({
+			message: "SMS settings changed",
+			disclosureMode: settings.disclosureMode,
+			autoSend: settings.autoSend,
+		});
+
+		return this.sms();
+	}
+
+	quietHours(): QuietHoursResult {
+		return { rows: quietHoursTable() };
 	}
 }

@@ -7,10 +7,13 @@ import {
 	agentModelOutput,
 	archiveRetentionOutput,
 	modelCatalogOutput,
+	quietHoursOutput,
 	researchKeyOutput,
 	setAgentModelInput,
 	setArchiveRetentionDaysInput,
 	setResearchKeyInput,
+	setSmsSettingsInput,
+	smsSettingsOutput,
 } from "./settings.contracts";
 import { SettingsService } from "./settings.service";
 
@@ -80,5 +83,30 @@ export class SettingsRouter {
 		@Input() input: z.infer<typeof setArchiveRetentionDaysInput>,
 	) {
 		return this.settings.setArchiveRetention(input.days);
+	}
+
+	@Query({
+		output: smsSettingsOutput,
+		meta: restMeta("GET", "/settings/sms", ["Settings"]),
+	})
+	async sms() {
+		return this.settings.sms();
+	}
+
+	@Mutation({
+		input: setSmsSettingsInput,
+		output: smsSettingsOutput,
+		meta: restMeta("PATCH", "/settings/sms", ["Settings"]),
+	})
+	async setSms(@Input() input: z.infer<typeof setSmsSettingsInput>) {
+		return this.settings.setSms(input);
+	}
+
+	@Query({
+		output: quietHoursOutput,
+		meta: restMeta("GET", "/settings/quiet-hours", ["Settings"]),
+	})
+	async quietHours() {
+		return this.settings.quietHours();
 	}
 }

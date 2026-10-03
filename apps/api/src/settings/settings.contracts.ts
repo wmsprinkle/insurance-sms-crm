@@ -2,6 +2,7 @@ import {
 	MAX_ARCHIVE_RETENTION_DAYS,
 	MIN_ARCHIVE_RETENTION_DAYS,
 } from "@crm/db/settings";
+import { smsSettings } from "@crm/validation/sms-settings";
 import { z } from "zod";
 
 export const catalogModelOutput = z.object({
@@ -81,3 +82,27 @@ export const setArchiveRetentionDaysInput = z.object({
 export type SetArchiveRetentionDaysInput = z.infer<
 	typeof setArchiveRetentionDaysInput
 >;
+
+export const smsSettingsOutput = z.object({
+	settings: smsSettings,
+	defaults: smsSettings,
+});
+
+export type SmsSettingsResult = z.infer<typeof smsSettingsOutput>;
+
+export const setSmsSettingsInput = smsSettings;
+
+export type SetSmsSettingsInput = z.infer<typeof setSmsSettingsInput>;
+
+export const quietHoursOutput = z.object({
+	rows: z.array(
+		z.object({
+			scope: z.string(),
+			days: z.array(
+				z.object({ day: z.string(), window: z.string().nullable() }),
+			),
+		}),
+	),
+});
+
+export type QuietHoursResult = z.infer<typeof quietHoursOutput>;
