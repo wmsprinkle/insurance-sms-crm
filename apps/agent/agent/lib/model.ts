@@ -3,7 +3,7 @@ import "@crm/env/load";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { db } from "@crm/db";
 import { DEFAULT_AGENT_MODEL, readAgentModel } from "@crm/db/settings";
-import { defineDynamic } from "eve";
+import { type AgentModelDefinition, defineDynamic } from "eve";
 import { ANTHROPIC } from "./model-config";
 
 export interface ModelSelection {
@@ -73,7 +73,7 @@ export async function selectedModel(): Promise<ModelSelection | null> {
 export function modelDefinition<Ctx>(
 	pick: (ctx: Ctx) => Promise<ModelSelection | null>,
 	env: Env = process.env,
-) {
+): AgentModelDefinition {
 	const fallback = fallbackModel(env);
 
 	if (typeof fallback === "string") {
