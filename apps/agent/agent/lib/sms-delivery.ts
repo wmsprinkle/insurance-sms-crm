@@ -16,6 +16,7 @@ export type DeliveryRequest = {
 	idempotencyKey: string;
 	bookingLink: string | null;
 	disclosure?: DisclosureMode;
+	quietHours?: "draft" | "defer";
 };
 
 export type Delivery =
@@ -35,6 +36,7 @@ export type Delivery =
 			retryAt: string | null;
 			detail: string;
 	  }
+	| { status: "later"; text: string; retryAt: Date }
 	| { status: "refused"; reason: string };
 
 export type DeliveryDeps = {
@@ -124,6 +126,17 @@ export async function deliver(
 				dryRun: judged.dryRun,
 			};
 		case "hold":
+			if (
+				judged.reason === "quiet-hours" &&
+				judged.retryAt &&
+				request.quietHours === "defer"
+			) {
+				return {
+					status: "later",
+					text: verdict.message,
+					retryAt: judged.retryAt,
+				};
+			}
 			return hold(judged.reason, judged.retryAt, judged.detail);
 		case "refused":
 			return { status: "refused", reason: judged.reason };

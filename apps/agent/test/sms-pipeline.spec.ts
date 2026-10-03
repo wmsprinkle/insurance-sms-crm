@@ -104,6 +104,30 @@ describe("first-touch", () => {
 		expect(fake.drafts[0]?.reason).toBe("approval-mode");
 	});
 
+	it("reschedules itself to the end of quiet hours instead of drafting", async () => {
+		const fake = fakeSms({ autoSend: true });
+		const retryAt = "2026-10-03T22:00:00.000Z";
+		const path = recordingPath({
+			status: "blocked",
+			reason: "quiet-hours",
+			retryAt,
+		});
+
+		const plan = await planSmsTask(FIRST_TOUCH, deps(fake, path));
+
+		expect(plan).toEqual({ kind: "reschedule", at: new Date(retryAt) });
+		expect(fake.drafts).toHaveLength(0);
+
+		await runSmsTask(FIRST_TOUCH, async () => ({ id: "s1" }), {
+			...deps(fake, path),
+			complete: async () => {},
+			noteSession: async () => {},
+		});
+		expect(fake.deferred).toEqual([
+			{ taskId: "t-first", delayMs: 7 * 60 * 60 * 1000 },
+		]);
+	});
+
 	it("throws on an unreadable payload", async () => {
 		await expect(
 			planSmsTask(

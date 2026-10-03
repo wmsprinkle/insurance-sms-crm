@@ -39,6 +39,7 @@ export type SmsTurnStart = {
 export type SmsPlan =
 	| { kind: "settled"; outcome: string }
 	| { kind: "defer"; reason: string }
+	| { kind: "reschedule"; at: Date }
 	| { kind: "model"; turn: SmsTurnStart };
 
 function clip(text: string, max: number): string {
@@ -93,6 +94,8 @@ function outcomeOf(
 			return `${prefix}: ${SMS_AGENT.outcomes.drafted} (${delivery.reason})`;
 		case "refused":
 			return `${prefix}: ${SMS_AGENT.outcomes.blocked} (${delivery.reason})`;
+		case "later":
+			return `${prefix}: quiet hours until ${delivery.retryAt.toISOString()}`;
 	}
 }
 
@@ -118,9 +121,13 @@ export async function planSmsTask(
 				taskId: task.id,
 				idempotencyKey: `first-touch:${task.id}`,
 				bookingLink: null,
+				quietHours: "defer",
 			},
 			deps,
 		);
+		if (delivery.status === "later") {
+			return { kind: "reschedule", at: delivery.retryAt };
+		}
 		return { kind: "settled", outcome: outcomeOf("first-touch", delivery) };
 	}
 
@@ -208,6 +215,7 @@ export async function planSmsTask(
 }
 
 export type SmsRunDeps = DeliveryDeps & {
+	now?: Date;
 	complete: (taskId: string, outcome: string) => Promise<unknown>;
 	noteSession: (taskId: string, sessionId: string) => Promise<void>;
 };
@@ -233,6 +241,12 @@ export async function runSmsTask(
 			return;
 		case "defer":
 			await deps.store.deferTask(task.id, SMS_AGENT.session.deferMs);
+			return;
+		case "reschedule":
+			await deps.store.deferTask(
+				task.id,
+				Math.max(0, plan.at.getTime() - (deps.now ?? new Date()).getTime()),
+			);
 			return;
 		case "model": {
 			const session = await start(plan.turn);
