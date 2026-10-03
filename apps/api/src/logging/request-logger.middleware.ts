@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Injectable, Logger, type NestMiddleware } from "@nestjs/common";
 import type { NextFunction, Request, Response } from "express";
+import { loggablePath } from "./loggable-path";
 import { type RequestContext, runInRequestContext } from "./request-context";
 
 const REQUEST_ID_HEADER = "x-request-id";
@@ -18,7 +19,7 @@ export class RequestLoggerMiddleware implements NestMiddleware {
 		const context: RequestContext = {
 			requestId,
 			method: request.method,
-			path: request.originalUrl,
+			path: loggablePath(request.originalUrl),
 		};
 		const startedAt = process.hrtime.bigint();
 

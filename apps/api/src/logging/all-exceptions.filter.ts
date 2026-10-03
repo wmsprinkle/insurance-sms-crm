@@ -8,6 +8,7 @@ import {
 	Logger,
 } from "@nestjs/common";
 import type { Request, Response } from "express";
+import { loggablePath } from "./loggable-path";
 import { getRequestContext } from "./request-context";
 
 @Catch()
@@ -42,7 +43,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 		const payload = {
 			message: describe(exception),
 			method: request.method,
-			path: request.originalUrl,
+			path: loggablePath(request.originalUrl),
 			statusCode: status,
 			exception: exception?.constructor?.name,
 		};
