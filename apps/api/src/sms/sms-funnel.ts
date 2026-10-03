@@ -89,3 +89,44 @@ export async function loadFunnelStatuses(
 		]),
 	);
 }
+
+const CLOSED_STATUSES: ReadonlySet<FunnelStatus> = new Set([
+	"not_interested",
+	"opted_out",
+	"abusive",
+]);
+
+const SETTLE_SCAN_LIMIT = 5_000;
+
+export async function settleClosedThreads(db: Db): Promise<number> {
+	const open = await db.smsMessage.findMany({
+		where: { direction: SmsDirection.INBOUND, handledAt: null },
+		distinct: ["contactId"],
+		select: { contactId: true },
+		take: SETTLE_SCAN_LIMIT,
+	});
+	if (open.length === 0) return 0;
+
+	const contacts = await db.contact.findMany({
+		where: { id: { in: open.map((row) => row.contactId) } },
+		select: { id: true, phone: true },
+	});
+	const statuses = await loadFunnelStatuses(db, contacts);
+	const closed = contacts
+		.filter((contact) => {
+			const status = statuses.get(contact.id);
+			return status !== undefined && CLOSED_STATUSES.has(status);
+		})
+		.map((contact) => contact.id);
+	if (closed.length === 0) return 0;
+
+	const { count } = await db.smsMessage.updateMany({
+		where: {
+			contactId: { in: closed },
+			direction: SmsDirection.INBOUND,
+			handledAt: null,
+		},
+		data: { handledAt: new Date() },
+	});
+	return count;
+}

@@ -37,6 +37,40 @@ describe("needsYouItems", () => {
 		).toEqual([]);
 	});
 
+	it("leaves out leads who declined, opted out or were abusive", () => {
+		const closed = (
+			contactId: string,
+			funnelStatus: "not_interested" | "opted_out" | "abusive",
+		) => ({ ...thread(contactId, 1, "2026-10-03T09:00:00.000Z"), funnelStatus });
+
+		const items = needsYouItems({
+			summary: NO_UNKNOWN,
+			queue: {
+				drafts: [],
+				handoffs: [
+					{
+						id: "h1",
+						contactId: "x",
+						name: "Rude",
+						phone: null,
+						reason: "triage:abusive",
+						createdAt: "2026-10-03T11:00:00.000Z",
+					},
+				],
+			},
+			threads: {
+				rows: [
+					closed("a", "not_interested"),
+					closed("b", "opted_out"),
+					closed("c", "abusive"),
+					thread("d", 1, "2026-10-03T09:00:00.000Z"),
+				],
+			},
+		});
+
+		expect(items.map((item) => item.contactId)).toEqual(["d"]);
+	});
+
 	it("keeps one row per lead and the most urgent kind", () => {
 		const items = needsYouItems({
 			summary: NO_UNKNOWN,

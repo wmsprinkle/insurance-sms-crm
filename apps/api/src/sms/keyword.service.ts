@@ -179,6 +179,14 @@ export class KeywordService {
 			where: { contactId, status: SmsDraftStatus.PENDING },
 			data: { status: SmsDraftStatus.DISCARDED, decidedAt: now },
 		});
+		await tx.smsMessage.updateMany({
+			where: {
+				contactId,
+				direction: SmsDirection.INBOUND,
+				handledAt: null,
+			},
+			data: { handledAt: now },
+		});
 	}
 
 	private async record(

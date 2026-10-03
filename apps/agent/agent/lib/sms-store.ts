@@ -80,6 +80,7 @@ export interface SmsStore {
 		since: Date,
 	): Promise<{ recent: number; total: number }>;
 	discardDrafts(contactId: string): Promise<number>;
+	markInboundHandled(contactId: string): Promise<number>;
 }
 
 const SMS_TASK_KINDS = Object.values(SMS_AGENT.taskKinds);
@@ -249,6 +250,18 @@ export const prismaSmsStore: SmsStore = {
 				suppressedAt: suppression.createdAt,
 			};
 		});
+	},
+
+	async markInboundHandled(contactId) {
+		const { count } = await db.smsMessage.updateMany({
+			where: {
+				contactId,
+				direction: SmsDirection.INBOUND,
+				handledAt: null,
+			},
+			data: { handledAt: new Date() },
+		});
+		return count;
 	},
 
 	async finishSmsTasks(contactId, outcome, keepTaskId) {

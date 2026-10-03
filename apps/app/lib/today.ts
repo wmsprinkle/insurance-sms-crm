@@ -13,6 +13,12 @@ export const TODAY_VIEW = {
 	},
 } as const;
 
+const CLOSED_THREADS: ReadonlySet<string> = new Set([
+	"not_interested",
+	"opted_out",
+	"abusive",
+]);
+
 export type NeedsYouKind = "unknown_send" | "handoff" | "draft" | "reply";
 
 export type NeedsYouItem = {
@@ -100,6 +106,7 @@ export function needsYouItems({
 		);
 	}
 	for (const handoff of queue.handoffs) {
+		if (handoff.reason.startsWith(TODAY_VIEW.handoffReasons.abusive)) continue;
 		raise(
 			handoff.contactId,
 			handoff.name,
@@ -120,7 +127,9 @@ export function needsYouItems({
 		);
 	}
 	for (const thread of threads.rows) {
-		if (thread.openCount === 0) continue;
+		if (thread.openCount === 0 || CLOSED_THREADS.has(thread.funnelStatus)) {
+			continue;
+		}
 		raise(
 			thread.contactId,
 			thread.name,

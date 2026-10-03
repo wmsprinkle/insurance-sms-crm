@@ -23,6 +23,7 @@ export async function declineLead(
 		taskId,
 	);
 	await deps.store.discardDrafts(contactId);
+	await deps.store.markInboundHandled(contactId);
 	return deps.store.setDealStage(contactId, DealStage.UNQUALIFIED_TO_BUY);
 }
 
@@ -38,6 +39,7 @@ export async function flagAbusive(
 		taskId,
 	);
 	await deps.store.discardDrafts(contactId);
+	await deps.store.markInboundHandled(contactId);
 }
 
 export async function holdAmbiguous(
@@ -82,6 +84,7 @@ export async function applyTriage(
 				},
 				deps,
 			);
+			await deps.store.markInboundHandled(contactId);
 			return {
 				outcome: `${SMS_AGENT.outcomes.optedOut}: ${verdict.rule} reply`,
 			};

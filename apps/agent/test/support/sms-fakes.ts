@@ -32,6 +32,7 @@ export type FakeSms = {
 	closedTurns: { contactId: string; outcome: string }[];
 	turns: { startedAt: Date }[];
 	discarded: string[];
+	handled: string[];
 };
 
 export const LEAD = { id: "c1", firstName: "Dana", phone: "+15125550100" };
@@ -56,6 +57,7 @@ export function fakeSms(overrides: Partial<SmsSettings> = {}): FakeSms {
 		closedTurns: [],
 		turns: [],
 		discarded: [],
+		handled: [],
 	};
 
 	const store: SmsStore = {
@@ -131,6 +133,10 @@ export function fakeSms(overrides: Partial<SmsSettings> = {}): FakeSms {
 		discardDrafts: async (contactId) => {
 			fake.discarded.push(contactId);
 			return 0;
+		},
+		markInboundHandled: async (contactId) => {
+			fake.handled.push(contactId);
+			return 1;
 		},
 		finishStartedTurns: async (contactId, outcome) => {
 			fake.closedTurns.push({ contactId, outcome });

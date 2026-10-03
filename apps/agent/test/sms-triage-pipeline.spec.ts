@@ -76,6 +76,7 @@ describe("negative reply", () => {
 				keep: "t-reply",
 			});
 			expect(fake.discarded).toEqual([LEAD.id]);
+			expect(fake.handled).toEqual([LEAD.id]);
 			expect(fake.optOuts).toHaveLength(0);
 			expect(fake.handoffs.size).toBe(0);
 		});

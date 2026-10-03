@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { type Db, db, SmsDirection } from "@crm/db";
 import { DealStage } from "@crm/db/enums";
 import { FUNNEL_HOLD_REASONS } from "@crm/validation/funnel-status";
-import { loadFunnelStatuses } from "../src/sms/sms-funnel";
+import { loadFunnelStatuses, settleClosedThreads } from "../src/sms/sms-funnel";
 
 const suffix = crypto.randomUUID().slice(0, 8);
 const ownerId = `funnel-owner-${suffix}`;
@@ -178,5 +178,58 @@ describe("loadFunnelStatuses", () => {
 
 		expect(map.get(a.id)).toBe("new");
 		expect(map.get(b.id)).toBe("texted");
+	});
+});
+
+describe("settleClosedThreads", () => {
+	async function unhandled(contactId: string) {
+		return db.smsMessage.count({
+			where: { contactId, direction: SmsDirection.INBOUND, handledAt: null },
+		});
+	}
+
+	it("marks the replies of a declined lead handled and leaves a live lead open", async () => {
+		const declined = await lead("settle-no", 20);
+		await text(declined.id, SmsDirection.INBOUND, "not interested");
+		await db.agentTask.create({
+			data: {
+				contactId: declined.id,
+				kind: "sms-reply",
+				reason: "Lead replied",
+				dueAt: new Date(),
+				finishedAt: new Date(),
+				outcome: "not-interested: the lead declined",
+			},
+		});
+
+		const live = await lead("settle-live", 21);
+		await text(live.id, SmsDirection.INBOUND, "tell me more");
+
+		expect(await settleClosedThreads(db as Db)).toBeGreaterThanOrEqual(1);
+
+		expect(await unhandled(declined.id)).toBe(0);
+		expect(await unhandled(live.id)).toBe(1);
+		expect(await statusOf(declined)).toBe("not_interested");
+	});
+
+	it("settles an opted-out lead and an abusive one", async () => {
+		const optedOut = await lead("settle-stop", 22);
+		await text(optedOut.id, SmsDirection.INBOUND, "stop");
+		await db.phoneSuppression.create({
+			data: { e164: optedOut.phone, reason: "OPT_OUT_REQUEST" },
+		});
+
+		const abusive = await lead("settle-rude", 23);
+		await text(abusive.id, SmsDirection.INBOUND, "rude words");
+		await db.smsHandoff.create({
+			data: { contactId: abusive.id, reason: FUNNEL_HOLD_REASONS.abusive },
+		});
+
+		await settleClosedThreads(db as Db);
+
+		expect(await unhandled(optedOut.id)).toBe(0);
+		expect(await unhandled(abusive.id)).toBe(0);
+		expect(await statusOf(optedOut)).toBe("opted_out");
+		expect(await statusOf(abusive)).toBe("abusive");
 	});
 });

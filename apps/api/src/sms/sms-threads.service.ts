@@ -3,7 +3,7 @@ import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
 import { paginate } from "../trpc/list-input";
 import { SMS } from "./sms-config";
-import { loadFunnelStatuses } from "./sms-funnel";
+import { loadFunnelStatuses, settleClosedThreads } from "./sms-funnel";
 import { contactDisplayName, previewOf, threadSearch } from "./sms-threads";
 import type {
 	SmsAgentSessionOutput,
@@ -26,6 +26,8 @@ export class SmsThreadsService {
 	constructor(@InjectDatabase() private readonly db: Db) {}
 
 	async list(input: SmsThreadListInput): Promise<SmsThreadListOutput> {
+		await settleClosedThreads(this.db);
+
 		const contact = threadSearch(input.q);
 		const all = { contact } satisfies Prisma.SmsMessageWhereInput;
 		const open = { ...OPEN, contact } satisfies Prisma.SmsMessageWhereInput;
@@ -108,6 +110,8 @@ export class SmsThreadsService {
 	}
 
 	async thread(input: SmsThreadInput): Promise<SmsThreadOutput> {
+		await settleClosedThreads(this.db);
+
 		const contact = await this.db.contact.findUnique({
 			where: { id: input.contactId },
 			select: { id: true, phone: true },
