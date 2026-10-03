@@ -274,6 +274,7 @@ describe("SmsService.receive keywords", () => {
 				contactId: null,
 				type: "sms.keyword.received",
 				data: { from: "+13055550199", keyword: "stop", telnyxId: "in-1" },
+				emittedAt: expect.any(Date),
 			},
 		]);
 		expect(

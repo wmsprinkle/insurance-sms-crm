@@ -45,6 +45,7 @@ export type FakeState = {
 		contactId: string | null;
 		type: string;
 		data: Prisma.InputJsonValue;
+		emittedAt?: Date;
 	}[];
 };
 
@@ -223,6 +224,31 @@ export function fakeDb(seed: Partial<FakeState> = {}) {
 				if (state.events.some((row) => row.id === data.id)) throw duplicate();
 				state.events.push(data);
 				return data;
+			},
+			findUnique: async ({ where }: { where: { id: string } }) =>
+				state.events.find((row) => row.id === where.id) ?? null,
+			update: async ({
+				where,
+				data,
+			}: {
+				where: { id: string };
+				data: Partial<FakeState["events"][number]>;
+			}) => {
+				const row = state.events.find((event) => event.id === where.id);
+				if (!row) throw new Error(`No agent event ${where.id}`);
+				Object.assign(row, data);
+				return row;
+			},
+			updateMany: async ({
+				where,
+				data,
+			}: {
+				where: Where;
+				data: Partial<FakeState["events"][number]>;
+			}) => {
+				const rows = state.events.filter((row) => matches(row, where));
+				for (const row of rows) Object.assign(row, data);
+				return { count: rows.length };
 			},
 		},
 	};

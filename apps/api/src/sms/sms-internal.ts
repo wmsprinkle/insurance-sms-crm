@@ -1,0 +1,61 @@
+import { timingSafeEqual } from "node:crypto";
+import type { SmsSendPurpose, SmsSendResponse } from "@crm/validation/sms-send";
+import type { SendPurpose } from "../compliance/send-gate";
+import type { SendOutcome } from "./sms-sender.service";
+
+const KILOBYTE = 1024;
+
+export const SMS_INTERNAL = {
+	body: { maxBytes: 16 * KILOBYTE },
+	idempotency: {
+		idPrefix: "sms-send:",
+		sessionId: "sms:send",
+		claimed: "sms.send.claimed",
+		sent: "sms.send.sent",
+		released: "sms.send.released",
+	},
+	errors: {
+		unknownContact: "The contact does not exist or is archived.",
+		wrongNumber: "The number does not belong to the contact.",
+		inProgress: "A send with this idempotency key is in progress.",
+	},
+} as const;
+
+const BEARER = "Bearer ";
+
+export function bridgeAuthorised(
+	header: string | undefined,
+	secret: string,
+): boolean {
+	if (!header?.startsWith(BEARER)) return false;
+	const candidate = Buffer.from(header.slice(BEARER.length));
+	const expected = Buffer.from(secret);
+	if (candidate.length !== expected.length) return false;
+
+	return timingSafeEqual(candidate, expected);
+}
+
+export function gatePurpose(purpose: SmsSendPurpose): SendPurpose {
+	return purpose === "opt-out-confirmation" ? "keyword-reply" : "conversation";
+}
+
+export function sendResponse(outcome: SendOutcome): SmsSendResponse {
+	if (outcome.status === "sent") {
+		return {
+			status: "sent",
+			telnyxId: outcome.telnyxId,
+			dryRun: outcome.dryRun,
+		};
+	}
+	if (outcome.status === "failed") {
+		return { status: "failed", error: outcome.error };
+	}
+	if (outcome.decision.allowed) {
+		throw new Error("A blocked send carries an allowed gate decision.");
+	}
+	return {
+		status: "blocked",
+		reason: outcome.decision.reason,
+		retryAt: outcome.decision.retryAt?.toISOString() ?? null,
+	};
+}

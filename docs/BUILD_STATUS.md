@@ -323,3 +323,35 @@ Date: 2026-10-03. bun 1.3.12.
 - No Postgres: the enqueue is tested against the in-memory fake, not a real transaction or lock.
 - Nest boot with `CalendarWriteModule` and `ComplianceModule` in `LeadsModule` was not run.
 - The agent does not yet handle `first-touch` tasks (P3b: send `payload.message` through `send_sms`).
+
+# Build status — P2c agent send endpoint (worker-crm-p2c-sendendpoint)
+
+Date: 2026-10-03. `POST /internal/sms/send`, the agent → API bridge. Contract: `@crm/validation/sms-send` (P3b).
+
+- Controller `apps/api/src/sms/sms-internal.controller.ts`. No anonymous access: `AGENT_BRIDGE_SECRET`
+  unset → 503; missing or wrong `Bearer` → 401 before the body is read; bad body → 400; body over
+  `SMS_INTERNAL.body.maxBytes` → 413. Constant-time compare (`timingSafeEqual`, same as the agent's
+  `channels/crm.ts`).
+- `SmsInternalService` (`sms-internal.service.ts`): checks the number is the phone of a live contact,
+  claims the idempotency key, sends through `SmsSender` (gate → Telnyx → `SmsMessage`), answers
+  `sent` / `blocked` (reason + `retryAt` ISO for quiet hours) / `failed`.
+- Idempotency: `AgentEvent` id `sms-send:<idempotencyKey>`, session `sms:send`. Type `sms.send.sent`
+  holds the response; a repeat key replays it and sends nothing. A block, a Telnyx failure or a throw
+  marks it `sms.send.released`, so a later retry with the same key sends. A held claim answers
+  `failed` "in progress".
+- `dryRun: true` uses a second `SmsSender` (`SMS_DRY_RUN_SENDER`) whose `TelnyxClient` is forced dry.
+  `SMS_DRY_RUN=true` in env still forces dry for every request.
+- Purpose → gate: `opt-out-confirmation` → `keyword-reply` (skips consent and suppression); the rest
+  → `conversation`.
+
+| Command | Result |
+| --- | --- |
+| `bun test test/sms-*.spec.ts test/compliance-*.spec.ts test/lead-*.spec.ts` (apps/api, unreachable `TEST_DATABASE_URL`) | pass, 136 tests (21 new in `sms-internal.spec.ts`) |
+| `bun run check-types` (apps/api) | pass |
+| `bun run lint` (apps/api) | pass (4 old warnings in other files) |
+| `oxlint` on the touched files | pass |
+
+Notes:
+- `test/sms-service.spec.ts` keyword-receipt test expected no `emittedAt`; fixed (it failed on HEAD).
+- The test fake `agentEvent` gained `findUnique`, `update`, `updateMany`.
+- Quiet-hours `retryAt` is tested on the mapping only; the gate reads the wall clock.
