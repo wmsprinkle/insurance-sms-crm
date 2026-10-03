@@ -1,3 +1,4 @@
+import { DealStage } from "@crm/db/enums";
 import { FIRST_TOUCH_TASK_KIND } from "@crm/validation/first-touch-task";
 import { SMS_REPLY_TASK_KIND } from "@crm/validation/sms-reply-task";
 
@@ -24,6 +25,40 @@ export const SMS_AGENT = {
 		deferMs: 30 * SECOND_MS,
 	},
 	licensedStates: [] as readonly string[],
+	booking: {
+		durationMs: 30 * MINUTE_MS,
+		horizonMs: 14 * 24 * HOUR_MS,
+		bridgeTimeoutMs: 30 * SECOND_MS,
+		summary: "Insurance call with",
+		activitySource: "sms-booking",
+		description:
+			"Booked by the SMS assistant. A licensed agent calls the lead at this time.",
+		slotFormat: {
+			weekday: "short",
+			month: "short",
+			day: "numeric",
+			hour: "numeric",
+			minute: "2-digit",
+			timeZoneName: "short",
+		},
+	},
+	deals: {
+		progress: [
+			DealStage.QUALIFIED_TO_BUY,
+			DealStage.DEMO_BOOKED,
+			DealStage.DECISION_MAKER_BOUGHT_IN,
+			DealStage.CONTRACT_SENT,
+		],
+		createOn: new Set<DealStage>([
+			DealStage.QUALIFIED_TO_BUY,
+			DealStage.DEMO_BOOKED,
+		]),
+		nameSuffix: " — insurance",
+		householdSuffix: " (household)",
+		contactRole: "lead",
+		lockPrefix: "sms-deal:",
+		ownerProvider: "google",
+	},
 	messages: {
 		handoff:
 			"Thanks for the details. Let me get a licensed agent to follow up with you directly on this.",

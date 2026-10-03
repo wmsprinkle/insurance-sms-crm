@@ -13,6 +13,7 @@ export type FakeSms = {
 	store: SmsStore;
 	contacts: Map<string, SmsContact>;
 	settings: SmsSettings;
+	bookingLink: string | null;
 	handoffs: Map<string, { reason: string; resolved: boolean }>;
 	drafts: (DraftInput & { id: string })[];
 	lines: Map<string, SmsLine & { id: string; contactId: string }>;
@@ -30,6 +31,7 @@ export function fakeSms(overrides: Partial<SmsSettings> = {}): FakeSms {
 	const fake: Omit<FakeSms, "store"> = {
 		contacts: new Map([[LEAD.id, LEAD]]),
 		settings: { ...DEFAULT_SMS_SETTINGS, ...overrides },
+		bookingLink: null,
 		handoffs: new Map(),
 		drafts: [],
 		lines: new Map(),
@@ -44,6 +46,7 @@ export function fakeSms(overrides: Partial<SmsSettings> = {}): FakeSms {
 	const store: SmsStore = {
 		contact: async (id) => fake.contacts.get(id) ?? null,
 		settings: async () => fake.settings,
+		bookingLink: async () => fake.bookingLink,
 		activeHandoff: async (id) => {
 			const handoff = fake.handoffs.get(id);
 			return handoff && !handoff.resolved ? { reason: handoff.reason } : null;

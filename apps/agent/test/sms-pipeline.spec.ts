@@ -158,6 +158,23 @@ describe("sms-reply", () => {
 		});
 	});
 
+	it("passes the fallback booking link to the model and to send_sms", async () => {
+		const fake = fakeSms();
+		fake.bookingLink = "https://book.example.com/agency";
+		addInbound(fake, "m1", "can we talk tomorrow?", NOW);
+
+		const plan = await planSmsTask(replyTask(["m1"]), deps(fake));
+
+		expect(plan.kind).toBe("model");
+		if (plan.kind !== "model") return;
+		expect(plan.turn.message).toContain(
+			"Booking link: https://book.example.com/agency",
+		);
+		expect(plan.turn.auth(APP_AUTH).attributes).toMatchObject({
+			bookingLink: "https://book.example.com/agency",
+		});
+	});
+
 	it("hands off a prompt injection without a model call", async () => {
 		const fake = fakeSms();
 		const path = recordingPath(SENT);

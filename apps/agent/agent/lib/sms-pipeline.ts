@@ -76,7 +76,7 @@ export function smsTurnMessage(input: {
 		"",
 		`Disclosure mode: ${input.disclosure}`,
 		input.bookingLink
-			? `Booking link: ${input.bookingLink}`
+			? `Booking link: ${input.bookingLink} (send it only when propose_slots or book_meeting says the calendar is unavailable)`
 			: "Booking link: none. Do not send any link.",
 		"",
 		"Load the sms-conduct and qualification skills. Call classify_reply first, act on its result, and send at most one reply with send_sms.",
@@ -189,7 +189,7 @@ export async function planSmsTask(
 		contactId,
 		OUTBOUND_GUARD.historyMessages,
 	);
-	const bookingLink = null;
+	const bookingLink = await store.bookingLink();
 	const message = smsTurnMessage({
 		inbound,
 		history,
@@ -208,6 +208,7 @@ export async function planSmsTask(
 					...base.attributes,
 					[SMS_ATTRIBUTES.taskId]: task.id,
 					[SMS_ATTRIBUTES.disclosure]: settings.disclosureMode,
+					[SMS_ATTRIBUTES.bookingLink]: bookingLink ?? "",
 				},
 			}),
 		},

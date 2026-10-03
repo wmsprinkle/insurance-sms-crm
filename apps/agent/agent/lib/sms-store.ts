@@ -1,13 +1,14 @@
 import { db } from "@crm/db";
-import { CLOSED_DEAL_STAGES, isClosedStage } from "@crm/db/deal-stage";
 import { type DealStage, SmsDirection, SuppressionReason } from "@crm/db/enums";
 import { SETTINGS_ID } from "@crm/db/settings";
+import { parseCalendarSettings } from "@crm/validation/calendar-settings";
 import type { SmsHoldReason } from "@crm/validation/sms-send";
 import {
 	parseSmsSettings,
 	type SmsSettings,
 } from "@crm/validation/sms-settings";
 import { SMS_AGENT } from "./sms-config";
+import { ensureLeadDeal } from "./sms-deal";
 
 export type SmsContact = {
 	id: string;
@@ -34,6 +35,7 @@ export type OptOutReason = "opt_out" | "wrong_number";
 export interface SmsStore {
 	contact(contactId: string): Promise<SmsContact | null>;
 	settings(): Promise<SmsSettings>;
+	bookingLink(): Promise<string | null>;
 	activeHandoff(contactId: string): Promise<{ reason: string } | null>;
 	openHandoff(contactId: string, reason: string): Promise<boolean>;
 	saveDraft(draft: DraftInput): Promise<{ id: string }>;
@@ -83,6 +85,14 @@ export const prismaSmsStore: SmsStore = {
 			select: { sms: true },
 		});
 		return parseSmsSettings(row?.sms);
+	},
+
+	async bookingLink() {
+		const row = await db.appSetting.findUnique({
+			where: { id: SETTINGS_ID },
+			select: { calendar: true },
+		});
+		return parseCalendarSettings(row?.calendar).fallbackBookingLink;
 	},
 
 	async activeHandoff(contactId) {
@@ -183,20 +193,8 @@ export const prismaSmsStore: SmsStore = {
 	},
 
 	async setDealStage(contactId, stage) {
-		const now = new Date();
-		const { count } = await db.deal.updateMany({
-			where: {
-				archivedAt: null,
-				stage: { notIn: [...CLOSED_DEAL_STAGES, stage] },
-				contacts: { some: { contactId } },
-			},
-			data: {
-				stage,
-				stageChangedAt: now,
-				closedAt: isClosedStage(stage) ? now : null,
-			},
-		});
-		return count;
+		const move = await ensureLeadDeal(contactId, stage);
+		return move.moved.length + (move.created ? 1 : 0);
 	},
 
 	async turnInFlight(contactId, exceptTaskId) {
