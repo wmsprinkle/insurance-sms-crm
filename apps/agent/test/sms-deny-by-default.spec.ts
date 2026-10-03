@@ -41,12 +41,27 @@ const subagentContext = {
 	},
 };
 
-type AnyTool = {
-	execute?: (input: unknown, ctx: unknown) => Promise<unknown> | unknown;
+type ToolAttributes = Readonly<Record<string, string>>;
+
+type ToolContext = {
+	callId: string;
+	session: {
+		auth: {
+			current: { attributes: ToolAttributes } | null;
+			initiator: { attributes: ToolAttributes } | null;
+		};
+	};
 };
 
-async function refuses(tool: AnyTool, ctx: unknown) {
-	if (typeof tool.execute !== "function") return true;
+type AnyTool = {
+	execute?: (
+		input: Readonly<Record<string, string>>,
+		ctx: ToolContext,
+	) => Promise<unknown> | unknown;
+};
+
+async function refuses(tool: AnyTool, ctx: ToolContext) {
+	if (!tool.execute) return true;
 	try {
 		const result = (await tool.execute({}, ctx)) as { ok?: boolean } | null;
 		return result?.ok === false;
@@ -74,7 +89,7 @@ describe("SMS session is deny-by-default at the tool itself", () => {
 		async (name) => {
 			const tool = (await import(`../agent/tools/${name}.ts`))
 				.default as AnyTool;
-			expect(typeof tool.execute).toBe("function");
+			expect(tool.execute).toBeDefined();
 			expect(await refuses(tool, smsContext)).toBe(true);
 		},
 	);

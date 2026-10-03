@@ -5,7 +5,7 @@ export type SmsKeyword = keyof typeof SMS.keywords;
 
 const KEYWORDS: readonly SmsKeyword[] = ["stop", "start", "help"];
 
-export function normaliseKeyword(text: string): string {
+function normaliseKeyword(text: string): string {
 	return text
 		.trim()
 		.replace(/^[\s"'.!?]+|[\s"'.!?]+$/g, "")
@@ -37,8 +37,11 @@ export type OptOutIntent = "opt_out" | "wrong_number";
 
 const PHRASE_INTENTS: readonly OptOutIntent[] = ["wrong_number", "opt_out"];
 
+const HOMOGLYPHS = new Map<string, string>(SMS.optOutPhrases.homoglyphs);
+const SLANG = new Map<string, string>(SMS.optOutPhrases.slang);
+
 const HOMOGLYPH_PATTERN = new RegExp(
-	`[${Object.keys(SMS.optOutPhrases.homoglyphs).join("")}]`,
+	`[${[...HOMOGLYPHS.keys()].join("")}]`,
 	"g",
 );
 
@@ -46,10 +49,7 @@ function normalisePhrase(text: string): string {
 	const folded = text
 		.normalize("NFKC")
 		.toLowerCase()
-		.replace(
-			HOMOGLYPH_PATTERN,
-			(char) => SMS.optOutPhrases.homoglyphs[char] ?? char,
-		)
+		.replace(HOMOGLYPH_PATTERN, (char) => HOMOGLYPHS.get(char) ?? char)
 		.normalize("NFD")
 		.replace(/\p{M}+/gu, "")
 		.replace(/[\u200b-\u200f\u2060\ufeff\u00ad]/g, "")
@@ -62,7 +62,7 @@ function normalisePhrase(text: string): string {
 	const squeezed = joined.replace(/([a-z])\1{2,}/g, "$1");
 	return squeezed
 		.split(" ")
-		.map((word) => SMS.optOutPhrases.slang[word] ?? word)
+		.map((word) => SLANG.get(word) ?? word)
 		.join(" ");
 }
 

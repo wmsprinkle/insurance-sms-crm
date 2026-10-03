@@ -119,14 +119,17 @@ export const PROCEDURE_ROLES = {
 	"workspace.setMemberRole": "admin",
 } as const satisfies Record<string, ProcedureRole>;
 
-export type ClassifiedProcedure = keyof typeof PROCEDURE_ROLES;
+type ClassifiedProcedure = keyof typeof PROCEDURE_ROLES;
 
-const RANK: Record<WorkspaceRole, number> = { member: 0, admin: 1, owner: 2 };
-const REQUIRED_RANK: Record<ProcedureRole, number> = {
+const RANK = { member: 0, admin: 1, owner: 2 } as const satisfies Record<
+	WorkspaceRole,
+	number
+>;
+const REQUIRED_RANK = {
 	member: RANK.member,
 	admin: RANK.admin,
 	owner: RANK.owner,
-};
+} as const satisfies Record<ProcedureRole, number>;
 
 export function requiredRoleOf(path: string): ProcedureRole | null {
 	return Object.hasOwn(PROCEDURE_ROLES, path)

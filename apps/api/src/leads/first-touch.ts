@@ -5,7 +5,7 @@ export type FirstTouchFacts = {
 	dueAt: Date | null;
 };
 
-export type FirstTouchSkip =
+type FirstTouchSkip =
 	| "already-queued"
 	| "suppressed"
 	| "no-consent"

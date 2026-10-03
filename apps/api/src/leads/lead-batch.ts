@@ -13,7 +13,7 @@ export const LEAD_ROW_STATUSES = [
 	"rejected",
 ] as const;
 
-export type LeadRowStatus = (typeof LEAD_ROW_STATUSES)[number];
+type LeadRowStatus = (typeof LEAD_ROW_STATUSES)[number];
 
 export type LeadRowResult = {
 	rowNumber: number;

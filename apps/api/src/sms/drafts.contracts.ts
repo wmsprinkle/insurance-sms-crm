@@ -14,7 +14,7 @@ const smsDraftRow = z.object({
 	handedOff: z.boolean(),
 });
 
-export type SmsDraftRow = z.infer<typeof smsDraftRow>;
+type SmsDraftRow = z.infer<typeof smsDraftRow>;
 
 const smsHandoffRow = z.object({
 	id: z.string(),
@@ -25,7 +25,7 @@ const smsHandoffRow = z.object({
 	createdAt: z.string(),
 });
 
-export type SmsHandoffRow = z.infer<typeof smsHandoffRow>;
+type SmsHandoffRow = z.infer<typeof smsHandoffRow>;
 
 export const smsDraftQueueOutput = z.object({
 	drafts: z.array(smsDraftRow),
@@ -64,14 +64,14 @@ export const smsHandBackInput = z.object({
 
 export type SmsHandBackInput = z.infer<typeof smsHandBackInput>;
 
-export const SMS_GUARD_REASONS = [
+const SMS_GUARD_REASONS = [
 	"sanitized",
 	"breaks_character",
 	"empty_after_sanitize",
 	"price_or_guarantee",
 ] as const;
 
-export type SmsGuardReason = (typeof SMS_GUARD_REASONS)[number];
+type SmsGuardReason = (typeof SMS_GUARD_REASONS)[number];
 
 export const smsSendOutcome = z.discriminatedUnion("status", [
 	z.object({ status: z.literal("sent"), dryRun: z.boolean() }),

@@ -32,7 +32,7 @@ export type GateFacts = {
 	frequencyRetryAt: Date | null;
 };
 
-export type BlockReason =
+type BlockReason =
 	| "suppressed"
 	| "no-consent"
 	| "quiet-hours"
@@ -259,7 +259,7 @@ export class SendGateService {
 			where: {
 				sessionId,
 				contactId,
-				...(ownReceiptId ? { id: { not: ownReceiptId } } : {}),
+				id: ownReceiptId ? { not: ownReceiptId } : undefined,
 				AND: [
 					{
 						OR: [

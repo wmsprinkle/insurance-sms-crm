@@ -2,7 +2,7 @@ import { SmsDirection, SmsStatus } from "@crm/db/enums";
 import { z } from "zod";
 import { listInput } from "../trpc/list-input";
 
-export const SMS_THREAD_FILTERS = ["open", "all"] as const;
+const SMS_THREAD_FILTERS = ["open", "all"] as const;
 
 export const smsThreadListInput = listInput.extend({
 	filter: z.enum(SMS_THREAD_FILTERS).default("open"),
@@ -23,7 +23,7 @@ const smsThreadRow = z.object({
 	openCount: z.number().int(),
 });
 
-export type SmsThreadRow = z.infer<typeof smsThreadRow>;
+type SmsThreadRow = z.infer<typeof smsThreadRow>;
 
 export const smsThreadListOutput = z.object({
 	rows: z.array(smsThreadRow),
@@ -51,7 +51,7 @@ const smsMessageRow = z.object({
 	createdAt: z.string(),
 });
 
-export type SmsMessageRow = z.infer<typeof smsMessageRow>;
+type SmsMessageRow = z.infer<typeof smsMessageRow>;
 
 export const smsThreadOutput = z.object({
 	contactId: z.string(),

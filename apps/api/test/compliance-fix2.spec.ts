@@ -197,7 +197,7 @@ describe("R3: an unknown Telnyx outcome never releases the key", () => {
 				},
 			} as unknown as Db,
 			{
-				send: async (input: unknown) => {
+				send: async (input: Parameters<SmsInternalService["send"]>[0]) => {
 					sends.push(input);
 					return { status: "sent", telnyxId: "x", dryRun: false };
 				},

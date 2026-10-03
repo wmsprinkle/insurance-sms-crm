@@ -3,7 +3,7 @@ export type CsvTable = {
 	rows: CsvRow[];
 };
 
-export type CsvRow = { rowNumber: number; cells: string[] };
+type CsvRow = { rowNumber: number; cells: string[] };
 
 export class CsvParseError extends Error {}
 

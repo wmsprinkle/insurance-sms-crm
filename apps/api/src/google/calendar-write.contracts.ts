@@ -23,7 +23,7 @@ export const freeBusyResponse = z.object({
 	),
 });
 
-export type FreeBusyResponse = z.infer<typeof freeBusyResponse>;
+type FreeBusyResponse = z.infer<typeof freeBusyResponse>;
 
 export const insertedEvent = z.object({
 	id: z.string().min(1),
@@ -62,7 +62,7 @@ export const googleErrorBody = z.object({
 		.optional(),
 });
 
-export const bookingAttendee = z.object({
+const bookingAttendee = z.object({
 	email: z.email(),
 	displayName: z.string().trim().min(1).max(200).optional(),
 });

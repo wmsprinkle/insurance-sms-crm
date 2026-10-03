@@ -1,7 +1,7 @@
 import { SmsStatus } from "@crm/db/enums";
 import { z } from "zod";
 
-export const TELNYX_EVENT_TYPES = {
+const TELNYX_EVENT_TYPES = {
 	received: "message.received",
 	sent: "message.sent",
 	finalized: "message.finalized",
@@ -58,7 +58,7 @@ export type TelnyxStatusUpdate = {
 	errorCode: string | null;
 };
 
-export type TelnyxIgnored = {
+type TelnyxIgnored = {
 	kind: "ignored";
 	eventId: string;
 	eventType: string;

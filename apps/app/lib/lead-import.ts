@@ -10,7 +10,7 @@ export type LeadRow = ImportOutput["rows"][number];
 
 export type LeadRejection = LeadRow["reasons"][number];
 
-export type LeadRowStatus = LeadRow["status"];
+type LeadRowStatus = LeadRow["status"];
 
 const KIB = 1_024;
 const MIB = 1_024 * KIB;

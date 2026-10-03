@@ -35,7 +35,7 @@ export type RawLead = {
 	consentIp?: string | null;
 };
 
-export type LeadConsent = {
+type LeadConsent = {
 	source: ConsentSource;
 	capturedAt: Date;
 	optInText: string | null;

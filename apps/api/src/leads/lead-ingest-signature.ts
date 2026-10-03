@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { LEADS } from "./leads-config";
 
-export const LEAD_SOURCE_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/;
+const LEAD_SOURCE_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 
 const SIGNATURE_PREFIX = "sha256=";
 

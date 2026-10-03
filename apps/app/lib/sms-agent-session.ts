@@ -16,7 +16,7 @@ export type SmsAgentSessionView = {
 	transcript: TranscriptMessage[];
 };
 
-export function smsSessionView(session: SmsAgentSession): SmsAgentSessionView {
+function smsSessionView(session: SmsAgentSession): SmsAgentSessionView {
 	return {
 		id: session.sessionId,
 		startedAt: session.startedAt,

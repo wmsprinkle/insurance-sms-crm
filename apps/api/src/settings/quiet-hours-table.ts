@@ -4,7 +4,7 @@ import {
 	type WeekWindow,
 } from "../compliance/compliance-config";
 
-export const WEEKDAY_LABELS = [
+const WEEKDAY_LABELS = [
 	"Sun",
 	"Mon",
 	"Tue",
@@ -14,7 +14,7 @@ export const WEEKDAY_LABELS = [
 	"Sat",
 ] as const;
 
-export type QuietHoursDay = { day: string; window: string | null };
+type QuietHoursDay = { day: string; window: string | null };
 
 export type QuietHoursRow = {
 	scope: string;

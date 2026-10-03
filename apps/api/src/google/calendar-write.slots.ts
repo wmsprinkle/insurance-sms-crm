@@ -2,7 +2,7 @@ import { CALENDAR_WRITE, DAY_MS, MINUTE_MS } from "./calendar-write.config";
 
 export type Interval = { start: Date; end: Date };
 
-export type BusinessHours = {
+type BusinessHours = {
 	weekdays: readonly number[];
 	startMinute: number;
 	endMinute: number;
@@ -61,7 +61,7 @@ export function isTimeZone(timeZone: string): boolean {
 	}
 }
 
-export function zonedParts(at: Date, timeZone: string): LocalParts {
+function zonedParts(at: Date, timeZone: string): LocalParts {
 	const parts = new Map(
 		formatter(timeZone)
 			.formatToParts(at)

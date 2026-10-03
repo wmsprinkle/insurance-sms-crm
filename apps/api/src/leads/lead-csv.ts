@@ -15,7 +15,7 @@ export const LEAD_FIELDS = [
 	"consentIp",
 ] as const satisfies readonly (keyof RawLead)[];
 
-export type LeadField = (typeof LEAD_FIELDS)[number];
+type LeadField = (typeof LEAD_FIELDS)[number];
 
 const column = z.string().trim().min(1);
 

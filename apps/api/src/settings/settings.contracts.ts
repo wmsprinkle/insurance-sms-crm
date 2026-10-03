@@ -93,7 +93,7 @@ export type SmsSettingsResult = z.infer<typeof smsSettingsOutput>;
 
 export const setSmsSettingsInput = smsSettings;
 
-export type SetSmsSettingsInput = z.infer<typeof setSmsSettingsInput>;
+type SetSmsSettingsInput = z.infer<typeof setSmsSettingsInput>;
 
 export const quietHoursOutput = z.object({
 	rows: z.array(
@@ -124,7 +124,7 @@ export type CalendarSettingsResult = z.infer<typeof calendarSettingsOutput>;
 
 export const setCalendarSettingsInput = calendarSettings;
 
-export type SetCalendarSettingsInput = z.infer<typeof setCalendarSettingsInput>;
+type SetCalendarSettingsInput = z.infer<typeof setCalendarSettingsInput>;
 
 export const complianceLimitsOutput = z.object({
 	frequency: z.object({

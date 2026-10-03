@@ -98,7 +98,7 @@ export function smsOutcomeNotice(outcome: SmsSendOutcome): SmsOutcomeNotice {
 	}
 }
 
-export const SMS_TEXT_MAX_CHARS = 480;
+const SMS_TEXT_MAX_CHARS = 480;
 
 export function smsTextProblem(text: string): string | null {
 	const length = Array.from(text.trim()).length;
