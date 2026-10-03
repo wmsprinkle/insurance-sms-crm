@@ -15,7 +15,8 @@
 		"./field-backfill": "./src/field-backfill.ts",
 		"./field-templates": "./src/field-templates.ts",
 		"./phone": "./src/phone.ts",
-		"./saved-view": "./src/saved-view.ts"
+		"./saved-view": "./src/saved-view.ts",
+		"./sms-reply-task": "./src/sms-reply-task.ts"
 	},
 	"scripts": {
 		"check-types": "tsc --noEmit",
