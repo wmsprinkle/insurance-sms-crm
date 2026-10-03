@@ -396,6 +396,8 @@ model Contact {
   submissions     FormSubmission[]   @relation("SubmissionContact")
   smsMessages     SmsMessage[]
   consentRecords  ConsentRecord[]
+  smsDrafts       SmsDraft[]
+  smsHandoff      SmsHandoff?
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
 
@@ -1337,6 +1339,43 @@ enum SuppressionReason {
   WRONG_NUMBER
   CARRIER_BLOCK
   MANUAL
+}
+
+enum SmsDraftStatus {
+  PENDING
+  APPROVED
+  DISCARDED
+}
+
+/// An agent reply held for a rep. Reason values in @crm/validation/sms-send.
+model SmsDraft {
+  id          String         @id @default(cuid())
+  contactId   String
+  contact     Contact        @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  body        String
+  reason      String
+  retryAt     DateTime?
+  taskId      String?
+  status      SmsDraftStatus @default(PENDING)
+  decidedAt   DateTime?
+  decidedById String?
+  createdAt   DateTime       @default(now())
+
+  @@index([status, createdAt])
+  @@index([contactId, createdAt])
+  @@map("smsDraft")
+}
+
+/// A conversation a person owns. While resolvedAt is null the agent sends nothing.
+model SmsHandoff {
+  id         String    @id @default(cuid())
+  contactId  String    @unique
+  contact    Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  reason     String
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  @@map("smsHandoff")
 }
 
 model SmsMessage {

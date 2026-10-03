@@ -1,0 +1,198 @@
+import { db } from "@crm/db";
+import { CLOSED_DEAL_STAGES, isClosedStage } from "@crm/db/deal-stage";
+import { type DealStage, SmsDirection, SuppressionReason } from "@crm/db/enums";
+import { SETTINGS_ID } from "@crm/db/settings";
+import type { SmsHoldReason } from "@crm/validation/sms-send";
+import {
+	parseSmsSettings,
+	type SmsSettings,
+} from "@crm/validation/sms-settings";
+import { SMS_AGENT } from "./sms-config";
+
+export type SmsContact = {
+	id: string;
+	firstName: string;
+	phone: string | null;
+};
+
+export type SmsLine = {
+	direction: SmsDirection;
+	body: string;
+	createdAt: Date;
+};
+
+export type DraftInput = {
+	contactId: string;
+	body: string;
+	reason: SmsHoldReason;
+	retryAt: Date | null;
+	taskId: string | null;
+};
+
+export type OptOutReason = "opt_out" | "wrong_number";
+
+export interface SmsStore {
+	contact(contactId: string): Promise<SmsContact | null>;
+	settings(): Promise<SmsSettings>;
+	activeHandoff(contactId: string): Promise<{ reason: string } | null>;
+	openHandoff(contactId: string, reason: string): Promise<boolean>;
+	saveDraft(draft: DraftInput): Promise<{ id: string }>;
+	inboundCounts(
+		contactId: string,
+		since: Date,
+	): Promise<{ recent: number; total: number }>;
+	messages(ids: readonly string[]): Promise<SmsLine[]>;
+	history(contactId: string, limit: number): Promise<SmsLine[]>;
+	optOut(input: {
+		contactId: string;
+		phone: string;
+		reason: OptOutReason;
+		keepTaskId: string | null;
+	}): Promise<void>;
+	finishSmsTasks(
+		contactId: string,
+		outcome: string,
+		keepTaskId: string | null,
+	): Promise<number>;
+	setDealStage(contactId: string, stage: DealStage): Promise<number>;
+}
+
+const SMS_TASK_KINDS = Object.values(SMS_AGENT.taskKinds);
+
+const SUPPRESSION_FOR = {
+	opt_out: SuppressionReason.OPT_OUT_REQUEST,
+	wrong_number: SuppressionReason.WRONG_NUMBER,
+} as const satisfies Record<OptOutReason, SuppressionReason>;
+
+const LINE_SELECT = { direction: true, body: true, createdAt: true } as const;
+
+export const prismaSmsStore: SmsStore = {
+	async contact(contactId) {
+		return db.contact.findFirst({
+			where: { id: contactId, archivedAt: null },
+			select: { id: true, firstName: true, phone: true },
+		});
+	},
+
+	async settings() {
+		const row = await db.appSetting.findUnique({
+			where: { id: SETTINGS_ID },
+			select: { sms: true },
+		});
+		return parseSmsSettings(row?.sms);
+	},
+
+	async activeHandoff(contactId) {
+		return db.smsHandoff.findFirst({
+			where: { contactId, resolvedAt: null },
+			select: { reason: true },
+		});
+	},
+
+	async openHandoff(contactId, reason) {
+		const existing = await db.smsHandoff.findUnique({
+			where: { contactId },
+			select: { resolvedAt: true },
+		});
+		if (existing && existing.resolvedAt === null) return false;
+
+		await db.smsHandoff.upsert({
+			where: { contactId },
+			create: { contactId, reason },
+			update: { reason, createdAt: new Date(), resolvedAt: null },
+		});
+		return true;
+	},
+
+	async saveDraft(draft) {
+		return db.smsDraft.create({ data: draft, select: { id: true } });
+	},
+
+	async inboundCounts(contactId, since) {
+		const [recent, total] = await Promise.all([
+			db.smsMessage.count({
+				where: {
+					contactId,
+					direction: SmsDirection.INBOUND,
+					createdAt: { gte: since },
+				},
+			}),
+			db.smsMessage.count({
+				where: { contactId, direction: SmsDirection.INBOUND },
+			}),
+		]);
+		return { recent, total };
+	},
+
+	async messages(ids) {
+		return db.smsMessage.findMany({
+			where: { id: { in: [...ids] } },
+			orderBy: { createdAt: "asc" },
+			select: LINE_SELECT,
+		});
+	},
+
+	async history(contactId, limit) {
+		const rows = await db.smsMessage.findMany({
+			where: { contactId },
+			orderBy: { createdAt: "desc" },
+			take: limit,
+			select: LINE_SELECT,
+		});
+		return rows.reverse();
+	},
+
+	async optOut({ contactId, phone, reason, keepTaskId }) {
+		const now = new Date();
+		await db.$transaction([
+			db.phoneSuppression.upsert({
+				where: { e164: phone },
+				create: { e164: phone, reason: SUPPRESSION_FOR[reason] },
+				update: {},
+			}),
+			db.consentRecord.updateMany({
+				where: { contactId, revokedAt: null },
+				data: { revokedAt: now },
+			}),
+			db.agentTask.updateMany({
+				where: {
+					contactId,
+					kind: { in: SMS_TASK_KINDS },
+					finishedAt: null,
+					id: keepTaskId ? { not: keepTaskId } : undefined,
+				},
+				data: { finishedAt: now, outcome: SMS_AGENT.outcomes.optedOut },
+			}),
+		]);
+	},
+
+	async finishSmsTasks(contactId, outcome, keepTaskId) {
+		const { count } = await db.agentTask.updateMany({
+			where: {
+				contactId,
+				kind: { in: SMS_TASK_KINDS },
+				finishedAt: null,
+				id: keepTaskId ? { not: keepTaskId } : undefined,
+			},
+			data: { finishedAt: new Date(), outcome },
+		});
+		return count;
+	},
+
+	async setDealStage(contactId, stage) {
+		const now = new Date();
+		const { count } = await db.deal.updateMany({
+			where: {
+				archivedAt: null,
+				stage: { notIn: [...CLOSED_DEAL_STAGES, stage] },
+				contacts: { some: { contactId } },
+			},
+			data: {
+				stage,
+				stageChangedAt: now,
+				closedAt: isClosedStage(stage) ? now : null,
+			},
+		});
+		return count;
+	},
+};
