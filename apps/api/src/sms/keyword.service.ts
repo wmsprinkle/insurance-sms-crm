@@ -47,17 +47,7 @@ export class KeywordService {
 
 		try {
 			await this.db.$transaction(async (tx) => {
-				if (input.contactId) {
-					await tx.smsMessage.create({
-						data: {
-							contactId: input.contactId,
-							direction: SmsDirection.INBOUND,
-							body: input.message.text,
-							telnyxId: input.message.telnyxId,
-							status: SmsStatus.RECEIVED,
-						},
-					});
-				}
+				await this.record(tx, input, now);
 				await this.apply(tx, input, now);
 			});
 		} catch (cause) {
@@ -74,6 +64,41 @@ export class KeywordService {
 		await this.reply(input);
 
 		return `keyword-${input.keyword}`;
+	}
+
+	private async record(
+		tx: Prisma.TransactionClient,
+		input: KeywordMessage,
+		now: Date,
+	): Promise<void> {
+		if (input.contactId) {
+			await tx.smsMessage.create({
+				data: {
+					contactId: input.contactId,
+					direction: SmsDirection.INBOUND,
+					body: input.message.text,
+					telnyxId: input.message.telnyxId,
+					status: SmsStatus.RECEIVED,
+				},
+			});
+			return;
+		}
+
+		const { sessionId, type, idPrefix } = SMS.keywordReceipt;
+		await tx.agentEvent.create({
+			data: {
+				id: `${idPrefix}${input.message.telnyxId}`,
+				sessionId,
+				contactId: null,
+				type,
+				data: {
+					from: input.from,
+					keyword: input.keyword,
+					telnyxId: input.message.telnyxId,
+				},
+				emittedAt: now,
+			},
+		});
 	}
 
 	private async apply(

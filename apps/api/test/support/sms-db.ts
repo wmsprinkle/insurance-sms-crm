@@ -220,6 +220,7 @@ export function fakeDb(seed: Partial<FakeState> = {}) {
 		},
 		agentEvent: {
 			create: async ({ data }: { data: FakeState["events"][number] }) => {
+				if (state.events.some((row) => row.id === data.id)) throw duplicate();
 				state.events.push(data);
 				return data;
 			},

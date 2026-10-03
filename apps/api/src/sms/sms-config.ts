@@ -46,4 +46,9 @@ export const SMS = {
 		help: "{brand}: Reply to this message and a licensed agent will follow up. Msg & data rates may apply. Reply STOP to unsubscribe.",
 	},
 	optedOutOutcome: "opted-out",
+	keywordReceipt: {
+		sessionId: "sms:keyword",
+		type: "sms.keyword.received",
+		idPrefix: "sms-keyword:",
+	},
 } as const;

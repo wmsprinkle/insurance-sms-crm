@@ -257,6 +257,45 @@ describe("SmsService.receive keywords", () => {
 		expect(state.sms).toHaveLength(0);
 	});
 
+	it("does not re-run a keyword from an unknown number on a Telnyx retry", async () => {
+		const { sms, state } = service({ contacts: [] });
+		const stop = inbound({ from: "+13055550199", text: "STOP" });
+
+		expect(await sms.receive(stop)).toBe("keyword-stop");
+		expect(await sms.receive(stop)).toBe("duplicate");
+
+		const receipts = state.events.filter(
+			(event) => event.sessionId === "sms:keyword",
+		);
+		expect(receipts).toEqual([
+			{
+				id: "sms-keyword:in-1",
+				sessionId: "sms:keyword",
+				contactId: null,
+				type: "sms.keyword.received",
+				data: { from: "+13055550199", keyword: "stop", telnyxId: "in-1" },
+			},
+		]);
+		expect(
+			state.events.filter((event) => event.type === "sms.send.allowed"),
+		).toHaveLength(1);
+	});
+
+	it("answers HELP from an unknown number once per Telnyx message", async () => {
+		const { sms, state } = service({ contacts: [] });
+		const help = inbound({ from: "+13055550199", text: "HELP" });
+
+		await sms.receive(help);
+		expect(await sms.receive(help)).toBe("duplicate");
+		expect(await sms.receive(inbound({ ...help, telnyxId: "in-2" }))).toBe(
+			"keyword-help",
+		);
+
+		expect(
+			state.events.filter((event) => event.type === "sms.send.allowed"),
+		).toHaveLength(2);
+	});
+
 	it("START lifts a STOP suppression and records SMS consent", async () => {
 		const { sms, state } = service({
 			suppressions: [{ e164: "+15125550123", reason: "STOP_KEYWORD" }],
