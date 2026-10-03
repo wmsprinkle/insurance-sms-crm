@@ -20,7 +20,10 @@ import {
 import { SMS_DRAFTS } from "./drafts.config";
 import type {
 	SmsComposeInput,
+	SmsDraftApproveAllOutput,
 	SmsDraftApproveInput,
+	SmsDraftBulkInput,
+	SmsDraftDiscardAllOutput,
 	SmsDraftDiscardOutput,
 	SmsDraftIdInput,
 	SmsDraftQueueOutput,
@@ -66,6 +69,18 @@ export class SmsDraftsService {
 		]);
 
 		const openHandoffs = new Set(handoffs.map((row) => row.contactId));
+		const replied = new Set(
+			(
+				await this.db.smsMessage.findMany({
+					where: {
+						direction: SmsDirection.INBOUND,
+						contactId: { in: drafts.map((draft) => draft.contactId) },
+					},
+					distinct: ["contactId"],
+					select: { contactId: true },
+				})
+			).map((row) => row.contactId),
+		);
 
 		return {
 			drafts: drafts.slice(0, maxDrafts).map((draft) => ({
@@ -79,6 +94,7 @@ export class SmsDraftsService {
 				retryAt: draft.retryAt?.toISOString() ?? null,
 				createdAt: draft.createdAt.toISOString(),
 				handedOff: openHandoffs.has(draft.contactId),
+				firstMessage: !replied.has(draft.contactId),
 			})),
 			handoffs: handoffs.slice(0, maxHandoffs).map((handoff) => ({
 				id: handoff.id,
@@ -229,6 +245,62 @@ export class SmsDraftsService {
 			});
 		}
 		return { discarded: count > 0 };
+	}
+
+	async approveAll(
+		input: SmsDraftBulkInput,
+		userId: string,
+	): Promise<SmsDraftApproveAllOutput> {
+		const ids = [...new Set(input.draftIds)];
+		const drafts = await this.db.smsDraft.findMany({
+			where: { id: { in: ids } },
+			include: { contact: { select: CONTACT_SELECT } },
+		});
+		const byId = new Map(drafts.map((draft) => [draft.id, draft]));
+
+		const items: SmsDraftApproveAllOutput["items"] = [];
+		for (const draftId of ids) {
+			const draft = byId.get(draftId);
+			const outcome = await this.approve({ draftId }, userId);
+			items.push({
+				draftId,
+				contactId: draft?.contactId ?? null,
+				name: draft ? contactDisplayName(draft.contact) : "Unknown lead",
+				outcome,
+			});
+		}
+
+		this.logger.log({
+			message: "SMS drafts approved in bulk",
+			userId,
+			requested: ids.length,
+			sent: items.filter((item) => item.outcome.status === "sent").length,
+		});
+		return { items };
+	}
+
+	async discardAll(
+		input: SmsDraftBulkInput,
+		userId: string,
+	): Promise<SmsDraftDiscardAllOutput> {
+		const { count } = await this.db.smsDraft.updateMany({
+			where: {
+				id: { in: [...new Set(input.draftIds)] },
+				status: SmsDraftStatus.PENDING,
+			},
+			data: {
+				status: SmsDraftStatus.DISCARDED,
+				decidedAt: new Date(),
+				decidedById: userId,
+			},
+		});
+
+		this.logger.log({
+			message: "SMS drafts discarded in bulk",
+			userId,
+			discarded: count,
+		});
+		return { discarded: count };
 	}
 
 	async compose(input: SmsComposeInput): Promise<SmsSendOutcome> {

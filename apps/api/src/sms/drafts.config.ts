@@ -1,5 +1,6 @@
 export const SMS_DRAFTS = {
 	list: { maxDrafts: 200, maxHandoffs: 200 },
+	bulk: { maxDrafts: 200 },
 	idempotency: { draftPrefix: "sms-draft:", composePrefix: "sms-compose:" },
 	handBack: {
 		reason: "Handed back to the agent",

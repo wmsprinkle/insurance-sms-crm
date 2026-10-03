@@ -1,5 +1,6 @@
 import { SMS_BLOCK_REASONS } from "@crm/validation/sms-send";
 import { z } from "zod";
+import { SMS_DRAFTS } from "./drafts.config";
 
 const smsDraftRow = z.object({
 	id: z.string(),
@@ -12,6 +13,7 @@ const smsDraftRow = z.object({
 	retryAt: z.string().nullable(),
 	createdAt: z.string(),
 	handedOff: z.boolean(),
+	firstMessage: z.boolean(),
 });
 
 type SmsDraftRow = z.infer<typeof smsDraftRow>;
@@ -49,6 +51,15 @@ export const smsDraftIdInput = z.object({
 });
 
 export type SmsDraftIdInput = z.infer<typeof smsDraftIdInput>;
+
+export const smsDraftBulkInput = z.object({
+	draftIds: z
+		.array(z.string().trim().min(1))
+		.min(1)
+		.max(SMS_DRAFTS.bulk.maxDrafts),
+});
+
+export type SmsDraftBulkInput = z.infer<typeof smsDraftBulkInput>;
 
 export const smsComposeInput = z.object({
 	contactId: z.string().trim().min(1),
@@ -100,3 +111,20 @@ export const smsHandBackOutput = z.object({
 });
 
 export type SmsHandBackOutput = z.infer<typeof smsHandBackOutput>;
+
+export const smsDraftApproveAllOutput = z.object({
+	items: z.array(
+		z.object({
+			draftId: z.string(),
+			contactId: z.string().nullable(),
+			name: z.string(),
+			outcome: smsSendOutcome,
+		}),
+	),
+});
+
+export type SmsDraftApproveAllOutput = z.infer<typeof smsDraftApproveAllOutput>;
+
+export const smsDraftDiscardAllOutput = z.object({ discarded: z.number() });
+
+export type SmsDraftDiscardAllOutput = z.infer<typeof smsDraftDiscardAllOutput>;

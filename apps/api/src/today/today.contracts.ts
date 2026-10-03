@@ -36,7 +36,13 @@ export const todaySummaryOutput = z.object({
 	),
 	setup: z.object({
 		telnyxConfigured: z.boolean(),
-		fromNumber: z.string().nullable(),
+		telnyxApiKeySet: z.boolean(),
+		telnyxNumberSet: z.boolean(),
+		telnyxProfileSet: z.boolean(),
+		webhookKeySet: z.boolean(),
+		fromNumberMasked: z.string().nullable(),
+		modelKeySet: z.boolean(),
+		webhookUrl: z.string(),
 		leadCount: z.number().int(),
 	}),
 });

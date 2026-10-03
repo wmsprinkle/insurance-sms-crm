@@ -182,8 +182,13 @@ export const KPI_DEFINITIONS = [
 }[];
 
 export type GetStartedState = {
-	telnyxConfigured: boolean;
-	fromNumber: string | null;
+	telnyxApiKeySet: boolean;
+	telnyxNumberSet: boolean;
+	telnyxProfileSet: boolean;
+	webhookKeySet: boolean;
+	fromNumberMasked: string | null;
+	modelKeySet: boolean;
+	webhookUrl: string;
 	dryRun: boolean;
 	calendarConnected: boolean;
 	leadCount: number;
@@ -191,14 +196,75 @@ export type GetStartedState = {
 	licensedStates: readonly string[];
 };
 
+export type GetStartedAction =
+	| { kind: "link"; label: string; href: string }
+	| { kind: "copy"; label: string; value: string; copied: string };
+
 export type GetStartedItem = {
-	id: "number" | "mode" | "calendar" | "leads" | "business";
+	id:
+		| "telnyx"
+		| "model"
+		| "webhook"
+		| "mode"
+		| "calendar"
+		| "leads"
+		| "business";
 	title: string;
 	detail: string;
 	status: "done" | "todo" | "info";
-	href: string | null;
-	actionLabel: string | null;
+	action: GetStartedAction | null;
 };
+
+const ENV_VARIABLES = {
+	telnyxKey: "TELNYX_API_KEY",
+	telnyxProfile: "TELNYX_MESSAGING_PROFILE_ID",
+	telnyxNumber: "TELNYX_FROM_NUMBER",
+	telnyxPublicKey: "TELNYX_PUBLIC_KEY",
+	modelKey: "AI_GATEWAY_API_KEY",
+} as const;
+
+function copyVariable(name: string): GetStartedAction {
+	return {
+		kind: "copy",
+		label: `Copy ${name}`,
+		value: name,
+		copied: `${name} copied. Add it to your .env file and restart.`,
+	};
+}
+
+function telnyxItem(state: GetStartedState): GetStartedItem {
+	const missing: string[] = [];
+	if (!state.telnyxApiKeySet) missing.push(ENV_VARIABLES.telnyxKey);
+	if (!state.telnyxProfileSet) missing.push(ENV_VARIABLES.telnyxProfile);
+	if (!state.telnyxNumberSet) missing.push(ENV_VARIABLES.telnyxNumber);
+	const first = missing[0];
+
+	if (first === undefined) {
+		return {
+			id: "telnyx",
+			title: "Telnyx connected",
+			detail: `Sending from ${state.fromNumberMasked ?? "your number"}.`,
+			status: "done",
+			action: null,
+		};
+	}
+
+	const parts = [
+		state.telnyxApiKeySet ? "API key set" : "API key missing",
+		state.telnyxNumberSet
+			? `number set${state.fromNumberMasked ? ` (${state.fromNumberMasked})` : ""}`
+			: "number missing",
+	];
+	if (!state.telnyxProfileSet) parts.push("messaging profile missing");
+
+	return {
+		id: "telnyx",
+		title: "Telnyx",
+		detail: `${parts.join(", ")}.`,
+		status: "todo",
+		action: copyVariable(first),
+	};
+}
 
 export function getStartedItems(state: GetStartedState): GetStartedItem[] {
 	const missing = [
@@ -207,25 +273,38 @@ export function getStartedItems(state: GetStartedState): GetStartedItem[] {
 	].filter((part): part is string => part !== null);
 
 	return [
+		telnyxItem(state),
 		{
-			id: "number",
-			title: "Telnyx number connected",
-			detail: state.telnyxConfigured
-				? `Texts go out from ${state.fromNumber ?? "your number"}.`
-				: "Set TELNYX_API_KEY, TELNYX_MESSAGING_PROFILE_ID and TELNYX_FROM_NUMBER in your .env file, then restart the app.",
-			status: state.telnyxConfigured ? "done" : "todo",
-			href: null,
-			actionLabel: null,
+			id: "model",
+			title: "Model key set (AI Gateway)",
+			detail: state.modelKeySet
+				? "The assistant can answer replies."
+				: "No key. The assistant cannot answer replies.",
+			status: state.modelKeySet ? "done" : "todo",
+			action: state.modelKeySet ? null : copyVariable(ENV_VARIABLES.modelKey),
+		},
+		{
+			id: "webhook",
+			title: "Webhook URL",
+			detail: state.webhookKeySet
+				? `Paste into Telnyx: ${state.webhookUrl}`
+				: `Paste into Telnyx: ${state.webhookUrl}. ${ENV_VARIABLES.telnyxPublicKey} is missing, so Telnyx replies are refused.`,
+			status: state.webhookKeySet ? "done" : "todo",
+			action: {
+				kind: "copy",
+				label: "Copy URL",
+				value: state.webhookUrl,
+				copied: "Webhook URL copied.",
+			},
 		},
 		{
 			id: "mode",
 			title: state.dryRun ? "Test mode is on" : "Test mode is off",
 			detail: state.dryRun
-				? "No texts are really sent. Set DRY_RUN=false when you are ready to go live."
+				? "No texts are really sent. Set DRY_RUN=false to go live."
 				: "Texts are real and go to leads' phones.",
 			status: "info",
-			href: null,
-			actionLabel: null,
+			action: null,
 		},
 		{
 			id: "calendar",
@@ -234,8 +313,9 @@ export function getStartedItems(state: GetStartedState): GetStartedItem[] {
 				? "Booked calls land on your calendar."
 				: "Connect Google so booked calls land on your calendar.",
 			status: state.calendarConnected ? "done" : "todo",
-			href: "/settings/connections",
-			actionLabel: state.calendarConnected ? null : "Connect",
+			action: state.calendarConnected
+				? null
+				: { kind: "link", label: "Connect", href: "/settings/connections" },
 		},
 		{
 			id: "leads",
@@ -245,8 +325,10 @@ export function getStartedItems(state: GetStartedState): GetStartedItem[] {
 					? `${state.leadCount} ${state.leadCount === 1 ? "lead" : "leads"} in your list.`
 					: "Upload a CSV of leads who agreed to be texted.",
 			status: state.leadCount > 0 ? "done" : "todo",
-			href: "/leads/import",
-			actionLabel: state.leadCount > 0 ? null : "Import leads",
+			action:
+				state.leadCount > 0
+					? null
+					: { kind: "link", label: "Import leads", href: "/leads/import" },
 		},
 		{
 			id: "business",
@@ -256,8 +338,14 @@ export function getStartedItems(state: GetStartedState): GetStartedItem[] {
 					? "Leads see your business name. Only licensed states get texts."
 					: `Still to set: ${missing.join(" and ")}.`,
 			status: missing.length === 0 ? "done" : "todo",
-			href: "/settings/compliance",
-			actionLabel: missing.length === 0 ? null : "Open settings",
+			action:
+				missing.length === 0
+					? null
+					: {
+							kind: "link",
+							label: "Open settings",
+							href: "/settings/compliance",
+						},
 		},
 	];
 }

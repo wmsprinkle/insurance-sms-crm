@@ -104,6 +104,8 @@ export const PROCEDURE_ROLES = {
 	"slack.disconnect": "admin",
 	"smsDrafts.approve": "member",
 	"smsDrafts.discard": "member",
+	"smsDrafts.approveAll": "admin",
+	"smsDrafts.discardAll": "admin",
 	"smsDrafts.handBack": "member",
 	"smsDrafts.compose": "member",
 	"sms.markHandled": "member",

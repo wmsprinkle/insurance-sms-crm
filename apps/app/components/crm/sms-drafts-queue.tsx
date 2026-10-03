@@ -28,10 +28,13 @@ import { Textarea } from "@crm/ui/components/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
+import { AutoSendSwitch } from "@/components/crm/auto-send-switch";
+import { BulkDraftActions } from "@/components/crm/bulk-drafts";
 import { useOpenRecord } from "@/components/crm/record-sheet/record-stack";
 import { SmsOutcomeAlert } from "@/components/crm/sms-outcome-alert";
 import { LocalDateTime } from "@/components/local-date-time";
 import {
+	firstMessageDrafts,
 	type SmsOutcomeNotice,
 	smsOutcomeNotice,
 	smsTextProblem,
@@ -87,11 +90,14 @@ export function SmsDraftsQueue() {
 
 	return (
 		<div className="flex max-w-4xl flex-col gap-6">
+			<AutoSendSwitch />
+
 			<section className="flex flex-col gap-3">
 				<div className="flex items-center gap-2">
 					<h2 className="font-medium">Drafts waiting for approval</h2>
 					<Badge variant="secondary">{drafts.length}</Badge>
 				</div>
+				<BulkDraftActions drafts={firstMessageDrafts(drafts)} />
 				{truncated ? (
 					<p className="text-muted-foreground text-xs">
 						Showing the oldest items first. Approve or discard some to see the

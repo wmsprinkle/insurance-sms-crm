@@ -64,9 +64,13 @@ type Receipt = {
 };
 
 function matches<T extends object>(row: T, where: Partial<T>): boolean {
-	return (Object.keys(where) as (keyof T)[]).every(
-		(key) => row[key] === where[key],
-	);
+	return (Object.keys(where) as (keyof T)[]).every((key) => {
+		const wanted: unknown = where[key];
+		if (wanted && typeof wanted === "object" && "in" in wanted) {
+			return (wanted.in as unknown[]).includes(row[key]);
+		}
+		return row[key] === wanted;
+	});
 }
 
 function draft(overrides: Partial<Draft> = {}): Draft {
@@ -158,20 +162,22 @@ function fake(seed: {
 				where,
 			}: {
 				where: {
-					contactId: string;
+					contactId: string | { in: string[] };
 					direction: SmsDirection;
-					createdAt: { gte: Date };
+					createdAt?: { gte: Date };
 				};
 			}) =>
 				state.messages
 					.filter(
 						(row) =>
-							row.contactId === where.contactId &&
+							(typeof where.contactId === "string"
+								? row.contactId === where.contactId
+								: where.contactId.in.includes(row.contactId)) &&
 							row.direction === where.direction &&
-							row.createdAt >= where.createdAt.gte,
+							(!where.createdAt || row.createdAt >= where.createdAt.gte),
 					)
 					.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-					.map((row) => ({ id: row.id })),
+					.map((row) => ({ id: row.id, contactId: row.contactId })),
 		},
 		agentTask: {
 			findFirst: async ({ where }: { where: Partial<Task> }) =>
@@ -763,5 +769,92 @@ describe("SmsDraftsService.approve send key", () => {
 		expect(calls[0]?.idempotencyKey).toBe(
 			`${SMS_DRAFTS.idempotency.draftPrefix}draft-1`,
 		);
+	});
+});
+
+describe("SmsDraftsService.queue first messages", () => {
+	it("flags a draft to a lead who has not replied", async () => {
+		const { drafts } = service({
+			drafts: [draft({ id: "d1", contactId: "contact-1" })],
+		});
+		expect((await drafts.queue()).drafts[0]?.firstMessage).toBe(true);
+	});
+
+	it("does not flag a reply draft", async () => {
+		const { drafts } = service({
+			drafts: [draft({ id: "d1", contactId: "contact-1" })],
+			messages: [
+				{
+					id: "m1",
+					contactId: "contact-1",
+					direction: SmsDirection.INBOUND,
+					createdAt: new Date("2026-10-03T09:00:00Z"),
+				},
+			],
+		});
+		expect((await drafts.queue()).drafts[0]?.firstMessage).toBe(false);
+	});
+});
+
+describe("SmsDraftsService bulk", () => {
+	const two = () => [
+		draft({ id: "d1", body: "Hello Jane, Are you interested?" }),
+		draft({ id: "d2", body: "Hello Jane, Are you interested?" }),
+	];
+
+	it("sends each draft through the same gate and reports each outcome", async () => {
+		const { drafts, calls, state } = service({ drafts: two() }, [
+			SENT,
+			{ status: "blocked", reason: "quiet-hours", retryAt: null },
+		]);
+
+		const result = await drafts.approveAll({ draftIds: ["d1", "d2"] }, USER);
+
+		expect(calls).toHaveLength(2);
+		expect(result.items.map((item) => item.outcome.status)).toEqual([
+			"sent",
+			"blocked",
+		]);
+		expect(result.items[0]?.name).toBe("Jane Doe");
+		expect(state.drafts[0]?.status).toBe(SmsDraftStatus.APPROVED);
+		expect(state.drafts[1]?.status).toBe(SmsDraftStatus.PENDING);
+	});
+
+	it("reports a draft that is no longer pending without sending it", async () => {
+		const { drafts, calls } = service({
+			drafts: [draft({ id: "d1", status: SmsDraftStatus.DISCARDED })],
+		});
+
+		const result = await drafts.approveAll({ draftIds: ["d1", "d1"] }, USER);
+
+		expect(calls).toHaveLength(0);
+		expect(result.items).toHaveLength(1);
+		expect(result.items[0]?.outcome).toEqual({
+			status: "failed",
+			error: SMS_DRAFTS.errors.gone,
+		});
+	});
+
+	it("discards only the pending drafts it was given", async () => {
+		const { drafts, state } = service({
+			drafts: [
+				...two(),
+				draft({ id: "d3" }),
+				draft({ id: "d4", status: SmsDraftStatus.APPROVED }),
+			],
+		});
+
+		const result = await drafts.discardAll(
+			{ draftIds: ["d1", "d2", "d4"] },
+			USER,
+		);
+
+		expect(result).toEqual({ discarded: 2 });
+		expect(state.drafts.map((row) => row.status)).toEqual([
+			SmsDraftStatus.DISCARDED,
+			SmsDraftStatus.DISCARDED,
+			SmsDraftStatus.PENDING,
+			SmsDraftStatus.APPROVED,
+		]);
 	});
 });

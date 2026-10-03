@@ -108,3 +108,63 @@ export function smsTextProblem(text: string): string | null {
 	}
 	return null;
 }
+
+export type BulkSendItem = {
+	name: string;
+	outcome: SmsSendOutcome;
+};
+
+export type BulkSendSummary = {
+	total: number;
+	sent: number;
+	blocked: { title: string; count: number }[];
+	headline: string;
+	detail: string | null;
+};
+
+export function summarizeBulkSend(
+	items: readonly BulkSendItem[],
+): BulkSendSummary {
+	let sent = 0;
+	const reasons = new Map<string, number>();
+
+	for (const item of items) {
+		const notice = smsOutcomeNotice(item.outcome);
+		if (notice.sent) {
+			sent += 1;
+			continue;
+		}
+		reasons.set(notice.title, (reasons.get(notice.title) ?? 0) + 1);
+	}
+
+	const blocked = [...reasons.entries()]
+		.map(([title, count]) => ({ title, count }))
+		.sort((a, b) => b.count - a.count);
+	const notSent = items.length - sent;
+
+	return {
+		total: items.length,
+		sent,
+		blocked,
+		headline:
+			notSent === 0
+				? `Sent ${sent} of ${items.length}`
+				: `Sent ${sent} of ${items.length}. ${notSent} not sent`,
+		detail:
+			blocked.length === 0
+				? null
+				: blocked
+						.map((reason) => `${reason.count} × ${reason.title}`)
+						.join(", "),
+	};
+}
+
+export type FirstMessageDraft = { id: string; name: string; body: string };
+
+export function firstMessageDrafts(
+	drafts: readonly (FirstMessageDraft & { firstMessage: boolean })[],
+): FirstMessageDraft[] {
+	return drafts
+		.filter((draft) => draft.firstMessage)
+		.map(({ id, name, body }) => ({ id, name, body }));
+}

@@ -10,6 +10,7 @@ import {
 } from "../sms/sms-threads";
 import { paginate } from "../trpc/list-input";
 import { type LeadStatus, leadStatusOf, statusCounts } from "./lead-status";
+import { describeSetup } from "./setup";
 import { messageLabel, sortTimeline, type TimelineEvent } from "./timeline";
 import type {
 	TodayLead,
@@ -170,13 +171,7 @@ export class TodayService {
 						]
 					: [],
 			),
-			setup: {
-				telnyxConfigured: Boolean(
-					env.apiKey && env.fromNumber && env.messagingProfileId,
-				),
-				fromNumber: env.fromNumber,
-				leadCount,
-			},
+			setup: { ...describeSetup(env, process.env), leadCount },
 		};
 	}
 

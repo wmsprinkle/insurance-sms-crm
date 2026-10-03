@@ -32,9 +32,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
+import { AutoSendSwitch } from "@/components/crm/auto-send-switch";
+import { BulkDraftActions } from "@/components/crm/bulk-drafts";
 import { LocalDateTime, LocalRelativeTime } from "@/components/local-date-time";
-import { smsOutcomeNotice } from "@/lib/sms-drafts";
+import { firstMessageDrafts, smsOutcomeNotice } from "@/lib/sms-drafts";
 import {
+	type GetStartedAction,
 	getStartedItems,
 	getStartedProgress,
 	KPI_DEFINITIONS,
@@ -131,8 +134,13 @@ export function TodayView() {
 		threads: threads.data,
 	});
 	const started = getStartedItems({
-		telnyxConfigured: summary.data.setup.telnyxConfigured,
-		fromNumber: summary.data.setup.fromNumber,
+		telnyxApiKeySet: summary.data.setup.telnyxApiKeySet,
+		telnyxNumberSet: summary.data.setup.telnyxNumberSet,
+		telnyxProfileSet: summary.data.setup.telnyxProfileSet,
+		webhookKeySet: summary.data.setup.webhookKeySet,
+		fromNumberMasked: summary.data.setup.fromNumberMasked,
+		modelKeySet: summary.data.setup.modelKeySet,
+		webhookUrl: summary.data.setup.webhookUrl,
 		dryRun: summary.data.dryRun,
 		calendarConnected: (calendar.data?.accounts.length ?? 0) > 0,
 		leadCount: summary.data.setup.leadCount,
@@ -147,7 +155,11 @@ export function TodayView() {
 
 			<div className="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
 				<div className="flex min-w-0 flex-col gap-6">
-					<NeedsYouCard items={items} />
+					<AutoSendSwitch />
+					<NeedsYouCard
+						items={items}
+						firstDrafts={firstMessageDrafts(queue.data.drafts)}
+					/>
 					<MeetingsCard meetings={summary.data.meetings} />
 				</div>
 				<GetStartedCard
@@ -177,7 +189,13 @@ function KpiStrip({ summary }: { summary: Summary }) {
 	);
 }
 
-function NeedsYouCard({ items }: { items: NeedsYouItem[] }) {
+function NeedsYouCard({
+	items,
+	firstDrafts,
+}: {
+	items: NeedsYouItem[];
+	firstDrafts: ReturnType<typeof firstMessageDrafts>;
+}) {
 	const [expanded, setExpanded] = useState(false);
 	const shown = expanded ? items : items.slice(0, TODAY_VIEW.needsYouShown);
 	const workspaceUrl = useWorkspaceUrl();
@@ -192,6 +210,8 @@ function NeedsYouCard({ items }: { items: NeedsYouItem[] }) {
 					<Badge variant="secondary">{items.length}</Badge>
 				) : null}
 			</div>
+
+			<BulkDraftActions drafts={firstDrafts} />
 
 			{items.length === 0 ? (
 				<Empty>
@@ -435,6 +455,34 @@ function MeetingsCard({ meetings }: { meetings: Meeting[] }) {
 	);
 }
 
+function GetStartedButton({ action }: { action: GetStartedAction }) {
+	const workspaceUrl = useWorkspaceUrl();
+
+	if (action.kind === "link") {
+		return (
+			<Button asChild size="sm" variant="outline" className="self-start">
+				<Link href={workspaceUrl(action.href)}>{action.label}</Link>
+			</Button>
+		);
+	}
+
+	return (
+		<Button
+			size="sm"
+			variant="outline"
+			className="self-start"
+			onClick={() => {
+				navigator.clipboard.writeText(action.value).then(
+					() => toast.success(action.copied),
+					() => toast.error("Could not copy. Select the text and copy it."),
+				);
+			}}
+		>
+			{action.label}
+		</Button>
+	);
+}
+
 function GetStartedCard({
 	items,
 	progress,
@@ -444,7 +492,6 @@ function GetStartedCard({
 	progress: ReturnType<typeof getStartedProgress>;
 	loading: boolean;
 }) {
-	const workspaceUrl = useWorkspaceUrl();
 	const complete = progress.done === progress.total;
 
 	return (
@@ -492,18 +539,7 @@ function GetStartedCard({
 								<span className="text-muted-foreground text-xs/relaxed">
 									{item.detail}
 								</span>
-								{item.href && item.actionLabel ? (
-									<Button
-										asChild
-										size="sm"
-										variant="outline"
-										className="self-start"
-									>
-										<Link href={workspaceUrl(item.href)}>
-											{item.actionLabel}
-										</Link>
-									</Button>
-								) : null}
+								{item.action ? <GetStartedButton action={item.action} /> : null}
 							</div>
 						</li>
 					))}

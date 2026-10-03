@@ -66,6 +66,7 @@ async function TodayContent() {
 		),
 		queryClient.prefetchQuery(trpc.settings.sms.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.calendar.queryOptions()),
+		queryClient.prefetchQuery(trpc.workspace.get.queryOptions()),
 	]);
 
 	return (

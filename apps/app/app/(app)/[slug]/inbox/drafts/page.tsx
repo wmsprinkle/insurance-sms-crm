@@ -50,7 +50,11 @@ async function SmsDraftsContent() {
 
 	const trpc = getServerTrpc();
 	const queryClient = getServerQueryClient();
-	await queryClient.prefetchQuery(trpc.smsDrafts.queue.queryOptions());
+	await Promise.all([
+		queryClient.prefetchQuery(trpc.smsDrafts.queue.queryOptions()),
+		queryClient.prefetchQuery(trpc.settings.sms.queryOptions()),
+		queryClient.prefetchQuery(trpc.workspace.get.queryOptions()),
+	]);
 
 	return (
 		<HydrateClient>

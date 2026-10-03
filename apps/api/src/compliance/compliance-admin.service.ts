@@ -21,6 +21,10 @@ const COMPLIANCE_ACTIONS = {
 		allowed: canImportLeads,
 		refusal: "Only an owner or an admin can import leads.",
 	},
+	bulkDrafts: {
+		allowed: canManageCompliance,
+		refusal: "Only an owner or an admin can send or discard drafts in bulk.",
+	},
 	smsSend: {
 		allowed: canSendSms,
 		refusal: "Only a workspace member can send or approve texts.",

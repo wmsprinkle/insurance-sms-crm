@@ -14,7 +14,10 @@ import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import { restMeta } from "../trpc/openapi";
 import {
 	smsComposeInput,
+	smsDraftApproveAllOutput,
 	smsDraftApproveInput,
+	smsDraftBulkInput,
+	smsDraftDiscardAllOutput,
 	smsDraftDiscardOutput,
 	smsDraftIdInput,
 	smsDraftQueueOutput,
@@ -65,6 +68,32 @@ export class SmsDraftsRouter {
 	) {
 		await this.admin.require(ctx.user.id, "smsSend");
 		return this.drafts.discard(input, ctx.user.id);
+	}
+
+	@Mutation({
+		input: smsDraftBulkInput,
+		output: smsDraftApproveAllOutput,
+		meta: restMeta("POST", "/sms/drafts/approve-all", ["SMS"]),
+	})
+	async approveAll(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof smsDraftBulkInput>,
+	) {
+		await this.admin.require(ctx.user.id, "bulkDrafts");
+		return this.drafts.approveAll(input, ctx.user.id);
+	}
+
+	@Mutation({
+		input: smsDraftBulkInput,
+		output: smsDraftDiscardAllOutput,
+		meta: restMeta("POST", "/sms/drafts/discard-all", ["SMS"]),
+	})
+	async discardAll(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof smsDraftBulkInput>,
+	) {
+		await this.admin.require(ctx.user.id, "bulkDrafts");
+		return this.drafts.discardAll(input, ctx.user.id);
 	}
 
 	@Mutation({

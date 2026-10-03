@@ -41,7 +41,10 @@ describe("needsYouItems", () => {
 		const closed = (
 			contactId: string,
 			funnelStatus: "not_interested" | "opted_out" | "abusive",
-		) => ({ ...thread(contactId, 1, "2026-10-03T09:00:00.000Z"), funnelStatus });
+		) => ({
+			...thread(contactId, 1, "2026-10-03T09:00:00.000Z"),
+			funnelStatus,
+		});
 
 		const items = needsYouItems({
 			summary: NO_UNKNOWN,
@@ -87,6 +90,7 @@ describe("needsYouItems", () => {
 						retryAt: null,
 						createdAt: "2026-10-03T10:00:00.000Z",
 						handedOff: false,
+						firstMessage: true,
 					},
 				],
 				handoffs: [
@@ -156,8 +160,13 @@ describe("handoffDetail", () => {
 
 describe("getStartedItems", () => {
 	const READY = {
-		telnyxConfigured: true,
-		fromNumber: "+18337544120",
+		telnyxApiKeySet: true,
+		telnyxNumberSet: true,
+		telnyxProfileSet: true,
+		webhookKeySet: true,
+		fromNumberMasked: "+1 833 *** 4120",
+		modelKeySet: true,
+		webhookUrl: "https://api.acme.test/webhooks/telnyx",
 		dryRun: true,
 		calendarConnected: true,
 		leadCount: 12,
@@ -165,35 +174,109 @@ describe("getStartedItems", () => {
 		licensedStates: ["TX"],
 	};
 
+	const find = (items: ReturnType<typeof getStartedItems>, id: string) =>
+		items.find((item) => item.id === id);
+
 	it("marks everything done when set up", () => {
 		const items = getStartedItems(READY);
-		expect(getStartedProgress(items)).toEqual({ done: 4, total: 4 });
+		expect(getStartedProgress(items)).toEqual({ done: 6, total: 6 });
+		expect(find(items, "telnyx")?.detail).toBe("Sending from +1 833 *** 4120.");
 	});
 
-	it("reports what is missing", () => {
-		const items = getStartedItems({
+	it("gives every to-do exactly one action and every done item none", () => {
+		const todo = getStartedItems({
 			...READY,
-			telnyxConfigured: false,
+			telnyxApiKeySet: false,
+			modelKeySet: false,
+			webhookKeySet: false,
 			calendarConnected: false,
 			leadCount: 0,
 			brandName: " ",
 			licensedStates: [],
 		});
-		expect(getStartedProgress(items)).toEqual({ done: 0, total: 4 });
-		const business = items.find((item) => item.id === "business");
-		expect(business?.detail).toBe(
+
+		for (const item of todo) {
+			if (item.status === "todo") expect(item.action).not.toBeNull();
+			if (item.status === "info") expect(item.action).toBeNull();
+		}
+		for (const item of getStartedItems(READY)) {
+			if (item.id !== "webhook") expect(item.action).toBeNull();
+		}
+	});
+
+	it("says the API key is missing separately from the number", () => {
+		const item = find(
+			getStartedItems({ ...READY, telnyxApiKeySet: false }),
+			"telnyx",
+		);
+
+		expect(item?.status).toBe("todo");
+		expect(item?.detail).toBe("API key missing, number set (+1 833 *** 4120).");
+		expect(item?.action).toMatchObject({
+			kind: "copy",
+			value: "TELNYX_API_KEY",
+		});
+	});
+
+	it("says the number is missing when only the key is set", () => {
+		const item = find(
+			getStartedItems({
+				...READY,
+				telnyxNumberSet: false,
+				fromNumberMasked: null,
+			}),
+			"telnyx",
+		);
+
+		expect(item?.detail).toBe("API key set, number missing.");
+		expect(item?.action).toMatchObject({ value: "TELNYX_FROM_NUMBER" });
+	});
+
+	it("reports the model key without showing it", () => {
+		const off = find(
+			getStartedItems({ ...READY, modelKeySet: false }),
+			"model",
+		);
+
+		expect(off?.status).toBe("todo");
+		expect(off?.action).toMatchObject({ value: "AI_GATEWAY_API_KEY" });
+		expect(find(getStartedItems(READY), "model")?.status).toBe("done");
+	});
+
+	it("shows the exact webhook URL with a copy action", () => {
+		const item = find(getStartedItems(READY), "webhook");
+
+		expect(item?.detail).toContain("https://api.acme.test/webhooks/telnyx");
+		expect(item?.action).toEqual({
+			kind: "copy",
+			label: "Copy URL",
+			value: "https://api.acme.test/webhooks/telnyx",
+			copied: "Webhook URL copied.",
+		});
+	});
+
+	it("reports what is missing", () => {
+		const items = getStartedItems({
+			...READY,
+			calendarConnected: false,
+			leadCount: 0,
+			brandName: " ",
+			licensedStates: [],
+		});
+
+		expect(find(items, "business")?.detail).toBe(
 			"Still to set: business name and licensed states.",
 		);
-		expect(items.find((item) => item.id === "leads")?.href).toBe(
-			"/leads/import",
-		);
+		expect(find(items, "leads")?.action).toMatchObject({
+			kind: "link",
+			href: "/leads/import",
+		});
 	});
 
 	it("shows test mode as information, not a to-do", () => {
-		const on = getStartedItems(READY).find((item) => item.id === "mode");
-		const off = getStartedItems({ ...READY, dryRun: false }).find(
-			(item) => item.id === "mode",
-		);
+		const on = find(getStartedItems(READY), "mode");
+		const off = find(getStartedItems({ ...READY, dryRun: false }), "mode");
+
 		expect(on?.status).toBe("info");
 		expect(on?.title).toBe("Test mode is on");
 		expect(off?.title).toBe("Test mode is off");

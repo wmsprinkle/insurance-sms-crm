@@ -1,5 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { smsOutcomeNotice, smsTextProblem } from "./sms-drafts";
+import {
+	firstMessageDrafts,
+	smsOutcomeNotice,
+	smsTextProblem,
+	summarizeBulkSend,
+} from "./sms-drafts";
 import { smsComposerBlock } from "./sms-presentation";
 
 describe("smsOutcomeNotice blocked reasons", () => {
@@ -91,5 +96,51 @@ describe("smsComposerBlock", () => {
 			"opted out",
 		);
 		expect(smsComposerBlock({ ...ok, consented: false })).toContain("consent");
+	});
+});
+
+describe("summarizeBulkSend", () => {
+	it("counts sent and groups the reasons the rest were blocked", () => {
+		const summary = summarizeBulkSend([
+			{ name: "A", outcome: { status: "sent", dryRun: false } },
+			{ name: "B", outcome: { status: "sent", dryRun: false } },
+			{
+				name: "C",
+				outcome: { status: "blocked", reason: "no-consent", retryAt: null },
+			},
+			{
+				name: "D",
+				outcome: { status: "blocked", reason: "no-consent", retryAt: null },
+			},
+			{ name: "E", outcome: { status: "failed", error: "Telnyx is down" } },
+		]);
+
+		expect(summary.sent).toBe(2);
+		expect(summary.headline).toBe("Sent 2 of 5. 3 not sent");
+		expect(summary.blocked[0]).toEqual({
+			title: "No consent on file",
+			count: 2,
+		});
+		expect(summary.detail).toBe("2 × No consent on file, 1 × Not sent");
+	});
+
+	it("has no detail when everything went", () => {
+		const summary = summarizeBulkSend([
+			{ name: "A", outcome: { status: "sent", dryRun: true } },
+		]);
+
+		expect(summary.headline).toBe("Sent 1 of 1");
+		expect(summary.detail).toBeNull();
+	});
+});
+
+describe("firstMessageDrafts", () => {
+	it("keeps only drafts to leads who have not replied", () => {
+		expect(
+			firstMessageDrafts([
+				{ id: "1", name: "A", body: "Hello A", firstMessage: true },
+				{ id: "2", name: "B", body: "Sure", firstMessage: false },
+			]),
+		).toEqual([{ id: "1", name: "A", body: "Hello A" }]);
 	});
 });
