@@ -12,9 +12,11 @@ function PageShell({
 	return (
 		<PageTransition>
 			<main
+				id="main-content"
+				tabIndex={-1}
 				data-slot="page-shell-scroll"
 				className={cn(
-					"flex min-w-0 flex-1 flex-col px-4 pt-4 pb-4 md:px-6 md:pt-6 md:pb-6",
+					"flex min-w-0 flex-1 flex-col px-4 pt-4 pb-4 outline-none md:px-6 md:pt-6 md:pb-6",
 					contained ? "min-h-0 overflow-hidden" : "overflow-y-auto",
 				)}
 			>

@@ -1035,3 +1035,44 @@ Date: 2026-10-03. bun 1.4.2.
 - `docs/TOLLFREE_VERIFICATION.md` still shows the old sample first message. It needs an edit to match the new text.
 - The first message has no business name and no STOP by default. A carrier can reject the number. Turn the two switches on then.
 - `apps/app` was not edited. Its compliance form and its `today`/lead-status code must adopt the new fields and the `abusive` status.
+
+# UI polish (Today, Leads, Import, Settings)
+
+Commits: `09f7af6` (shell), `f59321c` (import), `2998217` (leads), `9008a50` (compliance), `41f657f` (Today, Meetings, Inbox tabs), `6edcba5`, `c78807d` (API read model and test mode).
+
+## What exists
+
+- **Navigation.** Today, Leads, Inbox (Conversations and Drafts tabs), Meetings, Settings. A labeled sidebar on desktop and a sheet on mobile. Chat, Companies, Contacts and Deals show only when `FEATURE_CRM="true"`. The same flag shows Tracking, Currencies, API Keys and SSO in Settings. The routes still exist.
+- **Fonts.** The app uses a system font stack. `next/font/google` is gone, so `next build` needs no network for fonts.
+- **Today (`/`).** KPI strip for the last 7 days, a Needs you list with one-click actions (send or discard a draft, hand back, mark handled, open), upcoming meetings and a Get-started checklist from real state.
+- **Leads (`/leads`).** Table with status pills, search, status filter chips with counts, bulk select, last-message preview and keyboard-focusable rows. Lead detail has the thread and composer, status, consent card and a timeline.
+- **Import (`/leads/import`).** Three steps with drag and drop, a sample CSV and plain-language consent errors. The API is unchanged.
+- **Test mode.** With `DRY_RUN` on, a banner says no texts are really sent. The lead thread has a Simulate reply box and a Send test first message button.
+- **Settings > Compliance.** Sections for business, first message (live preview and toll-free warning), replies, calendar, and limits.
+- **Accessibility.** Skip link, `main` landmark, labeled nav and form fields, `aria-current` on nav and steps, focus rings from the shared components.
+
+## API added (read model and test mode)
+
+- `today.summary`, `today.meetings`, `today.leads`, `today.lead` in `apps/api/src/today`. They are queries. Status comes from `loadFunnelStatuses` (Funnel). A small overlay adds a calendar booking, a pending draft and an unknown send.
+- `sms.simulateInbound {contactId, body}` and `sms.sendTestFirstMessage {contactId}` in `apps/api/src/sms/simulate.*`. Both are `admin` in the role map. Both refuse unless `DRY_RUN` is on. `simulateInbound` calls `SmsService.receive`, the same path as the Telnyx webhook. `sendTestFirstMessage` calls `SmsInternalService.send` with `dryRun: true`.
+- The lead list scans at most 5,000 leads in memory and filters by status there.
+
+## Commands and results
+
+| Command | Result |
+| --- | --- |
+| `bunx tsc --noEmit` in `apps/app` and `apps/api` | pass |
+| `bun test` in `apps/app` | pass, 243 |
+| `bun test` API `lead-status`, `sms-simulate`, `sms-threads`, `sms-service` | pass, 39 |
+| `biome check`, `oxlint` on `apps/app`, `apps/api` and `packages/ui` | pass (old warnings only) |
+| `next build --webpack` in `apps/app` | pass, with `DEV_LOGIN=false` and dummy `DATABASE_URL`, `BETTER_AUTH_SECRET` |
+
+## Not run / not done
+
+- No page was rendered in a browser.
+- `next build` with Turbopack fails in the sandbox. The PostCSS worker cannot bind a port. Use `--webpack` or build outside the sandbox.
+- `bun run check-types` through turbo fails at `app#typegen` when the root `.env` has `DEV_LOGIN=true`. `next typegen` runs as production and refuses it. Direct `tsc` passes.
+- `apps/api/test/procedure-roles.spec.ts` needs Postgres. It did not run here. The two new mutations are in the role map.
+- The Needs you list uses the first 25 open threads. Older open replies show only in Inbox.
+- Bulk Remove on Leads archives contacts. Send paths skip archived contacts. It does not suppress the phone.
+- The API read model sits outside the first scope list. It is new files plus one line in `app.module.ts`, `sms.router.ts`, `sms.module.ts` and the role map.
