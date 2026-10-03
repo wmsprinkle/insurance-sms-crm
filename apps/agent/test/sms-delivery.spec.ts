@@ -8,7 +8,7 @@ import {
 import { SMS_AGENT } from "../agent/lib/sms-config";
 import { type DeliveryRequest, deliver } from "../agent/lib/sms-delivery";
 import { handOff } from "../agent/lib/sms-handoff";
-import { apiSendPath } from "../agent/lib/sms-outbound";
+import { apiSendPath, dryRunFrom } from "../agent/lib/sms-outbound";
 import { fakeSms, LEAD, recordingPath } from "./support/sms-fakes";
 
 const REQUEST: DeliveryRequest = {
@@ -348,6 +348,21 @@ describe("explainHold", () => {
 		});
 		expect(result.status === "drafted" && result.detail).toContain(
 			"Auto send is off",
+		);
+	});
+});
+
+describe("dryRunFrom", () => {
+	it("is on unless DRY_RUN is exactly false", () => {
+		expect(dryRunFrom({})).toBe(true);
+		expect(dryRunFrom({ DRY_RUN: "true" })).toBe(true);
+		expect(dryRunFrom({ DRY_RUN: "False" })).toBe(true);
+		expect(dryRunFrom({ DRY_RUN: "false" })).toBe(false);
+	});
+
+	it("does not need the Telnyx key, which only the API holds", () => {
+		expect(dryRunFrom({ DRY_RUN: "false", TELNYX_API_KEY: undefined })).toBe(
+			false,
 		);
 	});
 });
