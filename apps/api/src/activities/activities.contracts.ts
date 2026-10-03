@@ -20,6 +20,7 @@ const ALL_ACTIVITY_TYPES = [
 	ActivityType.TASK,
 	ActivityType.STAGE_CHANGE,
 	ActivityType.ENRICHMENT,
+	ActivityType.SMS,
 ] as const;
 
 const activityTypeOutput = z.enum(ALL_ACTIVITY_TYPES);

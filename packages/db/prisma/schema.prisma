@@ -186,6 +186,7 @@ enum ActivityType {
   TASK
   STAGE_CHANGE
   ENRICHMENT
+  SMS
 }
 
 enum EnrichmentStatus {
@@ -202,6 +203,7 @@ enum RecordSource {
   EMAIL
   CALENDAR
   TRACKING
+  LEAD_IMPORT
 }
 
 enum AgentConversationKind {
@@ -392,10 +394,15 @@ model Contact {
   fieldValues     FieldValue[]
   visitors        TrackedVisitor[]   @relation("VisitorContact")
   submissions     FormSubmission[]   @relation("SubmissionContact")
+  smsMessages     SmsMessage[]
+  consentRecords  ConsentRecord[]
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
 
   @@unique([email], map: "contact_email_active_key", where: { archivedAt: null })
+  // Phone is stored in E.164 (see @crm/validation/phone); the migration adds a
+  // CHECK constraint, which Prisma cannot model.
+  @@unique([phone], map: "contact_phone_active_key", where: { archivedAt: null })
   @@index([companyId])
   @@index([ownerId])
   @@index([lastActivityAt])
@@ -1294,6 +1301,85 @@ model SuppressedContact {
   createdAt DateTime @default(now())
 
   @@map("suppressedContact")
+}
+
+// ── Insurance SMS CRM: SMS, consent and suppression ─────────────────────────
+
+enum SmsDirection {
+  INBOUND
+  OUTBOUND
+}
+
+/// Telnyx message lifecycle. QUEUED is ours (before Telnyx has an id);
+/// the rest follow Telnyx's message.sent / message.finalized statuses.
+enum SmsStatus {
+  QUEUED
+  SENDING
+  SENT
+  DELIVERED
+  DELIVERY_FAILED
+  SENDING_FAILED
+  DELIVERY_UNCONFIRMED
+  RECEIVED
+}
+
+enum ConsentSource {
+  WEB_FORM
+  LEAD_IMPORT
+  API
+  SMS_KEYWORD
+  MANUAL
+}
+
+enum SuppressionReason {
+  STOP_KEYWORD
+  OPT_OUT_REQUEST
+  WRONG_NUMBER
+  CARRIER_BLOCK
+  MANUAL
+}
+
+model SmsMessage {
+  id        String       @id @default(cuid())
+  contactId String
+  contact   Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  direction SmsDirection
+  body      String
+  /// Telnyx message id; unique so webhook retries are idempotent.
+  telnyxId  String?      @unique
+  status    SmsStatus    @default(QUEUED)
+  errorCode String?
+  createdAt DateTime     @default(now())
+
+  @@index([contactId, createdAt])
+  @@map("smsMessage")
+}
+
+/// Proof that a lead agreed to receive texts. No consent row, no send.
+model ConsentRecord {
+  id         String        @id @default(cuid())
+  contactId  String
+  contact    Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  source     ConsentSource
+  capturedAt DateTime
+  optInText  String?
+  optInUrl   String?
+  ip         String?
+  revokedAt  DateTime?
+  createdAt  DateTime      @default(now())
+
+  @@index([contactId, revokedAt])
+  @@map("consentRecord")
+}
+
+/// Numbers that must never be texted, keyed by E.164 so a suppression
+/// survives the contact being archived or re-imported.
+model PhoneSuppression {
+  e164      String            @id
+  reason    SuppressionReason
+  createdAt DateTime          @default(now())
+
+  @@map("phoneSuppression")
 }
 
 model AppSetting {

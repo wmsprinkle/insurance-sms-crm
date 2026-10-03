@@ -1,5 +1,6 @@
 import type { Prisma } from "@crm/db";
 import { Prisma as PrismaNamespace } from "@crm/db";
+import { toE164 } from "@crm/validation/phone";
 
 export function toCents(amount: Prisma.Decimal | null): number | null {
 	return amount === null ? null : amount.times(100).toNumber();
@@ -20,6 +21,10 @@ export function decimalFromCents(
 export function blankToNull(value: string): string | null {
 	const trimmed = value.trim();
 	return trimmed === "" ? null : trimmed;
+}
+
+export function normalizePhone(value: string): string | null {
+	return toE164(value);
 }
 
 export function normalizeEmail(value: string): string | null {
