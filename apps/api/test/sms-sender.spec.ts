@@ -58,7 +58,13 @@ function sender(
 
 const consented = {
 	consents: [
-		{ id: "c1", contactId: "contact-1", source: "WEB_FORM", revokedAt: null },
+		{
+			id: "c1",
+			contactId: "contact-1",
+			e164: "+12125550123",
+			source: "WEB_FORM",
+			revokedAt: null,
+		},
 	],
 };
 

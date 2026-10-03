@@ -105,6 +105,7 @@ export class LeadWriterService {
 					source: origin,
 					consentRecords: {
 						create: {
+							e164: lead.phone,
 							source: lead.consent.source,
 							capturedAt: lead.consent.capturedAt,
 							optInText: lead.consent.optInText,

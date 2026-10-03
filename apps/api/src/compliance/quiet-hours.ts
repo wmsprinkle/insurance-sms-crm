@@ -64,13 +64,25 @@ function ruleFor(state: UsState): WeekWindow {
 
 export function sendWindowFor(recipient: Recipient): SendWindow {
 	const declared = recipient.state?.trim().toUpperCase() ?? "";
-	const state = isUsState(declared) ? declared : stateForPhone(recipient.e164);
+	const states = [
+		...new Set(
+			[
+				isUsState(declared) ? declared : null,
+				stateForPhone(recipient.e164),
+			].filter((state): state is UsState => state !== null),
+		),
+	];
+	const [state] = states;
 
 	if (state) {
 		return {
 			state,
-			timezones: COMPLIANCE.timezones.byState[state],
-			rules: [ruleFor(state)],
+			timezones: [
+				...new Set(
+					states.flatMap((entry) => COMPLIANCE.timezones.byState[entry]),
+				),
+			],
+			rules: [...new Set(states.map(ruleFor))],
 		};
 	}
 

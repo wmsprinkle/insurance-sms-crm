@@ -8,6 +8,7 @@ import {
 	UseMiddlewares,
 } from "nestjs-trpc";
 import type { z } from "zod";
+import { ComplianceAdminService } from "../compliance/compliance-admin.service";
 import type { AuthedTrpcContext } from "../trpc/context.types";
 import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import { restMeta } from "../trpc/openapi";
@@ -28,6 +29,8 @@ import { SmsDraftsService } from "./drafts.service";
 export class SmsDraftsRouter {
 	constructor(
 		@Inject(SmsDraftsService) private readonly drafts: SmsDraftsService,
+		@Inject(ComplianceAdminService)
+		private readonly admin: ComplianceAdminService,
 	) {}
 
 	@Query({
@@ -47,6 +50,7 @@ export class SmsDraftsRouter {
 		@Ctx() ctx: AuthedTrpcContext,
 		@Input() input: z.infer<typeof smsDraftApproveInput>,
 	) {
+		await this.admin.require(ctx.user.id, "smsSend");
 		return this.drafts.approve(input, ctx.user.id);
 	}
 
@@ -59,6 +63,7 @@ export class SmsDraftsRouter {
 		@Ctx() ctx: AuthedTrpcContext,
 		@Input() input: z.infer<typeof smsDraftIdInput>,
 	) {
+		await this.admin.require(ctx.user.id, "smsSend");
 		return this.drafts.discard(input, ctx.user.id);
 	}
 
@@ -67,7 +72,11 @@ export class SmsDraftsRouter {
 		output: smsHandBackOutput,
 		meta: restMeta("POST", "/sms/handoffs/{contactId}/hand-back", ["SMS"]),
 	})
-	async handBack(@Input() input: z.infer<typeof smsHandBackInput>) {
+	async handBack(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof smsHandBackInput>,
+	) {
+		await this.admin.require(ctx.user.id, "smsSend");
 		return this.drafts.handBack(input);
 	}
 
@@ -76,7 +85,11 @@ export class SmsDraftsRouter {
 		output: smsSendOutcome,
 		meta: restMeta("POST", "/sms/threads/{contactId}/send", ["SMS"]),
 	})
-	async compose(@Input() input: z.infer<typeof smsComposeInput>) {
+	async compose(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof smsComposeInput>,
+	) {
+		await this.admin.require(ctx.user.id, "smsSend");
 		return this.drafts.compose(input);
 	}
 }

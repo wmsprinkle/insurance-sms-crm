@@ -58,7 +58,14 @@ export class TelnyxClient {
 		return this.env.dryRun;
 	}
 
-	async send(input: SendSmsInput): Promise<SendSmsResult> {
+	async reserveSlot(from?: string): Promise<void> {
+		await this.limiter.acquire(from ?? this.env.fromNumber ?? DRY_RUN_FROM);
+	}
+
+	async send(
+		input: SendSmsInput,
+		options: { slotReserved?: boolean } = {},
+	): Promise<SendSmsResult> {
 		if (!E164_PATTERN.test(input.to)) {
 			throw new TelnyxSendError(
 				"Recipient is not an E.164 number.",
@@ -73,7 +80,9 @@ export class TelnyxClient {
 		const from = input.from ?? this.env.fromNumber;
 
 		if (this.env.dryRun) {
-			await this.limiter.acquire(from ?? DRY_RUN_FROM);
+			if (!options.slotReserved) {
+				await this.limiter.acquire(from ?? DRY_RUN_FROM);
+			}
 			const id = `${SMS.telnyx.dryRunIdPrefix}${randomUUID()}`;
 			this.logger.log({ message: "SMS not sent: dry run", telnyxId: id });
 			return { id, from: from ?? DRY_RUN_FROM, dryRun: true };
@@ -83,7 +92,7 @@ export class TelnyxClient {
 			throw new TelnyxSendError("TELNYX_FROM_NUMBER is not set.", null, null);
 		}
 
-		await this.limiter.acquire(from);
+		if (!options.slotReserved) await this.limiter.acquire(from);
 
 		const response = await this.fetcher(SMS.telnyx.messagesUrl, {
 			method: "POST",

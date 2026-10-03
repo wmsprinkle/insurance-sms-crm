@@ -37,6 +37,18 @@ export function canManageTracking(role: WorkspaceRole | null): boolean {
 	return isWorkspaceAdmin(role);
 }
 
+export function canManageCompliance(role: WorkspaceRole | null): boolean {
+	return isWorkspaceAdmin(role);
+}
+
+export function canImportLeads(role: WorkspaceRole | null): boolean {
+	return isWorkspaceAdmin(role);
+}
+
+export function canSendSms(role: WorkspaceRole | null): boolean {
+	return role !== null;
+}
+
 export async function ensureWorkspaceMembership(
 	userId: string,
 ): Promise<string | undefined> {

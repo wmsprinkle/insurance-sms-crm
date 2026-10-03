@@ -14,6 +14,7 @@ import {
 	guardRepText,
 	heldAfterBlock,
 	holdReasonLabel,
+	receiptState,
 	sendOutcome,
 } from "./drafts";
 import { SMS_DRAFTS } from "./drafts.config";
@@ -28,6 +29,7 @@ import type {
 	SmsSendOutcome,
 } from "./drafts.contracts";
 import { SMS } from "./sms-config";
+import { SMS_INTERNAL } from "./sms-internal";
 import { SmsInternalService } from "./sms-internal.service";
 import { contactDisplayName } from "./sms-threads";
 
@@ -101,6 +103,26 @@ export class SmsDraftsService {
 			return { status: "failed", error: SMS_DRAFTS.errors.gone };
 		}
 
+		const prior = await this.priorSend(draft);
+		if (prior === "in-progress") {
+			return { status: "failed", error: SMS_DRAFTS.errors.inProgress };
+		}
+		if (prior === "sent") {
+			await this.db.smsDraft.updateMany({
+				where: { id: draft.id, status: SmsDraftStatus.PENDING },
+				data: {
+					status: SmsDraftStatus.DISCARDED,
+					decidedAt: new Date(),
+					decidedById: userId,
+				},
+			});
+			this.logger.log({
+				message: "SMS draft discarded: the agent already sent it",
+				draftId: draft.id,
+			});
+			return { status: "failed", error: SMS_DRAFTS.errors.alreadySent };
+		}
+
 		let text = draft.body;
 		if (input.text !== undefined && input.text !== draft.body.trim()) {
 			const guarded = guardRepText(input.text, await this.disclosure());
@@ -112,7 +134,9 @@ export class SmsDraftsService {
 			contactId: draft.contactId,
 			text,
 			purpose: "conversation",
-			idempotencyKey: `${SMS_DRAFTS.idempotency.draftPrefix}${draft.id}`,
+			idempotencyKey:
+				draft.idempotencyKey ??
+				`${SMS_DRAFTS.idempotency.draftPrefix}${draft.id}`,
 			taskId: draft.taskId,
 		});
 
@@ -143,6 +167,43 @@ export class SmsDraftsService {
 			});
 		}
 		return outcome;
+	}
+
+	private async priorSend(
+		draft: Pick<
+			Prisma.SmsDraftGetPayload<object>,
+			"contactId" | "reason" | "taskId" | "idempotencyKey"
+		>,
+	): Promise<"sent" | "in-progress" | null> {
+		const { idPrefix, sessionId, sent, claimed } = SMS_INTERNAL.idempotency;
+		if (draft.idempotencyKey) {
+			const receipt = await this.db.agentEvent.findUnique({
+				where: { id: `${idPrefix}${draft.idempotencyKey}` },
+				select: { type: true },
+			});
+			return receiptState(receipt ? [receipt.type] : []);
+		}
+
+		const uncertain: readonly string[] = SMS_DRAFTS.uncertainReasons;
+		if (!draft.taskId || !uncertain.includes(draft.reason)) return null;
+
+		const receipts = await this.db.agentEvent.findMany({
+			where: {
+				sessionId,
+				contactId: draft.contactId,
+				type: { in: [sent, claimed] },
+				AND: [
+					{ data: { path: ["taskId"], equals: draft.taskId } },
+					{
+						OR: SMS_DRAFTS.verifiedPurposes.map((purpose) => ({
+							data: { path: ["purpose"], equals: purpose },
+						})),
+					},
+				],
+			},
+			select: { type: true },
+		});
+		return receiptState(receipts.map((row) => row.type));
 	}
 
 	async discard(
@@ -220,6 +281,18 @@ export class SmsDraftsService {
 			select: { phone: true },
 		});
 		if (!contact?.phone) return false;
+
+		const [suppressed, consent] = await Promise.all([
+			tx.phoneSuppression.findUnique({
+				where: { e164: contact.phone },
+				select: { e164: true },
+			}),
+			tx.consentRecord.findFirst({
+				where: { contactId, e164: contact.phone, revokedAt: null },
+				select: { id: true },
+			}),
+		]);
+		if (suppressed || !consent) return false;
 
 		const inbound = await tx.smsMessage.findMany({
 			where: {

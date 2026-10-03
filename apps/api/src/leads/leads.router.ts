@@ -1,6 +1,8 @@
 import { Inject } from "@nestjs/common";
-import { Input, Mutation, Router, UseMiddlewares } from "nestjs-trpc";
+import { Ctx, Input, Mutation, Router, UseMiddlewares } from "nestjs-trpc";
 import type { z } from "zod";
+import { ComplianceAdminService } from "../compliance/compliance-admin.service";
+import type { AuthedTrpcContext } from "../trpc/context.types";
 import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import { restMeta } from "../trpc/openapi";
 import { LeadImportService } from "./lead-import.service";
@@ -15,6 +17,8 @@ import {
 export class LeadsRouter {
 	constructor(
 		@Inject(LeadImportService) private readonly imports: LeadImportService,
+		@Inject(ComplianceAdminService)
+		private readonly admin: ComplianceAdminService,
 	) {}
 
 	@Mutation({
@@ -31,7 +35,15 @@ export class LeadsRouter {
 		output: leadImportOutput,
 		meta: restMeta("POST", "/leads/import/commit", ["Leads"]),
 	})
-	async importCommit(@Input() input: z.infer<typeof leadImportCommitInput>) {
-		return this.imports.commit(input);
+	async importCommit(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof leadImportCommitInput>,
+	) {
+		await this.admin.require(ctx.user.id, "leadImport");
+		const result = await this.imports.commit(input);
+		await this.admin.record(ctx.user.id, "leadsImported", {
+			totals: result.totals,
+		});
+		return result;
 	}
 }

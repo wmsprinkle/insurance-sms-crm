@@ -28,7 +28,19 @@ function inbound(overrides: Partial<TelnyxInbound> = {}): TelnyxInbound {
 }
 
 function service(seed: Parameters<typeof fakeDb>[0] = {}) {
-	const { state, db } = fakeDb({ contacts: [CONTACT], ...seed });
+	const { state, db } = fakeDb({
+		contacts: [CONTACT],
+		consents: [
+			{
+				id: "c0",
+				contactId: CONTACT.id,
+				e164: CONTACT.phone,
+				source: "WEB_FORM",
+				revokedAt: null,
+			},
+		],
+		...seed,
+	});
 	let drained = 0;
 	const agents = { drainQueues: () => (drained += 1) };
 	const client = db as unknown as Db;
@@ -174,7 +186,13 @@ describe("SmsService.updateStatus", () => {
 describe("SmsService.receive keywords", () => {
 	const consented = () => ({
 		consents: [
-			{ id: "c1", contactId: "contact-1", source: "WEB_FORM", revokedAt: null },
+			{
+				id: "c1",
+				contactId: "contact-1",
+				e164: CONTACT.phone,
+				source: "WEB_FORM",
+				revokedAt: null,
+			},
 		],
 	});
 
@@ -200,7 +218,7 @@ describe("SmsService.receive keywords", () => {
 			"keyword-stop",
 		);
 
-		expect(state.suppressions).toEqual([
+		expect(state.suppressions).toMatchObject([
 			{ e164: "+15125550123", reason: "STOP_KEYWORD" },
 		]);
 		expect(state.consents[0]?.revokedAt).toBeInstanceOf(Date);
@@ -251,7 +269,7 @@ describe("SmsService.receive keywords", () => {
 			await sms.receive(inbound({ from: "+13055550199", text: "quit" })),
 		).toBe("keyword-stop");
 
-		expect(state.suppressions).toEqual([
+		expect(state.suppressions).toMatchObject([
 			{ e164: "+13055550199", reason: "STOP_KEYWORD" },
 		]);
 		expect(state.sms).toHaveLength(0);
@@ -300,13 +318,19 @@ describe("SmsService.receive keywords", () => {
 	it("START lifts a STOP suppression and records SMS consent", async () => {
 		const { sms, state } = service({
 			suppressions: [{ e164: "+15125550123", reason: "STOP_KEYWORD" }],
+			consents: [],
 		});
 
 		expect(await sms.receive(inbound({ text: "Start" }))).toBe("keyword-start");
 
 		expect(state.suppressions).toHaveLength(0);
 		expect(state.consents).toMatchObject([
-			{ contactId: "contact-1", source: "SMS_KEYWORD", revokedAt: null },
+			{
+				contactId: "contact-1",
+				e164: "+15125550123",
+				source: "SMS_KEYWORD",
+				revokedAt: null,
+			},
 		]);
 	});
 

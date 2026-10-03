@@ -1,6 +1,15 @@
 import { Inject } from "@nestjs/common";
-import { Input, Mutation, Query, Router, UseMiddlewares } from "nestjs-trpc";
+import {
+	Ctx,
+	Input,
+	Mutation,
+	Query,
+	Router,
+	UseMiddlewares,
+} from "nestjs-trpc";
 import type { z } from "zod";
+import { ComplianceAdminService } from "../compliance/compliance-admin.service";
+import type { AuthedTrpcContext } from "../trpc/context.types";
 import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import { restMeta } from "../trpc/openapi";
 import {
@@ -22,6 +31,8 @@ import { SettingsService } from "./settings.service";
 export class SettingsRouter {
 	constructor(
 		@Inject(SettingsService) private readonly settings: SettingsService,
+		@Inject(ComplianceAdminService)
+		private readonly admin: ComplianceAdminService,
 	) {}
 
 	@Query({
@@ -80,8 +91,10 @@ export class SettingsRouter {
 		meta: restMeta("PATCH", "/settings/archive-retention", ["Settings"]),
 	})
 	async setArchiveRetention(
+		@Ctx() ctx: AuthedTrpcContext,
 		@Input() input: z.infer<typeof setArchiveRetentionDaysInput>,
 	) {
+		await this.admin.require(ctx.user.id, "complianceSettings");
 		return this.settings.setArchiveRetention(input.days);
 	}
 
@@ -98,8 +111,18 @@ export class SettingsRouter {
 		output: smsSettingsOutput,
 		meta: restMeta("PATCH", "/settings/sms", ["Settings"]),
 	})
-	async setSms(@Input() input: z.infer<typeof setSmsSettingsInput>) {
-		return this.settings.setSms(input);
+	async setSms(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof setSmsSettingsInput>,
+	) {
+		await this.admin.require(ctx.user.id, "complianceSettings");
+		const result = await this.settings.setSms(input);
+		await this.admin.record(ctx.user.id, "smsSettingsChanged", {
+			autoSend: input.autoSend,
+			disclosureMode: input.disclosureMode,
+			firstMessageTemplate: input.firstMessageTemplate,
+		});
+		return result;
 	}
 
 	@Query({

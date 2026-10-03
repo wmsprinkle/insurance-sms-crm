@@ -68,6 +68,7 @@ export const SMS_GUARD_REASONS = [
 	"sanitized",
 	"breaks_character",
 	"empty_after_sanitize",
+	"price_or_guarantee",
 ] as const;
 
 export type SmsGuardReason = (typeof SMS_GUARD_REASONS)[number];

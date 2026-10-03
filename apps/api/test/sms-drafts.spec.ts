@@ -27,6 +27,7 @@ type Draft = {
 	decidedAt: Date | null;
 	decidedById: string | null;
 	createdAt: Date;
+	idempotencyKey?: string | null;
 };
 
 type Handoff = {
@@ -52,6 +53,14 @@ type Message = {
 	contactId: string;
 	direction: SmsDirection;
 	createdAt: Date;
+};
+
+type Receipt = {
+	id: string;
+	contactId: string;
+	type: string;
+	taskId: string;
+	purpose: string;
 };
 
 function matches<T extends object>(row: T, where: Partial<T>): boolean {
@@ -82,6 +91,9 @@ function fake(seed: {
 	tasks?: Task[];
 	messages?: Message[];
 	sms?: unknown;
+	suppressed?: string[];
+	consented?: string[];
+	events?: Receipt[];
 }) {
 	const state = {
 		drafts: seed.drafts ?? [],
@@ -89,6 +101,9 @@ function fake(seed: {
 		tasks: seed.tasks ?? [],
 		messages: seed.messages ?? [],
 		locks: [] as string[],
+		suppressed: seed.suppressed ?? [],
+		consented: seed.consented ?? [PHONE],
+		events: seed.events ?? [],
 	};
 	const contact = {
 		id: "contact-1",
@@ -185,6 +200,34 @@ function fake(seed: {
 		},
 		appSetting: {
 			findUnique: async () => ({ sms: seed.sms ?? null }),
+		},
+		phoneSuppression: {
+			findUnique: async ({ where }: { where: { e164: string } }) =>
+				state.suppressed.includes(where.e164) ? { e164: where.e164 } : null,
+		},
+		consentRecord: {
+			findFirst: async ({ where }: { where: { e164: string } }) =>
+				state.consented.includes(where.e164) ? { id: "consent-1" } : null,
+		},
+		agentEvent: {
+			findUnique: async ({ where }: { where: { id: string } }) =>
+				state.events.find((row) => row.id === where.id) ?? null,
+			findMany: async ({
+				where,
+			}: {
+				where: {
+					contactId: string;
+					type: { in: string[] };
+					AND: [{ data: { equals: string } }, unknown];
+				};
+			}) =>
+				state.events.filter(
+					(row) =>
+						row.contactId === where.contactId &&
+						where.type.in.includes(row.type) &&
+						row.taskId === where.AND[0].data.equals &&
+						["conversation", "first-touch"].includes(row.purpose),
+				),
 		},
 		$queryRaw: async (_strings: TemplateStringsArray, key: string) => {
 			state.locks.push(key);
@@ -576,5 +619,149 @@ describe("SmsDraftsService.handBack", () => {
 			queued: false,
 		});
 		expect(state.tasks).toHaveLength(0);
+	});
+});
+
+describe("SmsDraftsService.approve after an uncertain agent send", () => {
+	const receipt = (type: string, purpose = "conversation") => ({
+		id: "sms-send:agent-key-1",
+		contactId: "contact-1",
+		type,
+		taskId: "task-1",
+		purpose,
+	});
+
+	it("discards a keyed draft whose original key already sent, and sends nothing", async () => {
+		const { drafts, calls, state } = service({
+			drafts: [draft({ idempotencyKey: "agent-key-1" })],
+			events: [receipt("sms.send.sent")],
+		});
+
+		expect(await drafts.approve({ draftId: "draft-1" }, USER)).toEqual({
+			status: "failed",
+			error: SMS_DRAFTS.errors.alreadySent,
+		});
+		expect(calls).toHaveLength(0);
+		expect(state.drafts[0]?.status).toBe(SmsDraftStatus.DISCARDED);
+	});
+
+	it("waits while the original keyed send is still claimed", async () => {
+		const { drafts, calls, state } = service({
+			drafts: [draft({ idempotencyKey: "agent-key-1" })],
+			events: [receipt("sms.send.claimed")],
+		});
+
+		expect(await drafts.approve({ draftId: "draft-1" }, USER)).toEqual({
+			status: "failed",
+			error: SMS_DRAFTS.errors.inProgress,
+		});
+		expect(calls).toHaveLength(0);
+		expect(state.drafts[0]?.status).toBe(SmsDraftStatus.PENDING);
+	});
+
+	it("checks the task's receipts for a no-send-path draft without a key", async () => {
+		const { drafts, calls } = service({
+			drafts: [draft({ reason: "no-send-path" })],
+			events: [{ ...receipt("sms.send.sent"), id: "sms-send:other-key" }],
+		});
+
+		expect(await drafts.approve({ draftId: "draft-1" }, USER)).toMatchObject({
+			error: SMS_DRAFTS.errors.alreadySent,
+		});
+		expect(calls).toHaveLength(0);
+	});
+
+	it("ignores a handoff receipt of the same task", async () => {
+		const { drafts, calls } = service(
+			{
+				drafts: [draft({ reason: "send-failed" })],
+				events: [receipt("sms.send.sent", "handoff")],
+			},
+			[SENT],
+		);
+
+		expect(await drafts.approve({ draftId: "draft-1" }, USER)).toMatchObject({
+			status: "sent",
+		});
+		expect(calls).toHaveLength(1);
+	});
+
+	it("does not look up receipts for an approval-mode draft", async () => {
+		const { drafts, calls } = service(
+			{ drafts: [draft()], events: [receipt("sms.send.sent")] },
+			[SENT],
+		);
+
+		expect(await drafts.approve({ draftId: "draft-1" }, USER)).toMatchObject({
+			status: "sent",
+		});
+		expect(calls).toHaveLength(1);
+	});
+});
+
+describe("SmsDraftsService.handBack on an opted-out contact", () => {
+	const handoff = {
+		id: "handoff-1",
+		contactId: "contact-1",
+		reason: "claim",
+		createdAt: new Date("2026-10-03T09:00:00Z"),
+		resolvedAt: null,
+	};
+	const reply = {
+		id: "sms-in-1",
+		contactId: "contact-1",
+		direction: SmsDirection.INBOUND,
+		createdAt: new Date("2026-10-03T09:30:00Z"),
+	};
+
+	it("resolves the handoff but queues no agent reply for a suppressed number", async () => {
+		const { drafts, state } = service({
+			handoffs: [{ ...handoff }],
+			messages: [reply],
+			suppressed: [PHONE],
+		});
+
+		expect(await drafts.handBack({ contactId: "contact-1" })).toEqual({
+			resolved: true,
+			queued: false,
+		});
+		expect(state.tasks).toHaveLength(0);
+	});
+
+	it("queues no agent reply when consent for this phone is gone", async () => {
+		const { drafts, state } = service({
+			handoffs: [{ ...handoff }],
+			messages: [reply],
+			consented: [],
+		});
+
+		expect(await drafts.handBack({ contactId: "contact-1" })).toEqual({
+			resolved: true,
+			queued: false,
+		});
+		expect(state.tasks).toHaveLength(0);
+	});
+});
+
+describe("SmsDraftsService.approve send key", () => {
+	it("sends with the agent's original key when the draft has one", async () => {
+		const { drafts, calls } = service(
+			{ drafts: [draft({ idempotencyKey: "send_sms:task-1" })] },
+			[SENT],
+		);
+
+		await drafts.approve({ draftId: "draft-1" }, USER);
+
+		expect(calls[0]?.idempotencyKey).toBe("send_sms:task-1");
+	});
+
+	it("falls back to the draft key for a draft without one", async () => {
+		const { drafts, calls } = service({ drafts: [draft()] }, [SENT]);
+
+		await drafts.approve({ draftId: "draft-1" }, USER);
+
+		expect(calls[0]?.idempotencyKey).toBe(
+			`${SMS_DRAFTS.idempotency.draftPrefix}draft-1`,
+		);
 	});
 });

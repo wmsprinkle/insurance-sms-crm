@@ -9,7 +9,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { InjectDatabase } from "../database/database.constants";
 import { type KeywordOutcome, KeywordService } from "./keyword.service";
-import { keywordOf } from "./keywords";
+import { keywordOf, optOutIntentOf } from "./keywords";
 import { SMS } from "./sms-config";
 import {
 	statusesBelow,
@@ -21,6 +21,7 @@ import { isUniqueViolation } from "./unique-violation";
 export type InboundOutcome =
 	| KeywordOutcome
 	| "stored"
+	| "stored-no-reply"
 	| "duplicate"
 	| "unknown-sender"
 	| "invalid-sender";
@@ -59,6 +60,16 @@ export class SmsService {
 			});
 		}
 
+		const intent = optOutIntentOf(message.text);
+		if (intent) {
+			return this.keywords.optOut({
+				intent,
+				from,
+				contactId: contact?.id ?? null,
+				message,
+			});
+		}
+
 		if (!contact) {
 			this.logger.warn({
 				message: "Inbound SMS from a number no contact has",
@@ -67,6 +78,7 @@ export class SmsService {
 			return "unknown-sender";
 		}
 
+		let queued = false;
 		try {
 			await this.db.$transaction(async (tx) => {
 				const sms = await tx.smsMessage.create({
@@ -79,7 +91,8 @@ export class SmsService {
 					},
 					select: { id: true },
 				});
-				await this.queueReply(tx, contact.id, sms.id, from);
+				queued = await this.keywords.agentMayReply(tx, contact.id, from);
+				if (queued) await this.queueReply(tx, contact.id, sms.id, from);
 			});
 		} catch (cause) {
 			if (isUniqueViolation(cause)) return "duplicate";
@@ -90,7 +103,9 @@ export class SmsService {
 			message: "Inbound SMS stored",
 			contactId: contact.id,
 			telnyxId: message.telnyxId,
+			queued,
 		});
+		if (!queued) return "stored-no-reply";
 		this.agents.drainQueues();
 
 		return "stored";

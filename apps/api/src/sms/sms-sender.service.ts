@@ -37,6 +37,7 @@ export class SmsSender {
 	) {}
 
 	async send(sms: OutboundSms): Promise<SendOutcome> {
+		await this.telnyx.reserveSlot();
 		const decision = await this.gate.check({
 			to: sms.to,
 			contactId: sms.contactId,
@@ -46,7 +47,10 @@ export class SmsSender {
 		if (!decision.allowed) return { status: "blocked", decision };
 
 		try {
-			const sent = await this.telnyx.send({ to: sms.to, text: sms.text });
+			const sent = await this.telnyx.send(
+				{ to: sms.to, text: sms.text },
+				{ slotReserved: true },
+			);
 			await this.record(sms, {
 				telnyxId: sent.id,
 				status: sent.dryRun ? SmsStatus.SENT : SmsStatus.SENDING,

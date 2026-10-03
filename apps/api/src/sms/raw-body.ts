@@ -26,5 +26,7 @@ export function readRawBody(
 		});
 		request.on("end", () => finish(Buffer.concat(chunks)));
 		request.on("error", () => finish(null));
+		request.on("aborted", () => finish(null));
+		request.on("close", () => finish(null));
 	});
 }

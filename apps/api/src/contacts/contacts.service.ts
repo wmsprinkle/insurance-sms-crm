@@ -18,6 +18,8 @@ import { AgentQueueService } from "../agent/agent-queue.service";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { ARCHIVE } from "../archive/archive-config";
 import { CompanyDirectoryService } from "../companies/company-directory.service";
+import { COMPLIANCE } from "../compliance/compliance-config";
+import { retainedConsentSnapshot } from "../compliance/consent-retention";
 import {
 	ActivityStampService,
 	type StampTargets,
@@ -419,7 +421,25 @@ export class ContactsService {
 				const targets = await this.stamp.targetsOf({ contactId: id }, tx);
 
 				await tx.agentTask.deleteMany({ where: { contactId: id } });
-				await tx.agentEvent.deleteMany({ where: { contactId: id } });
+				await tx.agentEvent.deleteMany({
+					where: {
+						contactId: id,
+						sessionId: { notIn: [...COMPLIANCE.retention.keptEventSessions] },
+					},
+				});
+
+				const snapshot = await tx.contact.findUniqueOrThrow({
+					where: { id },
+					select: { firstName: true, lastName: true, phone: true },
+				});
+				const purgedAt = new Date();
+				await tx.consentRecord.updateMany({
+					where: { contactId: id },
+					data: {
+						detachedAt: purgedAt,
+						contactSnapshot: retainedConsentSnapshot(id, snapshot, purgedAt),
+					},
+				});
 
 				const contact = await tx.contact.delete({
 					where: { id },

@@ -16,6 +16,16 @@ export class SuppressionService {
 		return row !== null;
 	}
 
+	find(
+		e164: string,
+		client: Client = this.db,
+	): Promise<{ reason: SuppressionReason; createdAt: Date } | null> {
+		return client.phoneSuppression.findUnique({
+			where: { e164 },
+			select: { reason: true, createdAt: true },
+		});
+	}
+
 	async suppress(
 		e164: string,
 		reason: SuppressionReason,

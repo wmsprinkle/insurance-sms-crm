@@ -699,3 +699,82 @@ Date: 2026-10-03. bun 1.3.12. Findings from `docs/COMPLIANCE_SECURITY_REVIEW.md`
 - `eve eval` (spends credits). No eval asserts the lockdown in a live model turn; the unit tests call the resolver.
 - No per-turn random fence marker: lead text can no longer hold the fence characters, and they trigger a hand-off.
 - `\bguarantee` also blocks "guaranteed issue" product names; such a reply falls back to the safe text.
+
+# Security fixes — API and DB side (worker-crm-fix-api)
+
+Date: 2026-10-03. bun 1.3.12. Findings from `docs/COMPLIANCE_SECURITY_REVIEW.md`. Scope: `apps/api`,
+`packages/db`, `packages/auth`.
+
+## Schema (additive migration `20261003170000_consent_phone_retention`)
+
+- `ConsentRecord.e164` (back-filled from `Contact.phone`), `contactSnapshot Json?`, `detachedAt`.
+  `contactId` is now nullable with `onDelete: SetNull`, so a purge keeps the row. Index `(e164, revokedAt)`.
+- `SmsDraft.idempotencyKey String?`: the agent stores its original send key here (agent side, f18e38a).
+  This migration is the only one that adds the column; fix-agent's planned `20261003171000` was not created.
+
+## What changed
+
+| Finding | Status | Where |
+|---|---|---|
+| H1 free-text opt-out | fixed (API part) | `sms/keywords.ts` `optOutIntentOf`, phrase list `SMS.optOutPhrases`; `KeywordService.optOut` |
+| H2 opt-out confirmation | fixed (API part) | gate purpose `opt-out-confirmation`; `SmsInternalService.optOutConfirmation` |
+| H3 consent per phone | fixed | `ConsentService.hasActiveConsent({ contactId, e164 })`; gate, first touch, threads, writer, START |
+| H4 purge keeps proof | fixed | `ContactsService.purge`, `compliance/consent-retention.ts`, `COMPLIANCE.retention` |
+| H5 double send on approve | fixed (API part) | `SmsDraftsService.priorSend` |
+| M1 strictest state | fixed | `sendWindowFor` unions declared and area-code states; gate reads `sms_state` |
+| M2 frequency cap | fixed | `frequencyRetryAt`, `COMPLIANCE.frequency` (3 per day, 7 per week, unanswered) |
+| M3 STOP keeps drafts | fixed (API part) | `KeywordService.stopEverything` discards `PENDING` drafts |
+| M4 gate before wait | fixed | `SmsSender.send` reserves the limiter slot, then gates, then sends |
+| M7 role checks | fixed | `ComplianceAdminService`, `@crm/auth` `canManageCompliance` / `canImportLeads` / `canSendSms` |
+| L1 aborted body | fixed | `raw-body.ts` settles on `aborted` / `close` |
+| L2 stale claim | fixed | `SmsInternalService.reclaimStale` (5 min lease, no matching `SmsMessage`) |
+| L4 non-US numbers | fixed (gate) | gate blocks a conversation text to a number without `+1` |
+| QA issue 2 replay check | fixed | `SmsInternalService.replay` compares contact and a SHA-256 of the text |
+| L3 per-process limiter | not fixed | operational: run one API instance that sends |
+
+- Inbound free text that matches the phrase list: the inbound message is stored, the number is suppressed
+  (`OPT_OUT_REQUEST` or `WRONG_NUMBER`), consent for the contact and the number is revoked, open SMS tasks
+  finish `opted-out`, `PENDING` drafts become `DISCARDED`, one fixed confirmation goes out. No `sms-reply` task.
+  The LLM classifier stays the backup for phrasing the list misses. The list is a keyword rule, not a model.
+- Inbound text from a suppressed number or a number without active consent for that phone is stored
+  (`stored-no-reply`) and queues no `sms-reply` task. `smsDrafts.handBack` does the same check.
+- `opt-out-confirmation`: the API ignores the caller's text and sends a fixed text (`optOut` or `wrongNumber`).
+  It needs a `PhoneSuppression` row created in the last 5 minutes, and it goes out once per suppression
+  (claim `AgentEvent` `opt-out:<e164>:<createdAt ms>`; bridge key the same). Quiet hours do not apply.
+  A repeat answers `blocked` `suppressed`, so the agent refuses and drafts nothing.
+- New gate reasons `frequency-cap` and `unsupported-number` answer `failed` with an error text on the bridge.
+  `@crm/validation/sms-send` `SMS_BLOCK_REASONS` is unchanged (outside scope).
+- Purge keeps `AgentEvent` rows of sessions `compliance:send-gate`, `sms:send`, `sms:keyword` and detaches
+  consent rows with a snapshot (name, phone, purge time, retain until purge + 5 years).
+- Draft approval sends with `draft.idempotencyKey ?? sms-draft:<id>`. A draft with a key checks receipt `sms-send:<key>` first; without a key, a
+  `no-send-path` / `send-failed` draft checks the task's `conversation` / `first-touch` receipts. Sent →
+  draft `DISCARDED`, answer "already sent". Claimed → "in progress".
+- Roles: `settings.setSms`, `settings.setArchiveRetention`, `leads.importCommit` need owner or admin. Every
+  `smsDrafts` mutation needs a workspace member. `setSms` and `importCommit` write an `AgentEvent`
+  (session `compliance:admin`).
+- `SMS_GUARD_REASONS` gained `price_or_guarantee` for the shared guard change (fix-agent). One label line in
+  `apps/app/lib/sms-drafts.ts` follows (outside scope, unavoidable: the app typecheck failed without it).
+
+## Commands and results
+
+| Command | Result |
+|---|---|
+| `bun run test` sms, compliance, lead, calendar, quiet-hours-table specs (apps/api, unreachable `TEST_DATABASE_URL`) | pass, 252 |
+| `bun test test/compliance-roles.spec.ts` (packages/auth) | pass, 2 |
+| New regression tests on the pre-fix source | 19 behaviour tests fail before, pass after; drafts and bridge tests: 11 fail before |
+| `bun run check-types` (root, turbo) | pass, 13/13 |
+| `bun run lint` (root, turbo) | pass, 9/9 |
+| `bun run lint` in apps/api, packages/auth, packages/db | pass (old warnings only) |
+| `oxlint` on every touched file | pass |
+| `prisma validate`, `prisma generate`, `migrate diff` against the previous schema | pass; diff equals the migration |
+| `bun test --preload <pglite> test/core-loop.integration.spec.ts` (apps/api, all 62 migrations) | pass, 7 |
+| `bun run lint:dead` (knip) | no new findings from these files (pre-existing findings remain) |
+| `nestjs-trpc generate` into a temp dir | only import paths differ; `server.ts` not regenerated |
+
+## Not run / not done
+
+- No real Postgres. PGlite ran every migration in the core-loop test. The back-fill UPDATE, the JSON-path
+  receipt query and the purge are tested through fakes only.
+- The settings UI does not hide the controls for a member; the API answers 403.
+- Frequency cap is a constant in `COMPLIANCE.frequency`, not a settings field.
+- Purge does not suppress the phone. Decide with counsel.

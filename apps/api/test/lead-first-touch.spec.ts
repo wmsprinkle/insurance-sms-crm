@@ -26,6 +26,7 @@ const LEAD = {
 const CONSENT = {
 	id: "consent-1",
 	contactId: "contact-1",
+	e164: PHONE,
 	source: "WEB_FORM",
 	revokedAt: null,
 };
@@ -199,12 +200,13 @@ describe("LeadWriterService.write", () => {
 				}: {
 					data: {
 						firstName: string;
-						consentRecords: { create: { source: string } };
+						consentRecords: { create: { source: string; e164: string } };
 					};
 				}) => {
 					state.consents.push({
 						id: "consent-new",
 						contactId: "contact-new",
+						e164: data.consentRecords.create.e164,
 						source: data.consentRecords.create.source,
 						revokedAt: null,
 					});

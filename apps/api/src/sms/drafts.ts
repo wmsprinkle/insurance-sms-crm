@@ -7,6 +7,7 @@ import {
 import type { SmsDisclosureMode } from "@crm/validation/sms-settings";
 import { z } from "zod";
 import type { SmsSendOutcome } from "./drafts.contracts";
+import { SMS_INTERNAL } from "./sms-internal";
 
 const holdReason = z.enum(SMS_HOLD_REASONS);
 
@@ -56,4 +57,12 @@ export function heldAfterBlock(
 		reason: "quiet-hours",
 		retryAt: outcome.retryAt ? new Date(outcome.retryAt) : null,
 	};
+}
+
+export function receiptState(
+	types: readonly string[],
+): "sent" | "in-progress" | null {
+	if (types.includes(SMS_INTERNAL.idempotency.sent)) return "sent";
+	if (types.includes(SMS_INTERNAL.idempotency.claimed)) return "in-progress";
+	return null;
 }

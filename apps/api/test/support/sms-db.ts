@@ -2,6 +2,7 @@ import { Prisma } from "@crm/db";
 
 export type FakeSms = {
 	id: string;
+	createdAt?: Date;
 	contactId: string;
 	direction: string;
 	body: string;
@@ -32,13 +33,16 @@ export type FakeState = {
 	contacts: FakeContact[];
 	sms: FakeSms[];
 	tasks: FakeTask[];
-	suppressions: { e164: string; reason: string }[];
+	suppressions: { e164: string; reason: string; createdAt?: Date }[];
 	consents: {
 		id: string;
-		contactId: string;
+		contactId: string | null;
+		e164: string | null;
 		source: string;
 		revokedAt: Date | null;
 	}[];
+	drafts: { id: string; contactId: string; status: string }[];
+	stateFields: { contactId: string; text: string }[];
 	events: {
 		id: string;
 		sessionId: string;
@@ -57,7 +61,7 @@ type Condition =
 	| { not: Scalar }
 	| undefined;
 
-type Where = { [key: string]: Condition };
+type Where = { [key: string]: Condition | Where[] };
 
 function satisfies(actual: Scalar, expected: Condition): boolean {
 	if (expected === undefined) return true;
@@ -68,10 +72,16 @@ function satisfies(actual: Scalar, expected: Condition): boolean {
 }
 
 function matches<Row extends object>(row: Row, where: Where = {}): boolean {
-	return Object.entries(where).every(([key, expected]) =>
-		satisfies(Reflect.get(row, key) as Scalar, expected),
-	);
+	return Object.entries(where).every(([key, expected]) => {
+		if (key === "OR" && Array.isArray(expected)) {
+			return expected.some((branch) => matches(row, branch));
+		}
+		if (Array.isArray(expected)) return false;
+		return satisfies(Reflect.get(row, key) as Scalar, expected);
+	});
 }
+
+const at = (row: { createdAt?: Date }) => row.createdAt?.getTime() ?? 0;
 
 let sequence = 0;
 const nextId = (prefix: string) => `${prefix}-${++sequence}`;
@@ -92,6 +102,8 @@ export function fakeDb(seed: Partial<FakeState> = {}) {
 		suppressions: [],
 		consents: [],
 		events: [],
+		drafts: [],
+		stateFields: [],
 		...seed,
 	};
 
@@ -105,7 +117,59 @@ export function fakeDb(seed: Partial<FakeState> = {}) {
 			findFirst: async ({ where }: { where: Where }) =>
 				state.contacts.find((row) => matches(row, where)) ?? null,
 		},
+		fieldValue: {
+			findFirst: async ({ where }: { where: { contactId: string } }) => {
+				const row = state.stateFields.find(
+					(entry) => entry.contactId === where.contactId,
+				);
+				return row ? { text: row.text } : null;
+			},
+		},
+		smsDraft: {
+			updateMany: async ({
+				where,
+				data,
+			}: {
+				where: Where;
+				data: { status: string };
+			}) => {
+				const rows = state.drafts.filter((row) => matches(row, where));
+				for (const row of rows) Object.assign(row, data);
+				return { count: rows.length };
+			},
+		},
 		smsMessage: {
+			findMany: async ({
+				where,
+			}: {
+				where: { contactId: string; direction: string };
+			}) =>
+				state.sms
+					.filter(
+						(row) =>
+							row.contactId === where.contactId &&
+							row.direction === where.direction &&
+							row.status !== "SENDING_FAILED",
+					)
+					.sort((a, b) => at(b) - at(a))
+					.map((row) => ({ createdAt: row.createdAt ?? new Date(0) })),
+			findFirst: async ({
+				where,
+			}: {
+				where: { contactId: string; direction: string; body?: string };
+			}) =>
+				state.sms
+					.filter(
+						(row) =>
+							row.contactId === where.contactId &&
+							row.direction === where.direction &&
+							(where.body === undefined || row.body === where.body),
+					)
+					.sort((a, b) => at(b) - at(a))
+					.map((row) => ({
+						id: row.id,
+						createdAt: row.createdAt ?? new Date(0),
+					}))[0] ?? null,
 			create: async ({ data }: { data: Omit<FakeSms, "id" | "errorCode"> }) => {
 				if (
 					data.telnyxId &&
@@ -113,7 +177,12 @@ export function fakeDb(seed: Partial<FakeState> = {}) {
 				) {
 					throw duplicate();
 				}
-				const row = { id: nextId("sms"), errorCode: null, ...data };
+				const row = {
+					id: nextId("sms"),
+					errorCode: null,
+					createdAt: new Date(),
+					...data,
+				};
 				state.sms.push(row);
 				return row;
 			},
@@ -171,8 +240,12 @@ export function fakeDb(seed: Partial<FakeState> = {}) {
 			},
 		},
 		phoneSuppression: {
-			findUnique: async ({ where }: { where: { e164: string } }) =>
-				state.suppressions.find((row) => row.e164 === where.e164) ?? null,
+			findUnique: async ({ where }: { where: { e164: string } }) => {
+				const row = state.suppressions.find(
+					(entry) => entry.e164 === where.e164,
+				);
+				return row ? { createdAt: new Date(0), ...row } : null;
+			},
 			upsert: async ({
 				where,
 				create,
@@ -184,8 +257,9 @@ export function fakeDb(seed: Partial<FakeState> = {}) {
 					(row) => row.e164 === where.e164,
 				);
 				if (existing) return existing;
-				state.suppressions.push(create);
-				return create;
+				const row = { createdAt: new Date(), ...create };
+				state.suppressions.push(row);
+				return row;
 			},
 			deleteMany: async ({ where }: { where: Where }) => {
 				const before = state.suppressions.length;
@@ -201,7 +275,7 @@ export function fakeDb(seed: Partial<FakeState> = {}) {
 			create: async ({
 				data,
 			}: {
-				data: { contactId: string; source: string };
+				data: { contactId: string; e164: string; source: string };
 			}) => {
 				const row = { id: nextId("consent"), revokedAt: null, ...data };
 				state.consents.push(row);

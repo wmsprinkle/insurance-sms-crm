@@ -15,10 +15,13 @@ export {
 } from "./env";
 export {
 	canChangeRole,
+	canImportLeads,
+	canManageCompliance,
 	canManageConnections,
 	canManageCurrency,
 	canManageTracking,
 	canRenameWorkspace,
+	canSendSms,
 	DEFAULT_WORKSPACE_NAME,
 	ensureWorkspaceMembership,
 	isWorkspaceAdmin,

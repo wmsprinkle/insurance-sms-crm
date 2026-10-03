@@ -4,28 +4,39 @@ import { InjectDatabase } from "../database/database.constants";
 
 type Client = Db | Prisma.TransactionClient;
 
+export type ConsentSubject = { contactId: string; e164: string };
+
 @Injectable()
 export class ConsentService {
 	constructor(@InjectDatabase() private readonly db: Db) {}
 
 	async hasActiveConsent(
-		contactId: string,
+		subject: ConsentSubject,
 		client: Client = this.db,
 	): Promise<boolean> {
 		const active = await client.consentRecord.findFirst({
-			where: { contactId, revokedAt: null },
+			where: {
+				contactId: subject.contactId,
+				e164: subject.e164,
+				revokedAt: null,
+			},
 			select: { id: true },
 		});
 		return active !== null;
 	}
 
 	async revokeAll(
-		contactId: string,
+		subject: { contactId: string | null; e164: string },
 		at: Date,
 		client: Client = this.db,
 	): Promise<number> {
 		const { count } = await client.consentRecord.updateMany({
-			where: { contactId, revokedAt: null },
+			where: subject.contactId
+				? {
+						OR: [{ contactId: subject.contactId }, { e164: subject.e164 }],
+						revokedAt: null,
+					}
+				: { e164: subject.e164, revokedAt: null },
 			data: { revokedAt: at },
 		});
 		return count;
@@ -34,6 +45,7 @@ export class ConsentService {
 	async grant(
 		input: {
 			contactId: string;
+			e164: string;
 			source: ConsentSource;
 			capturedAt: Date;
 			optInText: string;

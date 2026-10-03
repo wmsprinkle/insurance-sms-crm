@@ -135,10 +135,16 @@ export class SmsThreadsService {
 						select: { e164: true },
 					})
 				: null,
-			this.db.consentRecord.findFirst({
-				where: { contactId: contact.id, revokedAt: null },
-				select: { id: true },
-			}),
+			contact.phone
+				? this.db.consentRecord.findFirst({
+						where: {
+							contactId: contact.id,
+							e164: contact.phone,
+							revokedAt: null,
+						},
+						select: { id: true },
+					})
+				: null,
 		]);
 
 		const truncated = recent.length > SMS.threads.maxMessages;

@@ -140,4 +140,25 @@ export const COMPLIANCE = {
 		allowed: "sms.send.allowed",
 		blocked: "sms.send.blocked",
 	},
+	frequency: {
+		day: { windowMs: DAY_MS, max: 3 },
+		week: { windowMs: 7 * DAY_MS, max: 7 },
+	},
+	optOutConfirmation: {
+		windowMs: 5 * MINUTE_MS,
+		claimSessionId: "compliance:opt-out-confirmation",
+		claimType: "sms.opt-out.confirmed",
+		claimPrefix: "opt-out:",
+	},
+	supportedCountryPrefix: "+1",
+	retention: {
+		keptEventSessions: ["compliance:send-gate", "sms:send", "sms:keyword"],
+		years: 5,
+		note: "Kept after the contact was purged: TCPA consent and send-decision proof.",
+	},
+	adminAudit: {
+		sessionId: "compliance:admin",
+		smsSettingsChanged: "settings.sms.changed",
+		leadsImported: "leads.import.committed",
+	},
 } as const;

@@ -24,17 +24,26 @@ function gate(seed: Parameters<typeof fakeDb>[0] = {}) {
 
 const consented = {
 	consents: [
-		{ id: "c1", contactId: "contact-1", source: "WEB_FORM", revokedAt: null },
+		{
+			id: "c1",
+			contactId: "contact-1",
+			e164: TO,
+			source: "WEB_FORM",
+			revokedAt: null,
+		},
 	],
 };
 
 describe("decide", () => {
 	const base = {
 		purpose: "conversation" as const,
+		supportedNumber: true,
 		consent: true,
 		suppressed: false,
+		optOutConfirmable: false,
 		withinHours: true,
 		nextWindowAt: null,
+		frequencyRetryAt: null,
 	};
 
 	it("allows a consented, unsuppressed send inside the window", () => {
@@ -109,6 +118,7 @@ describe("SendGateService", () => {
 				{
 					id: "c1",
 					contactId: "contact-1",
+					e164: TO,
 					source: "WEB_FORM",
 					revokedAt: new Date(),
 				},

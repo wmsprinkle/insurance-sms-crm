@@ -1,4 +1,6 @@
-import type { Db } from "@crm/db";
+import { createHash } from "node:crypto";
+import { type Db, SmsDirection } from "@crm/db";
+import { WORKSPACE_ID } from "@crm/db/workspace";
 import {
 	type SmsSendRequest,
 	type SmsSendResponse,
@@ -6,14 +8,33 @@ import {
 } from "@crm/validation/sms-send";
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { z } from "zod";
+import { optOutConfirmationKey } from "../compliance/send-gate";
 import { InjectDatabase } from "../database/database.constants";
+import { optOutConfirmationText } from "./keywords";
 import { gatePurpose, SMS_INTERNAL, sendResponse } from "./sms-internal";
 import { SmsSender } from "./sms-sender.service";
 import { isUniqueViolation } from "./unique-violation";
 
 export const SMS_DRY_RUN_SENDER = Symbol("SMS_DRY_RUN_SENDER");
 
-const sentReceipt = z.object({ response: smsSendResponse });
+const sentReceipt = z.object({
+	response: smsSendResponse,
+	contactId: z.string().optional(),
+	textHash: z.string().optional(),
+});
+
+function textHash(text: string): string {
+	return createHash("sha256").update(text).digest("hex");
+}
+
+function receiptPayload(request: SmsSendRequest) {
+	return {
+		purpose: request.purpose,
+		taskId: request.taskId,
+		contactId: request.contactId,
+		textHash: textHash(request.text),
+	};
+}
 
 const { idempotency, errors } = SMS_INTERNAL;
 
@@ -27,13 +48,19 @@ export class SmsInternalService {
 		@Inject(SMS_DRY_RUN_SENDER) private readonly dry: SmsSender,
 	) {}
 
-	async send(request: SmsSendRequest): Promise<SmsSendResponse> {
-		const recipientError = await this.recipientError(request);
+	async send(original: SmsSendRequest): Promise<SmsSendResponse> {
+		const recipientError = await this.recipientError(original);
 		if (recipientError) return { status: "failed", error: recipientError };
+
+		const request =
+			original.purpose === "opt-out-confirmation"
+				? await this.optOutConfirmation(original)
+				: original;
+		if (!request) return { status: "failed", error: errors.noOptOut };
 
 		const receiptId = `${idempotency.idPrefix}${request.idempotencyKey}`;
 		if (!(await this.claim(receiptId, request))) {
-			return this.replay(receiptId);
+			return this.replay(receiptId, request);
 		}
 
 		let response: SmsSendResponse;
@@ -73,6 +100,28 @@ export class SmsInternalService {
 		return null;
 	}
 
+	private async optOutConfirmation(
+		request: SmsSendRequest,
+	): Promise<SmsSendRequest | null> {
+		const [suppression, workspace] = await Promise.all([
+			this.db.phoneSuppression.findUnique({
+				where: { e164: request.to },
+				select: { reason: true, createdAt: true },
+			}),
+			this.db.organization.findUnique({
+				where: { id: WORKSPACE_ID },
+				select: { name: true },
+			}),
+		]);
+		if (!suppression) return null;
+
+		return {
+			...request,
+			text: optOutConfirmationText(suppression.reason, workspace?.name ?? null),
+			idempotencyKey: optOutConfirmationKey(request.to, suppression.createdAt),
+		};
+	}
+
 	private async claim(
 		receiptId: string,
 		request: SmsSendRequest,
@@ -85,7 +134,7 @@ export class SmsInternalService {
 					sessionId: idempotency.sessionId,
 					contactId: request.contactId,
 					type: idempotency.claimed,
-					data: { purpose: request.purpose, taskId: request.taskId },
+					data: receiptPayload(request),
 					emittedAt: now,
 				},
 			});
@@ -96,12 +145,62 @@ export class SmsInternalService {
 
 		const reclaimed = await this.db.agentEvent.updateMany({
 			where: { id: receiptId, type: idempotency.released },
-			data: { type: idempotency.claimed, emittedAt: now },
+			data: {
+				type: idempotency.claimed,
+				emittedAt: now,
+				data: receiptPayload(request),
+			},
 		});
+		if (reclaimed.count === 1) return true;
+
+		return this.reclaimStale(receiptId, request, now);
+	}
+
+	private async reclaimStale(
+		receiptId: string,
+		request: SmsSendRequest,
+		now: Date,
+	): Promise<boolean> {
+		const staleBefore = new Date(now.getTime() - SMS_INTERNAL.lease.claimMs);
+		const receipt = await this.db.agentEvent.findUnique({
+			where: { id: receiptId },
+			select: { type: true, emittedAt: true },
+		});
+		if (receipt?.type !== idempotency.claimed) return false;
+		if (receipt.emittedAt > staleBefore) return false;
+
+		const written = await this.db.smsMessage.findFirst({
+			where: {
+				contactId: request.contactId,
+				direction: SmsDirection.OUTBOUND,
+				body: request.text,
+				createdAt: { gte: receipt.emittedAt },
+			},
+			select: { id: true },
+		});
+		if (written) return false;
+
+		const reclaimed = await this.db.agentEvent.updateMany({
+			where: {
+				id: receiptId,
+				type: idempotency.claimed,
+				emittedAt: receipt.emittedAt,
+			},
+			data: { emittedAt: now },
+		});
+		if (reclaimed.count === 1) {
+			this.logger.warn({
+				message: "Reclaimed a stale SMS send claim",
+				receiptId,
+			});
+		}
 		return reclaimed.count === 1;
 	}
 
-	private async replay(receiptId: string): Promise<SmsSendResponse> {
+	private async replay(
+		receiptId: string,
+		request: SmsSendRequest,
+	): Promise<SmsSendResponse> {
 		const receipt = await this.db.agentEvent.findUnique({
 			where: { id: receiptId },
 		});
@@ -114,6 +213,17 @@ export class SmsInternalService {
 			throw new Error(
 				`Unreadable sms send receipt ${receiptId}: ${parsed.error.message}`,
 			);
+		}
+		const { contactId, textHash: sentHash } = parsed.data;
+		if (
+			(contactId !== undefined && contactId !== request.contactId) ||
+			(sentHash !== undefined && sentHash !== textHash(request.text))
+		) {
+			this.logger.warn({
+				message: "Refused an idempotency key reused for a different SMS",
+				receiptId,
+			});
+			return { status: "failed", error: errors.keyReused };
 		}
 		this.logger.log({
 			message: "Replayed an SMS send for a repeated idempotency key",
@@ -132,7 +242,7 @@ export class SmsInternalService {
 			where: { id: receiptId },
 			data: {
 				type,
-				data: { purpose: request.purpose, taskId: request.taskId, response },
+				data: { ...receiptPayload(request), response },
 				emittedAt: new Date(),
 			},
 		});

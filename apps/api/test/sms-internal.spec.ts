@@ -83,8 +83,8 @@ describe("bridgeAuthorised", () => {
 });
 
 describe("gatePurpose", () => {
-	it("lets only the opt-out confirmation skip consent", () => {
-		expect(gatePurpose("opt-out-confirmation")).toBe("keyword-reply");
+	it("gives the opt-out confirmation its own gate purpose, not keyword-reply", () => {
+		expect(gatePurpose("opt-out-confirmation")).toBe("opt-out-confirmation");
 		expect(gatePurpose("conversation")).toBe("conversation");
 		expect(gatePurpose("first-touch")).toBe("conversation");
 		expect(gatePurpose("handoff")).toBe("conversation");
@@ -197,6 +197,7 @@ describe("SmsInternalService", () => {
 						contactId: "contact-1",
 						type: SMS_INTERNAL.idempotency.claimed,
 						data: {},
+						emittedAt: new Date(),
 					},
 				],
 			},
@@ -224,13 +225,137 @@ describe("SmsInternalService", () => {
 		expect(dry.calls).toHaveLength(1);
 	});
 
-	it("maps the opt-out confirmation to the keyword-reply gate", async () => {
+	it("sends a fixed opt-out confirmation keyed per suppression, not per call", async () => {
+		const suppressedAt = new Date("2026-10-05T15:00:00Z");
 		const { calls, sender } = scriptedSender([sentOutcome]);
+		const { sms, state } = service(
+			{
+				suppressions: [
+					{ e164: TO, reason: "OPT_OUT_REQUEST", createdAt: suppressedAt },
+				],
+			},
+			sender,
+		);
+
+		await sms.send({
+			...request,
+			purpose: "opt-out-confirmation",
+			text: "Anything the agent wrote",
+			idempotencyKey: "call-1",
+		});
+		const repeat = await sms.send({
+			...request,
+			purpose: "opt-out-confirmation",
+			text: "Anything else",
+			idempotencyKey: "call-2",
+		});
+
+		expect(calls).toHaveLength(1);
+		expect(calls[0]?.purpose).toBe("opt-out-confirmation");
+		expect(calls[0]?.text).toStartWith("Our team: You are unsubscribed");
+		expect(repeat).toMatchObject({ status: "sent" });
+		expect(state.events[0]?.id).toBe(
+			`${SMS_INTERNAL.idempotency.idPrefix}opt-out:${TO}:${suppressedAt.getTime()}`,
+		);
+	});
+
+	it("refuses a reused key whose stored send had a different text or contact", async () => {
+		const { calls, sender } = scriptedSender([sentOutcome, sentOutcome]);
 		const { sms } = service({}, sender);
+
+		await sms.send(request);
+		const otherText = await sms.send({ ...request, text: "A different text" });
+		const same = await sms.send(request);
+
+		expect(otherText).toEqual({
+			status: "failed",
+			error: SMS_INTERNAL.errors.keyReused,
+		});
+		expect(same).toMatchObject({ status: "sent" });
+		expect(calls).toHaveLength(1);
+	});
+
+	it("refuses an opt-out confirmation when the number is not suppressed", async () => {
+		const { calls, sender } = scriptedSender([]);
+		const { sms } = service({}, sender);
+
+		expect(
+			await sms.send({ ...request, purpose: "opt-out-confirmation" }),
+		).toEqual({ status: "failed", error: SMS_INTERNAL.errors.noOptOut });
+		expect(calls).toHaveLength(0);
+	});
+
+	it("uses the wrong-number wording for a wrong-number suppression", async () => {
+		const { calls, sender } = scriptedSender([sentOutcome]);
+		const { sms } = service(
+			{ suppressions: [{ e164: TO, reason: "WRONG_NUMBER" }] },
+			sender,
+		);
 
 		await sms.send({ ...request, purpose: "opt-out-confirmation" });
 
-		expect(calls[0]?.purpose).toBe("keyword-reply");
+		expect(calls[0]?.text).toContain("Sorry for the mix-up");
+		expect(calls[0]?.text).not.toContain("START");
+	});
+
+	it("reclaims a claim older than the lease when no message was written", async () => {
+		const { calls, sender } = scriptedSender([sentOutcome]);
+		const { sms } = service(
+			{
+				events: [
+					{
+						id: `${SMS_INTERNAL.idempotency.idPrefix}${request.idempotencyKey}`,
+						sessionId: SMS_INTERNAL.idempotency.sessionId,
+						contactId: "contact-1",
+						type: SMS_INTERNAL.idempotency.claimed,
+						data: {},
+						emittedAt: new Date(Date.now() - SMS_INTERNAL.lease.claimMs - 1),
+					},
+				],
+			},
+			sender,
+		);
+
+		expect(await sms.send(request)).toMatchObject({ status: "sent" });
+		expect(calls).toHaveLength(1);
+	});
+
+	it("keeps a stale claim when the message was already written", async () => {
+		const claimedAt = new Date(Date.now() - SMS_INTERNAL.lease.claimMs - 1);
+		const { calls, sender } = scriptedSender([]);
+		const { sms } = service(
+			{
+				events: [
+					{
+						id: `${SMS_INTERNAL.idempotency.idPrefix}${request.idempotencyKey}`,
+						sessionId: SMS_INTERNAL.idempotency.sessionId,
+						contactId: "contact-1",
+						type: SMS_INTERNAL.idempotency.claimed,
+						data: {},
+						emittedAt: claimedAt,
+					},
+				],
+				sms: [
+					{
+						id: "sms-x",
+						contactId: "contact-1",
+						direction: "OUTBOUND",
+						body: request.text,
+						telnyxId: "m-x",
+						status: "SENDING",
+						errorCode: null,
+						createdAt: new Date(claimedAt.getTime() + 1),
+					},
+				],
+			},
+			sender,
+		);
+
+		expect(await sms.send(request)).toEqual({
+			status: "failed",
+			error: SMS_INTERNAL.errors.inProgress,
+		});
+		expect(calls).toHaveLength(0);
 	});
 
 	it("refuses a number that is not the contact's phone", async () => {
@@ -324,6 +449,7 @@ describe("SmsInternalService with the real gate", () => {
 				{
 					id: "c1",
 					contactId: "contact-1",
+					e164: TO,
 					source: "WEB_FORM",
 					revokedAt: null,
 				},

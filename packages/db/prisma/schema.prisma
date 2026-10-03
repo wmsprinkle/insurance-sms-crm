@@ -1349,17 +1349,18 @@ enum SmsDraftStatus {
 
 /// An agent reply held for a rep. Reason values in @crm/validation/sms-send.
 model SmsDraft {
-  id          String         @id @default(cuid())
-  contactId   String
-  contact     Contact        @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  body        String
-  reason      String
-  retryAt     DateTime?
-  taskId      String?
-  status      SmsDraftStatus @default(PENDING)
-  decidedAt   DateTime?
-  decidedById String?
-  createdAt   DateTime       @default(now())
+  id             String         @id @default(cuid())
+  contactId      String
+  contact        Contact        @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  body           String
+  reason         String
+  retryAt        DateTime?
+  taskId         String?
+  idempotencyKey String?
+  status         SmsDraftStatus @default(PENDING)
+  decidedAt      DateTime?
+  decidedById    String?
+  createdAt      DateTime       @default(now())
 
   @@index([status, createdAt])
   @@index([contactId, createdAt])
@@ -1398,18 +1399,22 @@ model SmsMessage {
 
 /// Proof that a lead agreed to receive texts. No consent row, no send.
 model ConsentRecord {
-  id         String        @id @default(cuid())
-  contactId  String
-  contact    Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  source     ConsentSource
-  capturedAt DateTime
-  optInText  String?
-  optInUrl   String?
-  ip         String?
-  revokedAt  DateTime?
-  createdAt  DateTime      @default(now())
+  id              String        @id @default(cuid())
+  contactId       String?
+  contact         Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  e164            String?
+  source          ConsentSource
+  capturedAt      DateTime
+  optInText       String?
+  optInUrl        String?
+  ip              String?
+  revokedAt       DateTime?
+  contactSnapshot Json?
+  detachedAt      DateTime?
+  createdAt       DateTime      @default(now())
 
   @@index([contactId, revokedAt])
+  @@index([e164, revokedAt])
   @@map("consentRecord")
 }
 

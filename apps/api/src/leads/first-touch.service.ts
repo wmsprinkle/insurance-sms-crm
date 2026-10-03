@@ -49,7 +49,10 @@ export class FirstTouchService {
 				select: { id: true },
 			}),
 			this.suppression.isSuppressed(lead.phone, tx),
-			this.consent.hasActiveConsent(lead.contactId, tx),
+			this.consent.hasActiveConsent(
+				{ contactId: lead.contactId, e164: lead.phone },
+				tx,
+			),
 		]);
 
 		const plan = planFirstTouch({
