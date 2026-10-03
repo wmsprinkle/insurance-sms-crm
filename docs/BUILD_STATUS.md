@@ -340,7 +340,8 @@ Date: 2026-10-03. `POST /internal/sms/send`, the agent → API bridge. Contract:
   marks it `sms.send.released`, so a later retry with the same key sends. A held claim answers
   `failed` "in progress".
 - `dryRun: true` uses a second `SmsSender` (`SMS_DRY_RUN_SENDER`) whose `TelnyxClient` is forced dry.
-  `SMS_DRY_RUN=true` in env still forces dry for every request.
+  The env variable `DRY_RUN` (any value but `false`, or no Telnyx key) still forces dry for every request.
+  No `SMS_DRY_RUN` variable exists.
 - Purpose → gate: `opt-out-confirmation` → `keyword-reply` (skips consent and suppression); the rest
   → `conversation`.
 
@@ -851,3 +852,89 @@ Source: `docs/COMPLIANCE_RECHECK.md` R2..R7. Commits: `a1edfdb` (R2), `933ee03` 
 - `apps/app` UI does not show the `unknownOutcome` text specially. It shows the API error string.
 - Role class for `fields.*` schema changes stays `member`. A decision for the owner.
 - Cross-scope: `apps/api/test/fields.spec.ts` (one call site for the new `actingUserId` argument).
+
+# Build status — Polish (worker-crm-polish)
+
+Date: 2026-10-03. bun 1.3.12.
+
+## 1. Business name in texts (toll-free reviewer concern)
+
+- `AppSetting.sms.brandName` (`@crm/validation/sms-settings`, `brandName`, at most 80 characters, no link or
+  email). Empty means the workspace name, then "Our team" (`resolveBrand`). Edited on Settings → Compliance.
+- Where the name now appears: first message (`{agency}` token), booking confirmation (`confirmationText`
+  starts with `<brand>: `), STOP and HELP replies and the opt-out confirmation (API `readBrand`, `sms/sms-brand.ts`),
+  and the first agent reply of a conversation.
+- First agent reply: `shouldIdentify(history)` is true while the thread holds at most
+  `SMS_AGENT.identify.maxEarlierOutbound` (1) outbound text, so the first-touch text counts as the first and the
+  first agent reply is the second. The turn message carries `Business name:` and `Identify the business: yes|no`;
+  the session attribute `identify` carries the flag. `deliver()` enforces it: with `identify` it calls
+  `withBrand`, which adds `<brand>: ` unless the text already names the brand. The guard still runs after that.
+- `skills/sms-conduct.md` rule 14. Rules 1–13 are unchanged. Evals: two cases in `evals/sms/cases.ts`
+  (`brand: named` and `not-repeated`), asserted in `replies.eval.ts`. `eve eval` was NOT run (spends credits).
+- `SmsStore.brand()` is new; `test/support/sms-fakes.ts` has `workspaceName`.
+
+## 2. SMS agent sessions in the contact's Agent tab
+
+- Cause: the Agent tab lists `AgentConversation` rows owned by the signed-in rep. An SMS session is started by the
+  agent for the contact and no rep owns it, so no row exists. Its steps are in `AgentEvent` under session id
+  `…sms:<contactId>` (eve adds its channel prefix).
+- New read-only query `sms.agentSessions({ contactId })` (`GET /sms/threads/{contactId}/agent-sessions`) returns the
+  events of sessions whose id ends in `sms:<contactId>` (latest 2,000, `truncated` flag).
+- `SmsAgentSessions` (`apps/app/components/crm/sms-agent-sessions.tsx`) sits above the research chat in the Agent
+  tab: a collapsed, read-only transcript. It renders nothing when there is no session. It reuses `Item` from the
+  agent panel (now exported).
+
+## 3. Calendar and frequency cap settings
+
+- `settings.calendar` (query) returns `calendar.ownerUserId`, `calendar.fallbackBookingLink`, the connected Google
+  users (one row per user) and the effective owner. `settings.setCalendar` saves them; the owner must have a
+  Google account. Gated by `ComplianceAdminService.require(..., "complianceSettings")` (owner or admin), audited as
+  `settings.calendar.changed`.
+- `settings.complianceLimits` returns the cap from `COMPLIANCE.frequency` (3 a day, 7 a week). The page shows it
+  read-only: it stays a constant, not a setting.
+- Compliance page: new Booking card (owner picker, fallback link); frequency text in the Texting card.
+
+## 4. Licensed states configurable
+
+- `AppSetting.sms.licensedStates` (array of two-letter codes, default empty = no state refused).
+  `SMS_AGENT.licensedStates` is removed. `classify_reply` and `record_qualification` read the setting.
+  The turn message has a `Licensed states:` line. `knowledge-agency.md` tells the model to use only that line.
+- The test that tied the states to `knowledge-agency.md` now asserts the skill holds no hard coded state and
+  points at the `Licensed states:` line, and tests `judgeQualification` with the configured list.
+
+## 5. Small items
+
+- `SMS_BLOCK_REASONS` gains `frequency-cap` and `unsupported-number`. The API no longer maps them to `failed`
+  (`SMS_INTERNAL.blockedAsFailed` is gone). The agent holds a frequency cap as `send-failed` and refuses an
+  unsupported number. The UI labels both (`lib/sms-drafts.ts`).
+- Confirmed: `opt_out_contact` → `optOutLead` → `prismaSmsStore.optOut` moves pending `SmsDraft` rows to
+  `DISCARDED` (covered by `test/sms-store.integration.spec.ts`; the keyword path by the M3 test).
+- BUILD_STATUS: the `SMS_DRY_RUN` mention is corrected to `DRY_RUN`.
+
+## Commands and results
+
+| Command | Result |
+|---|---|
+| `bun run check-types` in `packages/validation`, `apps/api`, `apps/agent`, `apps/app` (after `next typegen`) | pass |
+| `bun run lint` (biome) in the same four | pass (warnings are old) |
+| `bun run lint:slop` | no findings in my files; 5 old findings in `apps/agent/test/sms-deny-by-default.spec.ts` |
+| `bun test` in `packages/validation` | pass, 92 |
+| `bun test` in `apps/app` | pass, 201 |
+| `bun test test/sms-*.spec.ts test/outbound-guard.spec.ts` in `apps/agent` | pass, 287; the 4 `sms-store.integration` tests pass with the PGlite preload |
+| API specs for sms, compliance, leads, calendar, settings, keywords, drafts | pass, 258 |
+| PGlite core-loop e2e (`test/core-loop.integration.spec.ts`) | pass, 7 |
+
+Checked in a clean worktree of HEAD plus only these changes, because worker-crm-fix2-api had uncommitted edits
+in the same API files.
+
+## Not run / not done
+
+- `eve eval` (model credits). `next build` (fonts.googleapis.com unreachable in the sandbox).
+- No UI test of the new forms or the transcript rendering; the pure helpers are tested.
+- `docs/OPERATIONS.md` ("Change licensed states", "Calendar owner…") and `docs/TOLLFREE_VERIFICATION.md`
+  still describe the code-edit way. Out of scope; they need an edit.
+- The frequency cap is shown, not editable.
+- Cross-scope edits (needed to make the setting work): `apps/api/src/leads/first-touch.service.ts`,
+  `leads-config.ts`, `apps/api/src/sms/{keyword.service,sms-internal,sms-internal.service,sms-threads*,sms.router,sms-config}.ts`,
+  `compliance-config.ts` (audit type), `test/support/sms-db.ts`, regenerated `generated/server.ts`.
+- No Prisma change.
