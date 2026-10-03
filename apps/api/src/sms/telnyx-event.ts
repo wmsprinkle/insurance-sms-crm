@@ -14,6 +14,14 @@ const envelope = z.object({
 	}),
 });
 
+export const MAX_INBOUND_CHARS = 2000;
+
+export function clipInbound(text: string): string {
+	return text.length <= MAX_INBOUND_CHARS
+		? text
+		: Array.from(text).slice(0, MAX_INBOUND_CHARS).join("");
+}
+
 const messagePayload = z.object({
 	id: z.string().min(1),
 	from: z.object({ phone_number: z.string().min(1) }),
@@ -135,7 +143,7 @@ export function parseTelnyxEvent(raw: string): TelnyxEvent {
 			telnyxId: payload.id,
 			from: payload.from.phone_number,
 			to: recipient?.phone_number ?? "",
-			text: payload.text ?? "",
+			text: clipInbound(payload.text ?? ""),
 		};
 	}
 

@@ -265,3 +265,14 @@ describe("TelnyxWebhookController", () => {
 		).rejects.toMatchObject({ status: 503 });
 	});
 });
+
+describe("clipInbound", () => {
+	it("keeps normal text and clips a huge message by code point", async () => {
+		const { clipInbound, MAX_INBOUND_CHARS } = await import(
+			"../src/sms/telnyx-event"
+		);
+		expect(clipInbound("STOP")).toBe("STOP");
+		const huge = "😀".repeat(MAX_INBOUND_CHARS + 500);
+		expect(Array.from(clipInbound(huge)).length).toBe(MAX_INBOUND_CHARS);
+	});
+});

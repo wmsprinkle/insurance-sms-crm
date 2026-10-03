@@ -7,7 +7,9 @@ type ActionInput = ActionRequest["input"];
 
 const inputText = z.string().nullable().catch(null);
 
-const SHOW_CONTENT = process.env.NODE_ENV !== "production";
+const SHOW_CONTENT =
+	process.env.NODE_ENV !== "production" &&
+	process.env.AGENT_LOG_CONTENT === "1";
 const MAX_IN_FLIGHT = 256;
 
 const inFlight = new Map<string, { name: string; at: number }>();
