@@ -13,6 +13,7 @@ export function TodaySkeleton() {
 			</div>
 			<div className="grid gap-4 lg:grid-cols-[2fr_1fr]" aria-hidden="true">
 				<div className="flex flex-col gap-3">
+					<Skeleton className="h-[74px] w-full rounded-lg" />
 					<Skeleton className="h-5 w-32" />
 					{ROW_PLACEHOLDERS.map((id) => (
 						<Skeleton key={id} className="h-16 w-full rounded-lg" />

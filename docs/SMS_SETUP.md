@@ -13,7 +13,7 @@ What is tested and what is not: [`BUILD_STATUS.md`](./BUILD_STATUS.md). Read its
 | Tool | Version | Why |
 | --- | --- | --- |
 | [Bun](https://bun.com) | 1.3.x (the build used 1.3.12) | Package manager and test runner. `npx` does not work in this repo; use `bunx`. |
-| Node.js | 22 or newer | Next.js, NestJS and eve run on Node. |
+| Node.js | 22 or newer for the app and API; **24 or newer for the agent (eve)** | Next.js and NestJS run on 22. eve refuses to start below 24. |
 | Docker | any recent | Runs Postgres 17 from `docker-compose.yml` (user `postgres`, password `postgres`, database `crm`, port 5432). |
 | `openssl` | any | Generates secrets. |
 
@@ -95,27 +95,44 @@ bun run db:deploy                             # apply migrations
 bun run dev                                   # app :3000, API :3001, agent :2000
 ```
 
-The agent pane under `bun run dev` is the interactive eve TUI. Select it and press
-Enter. Without a TUI, run `bunx turbo run dev:headless --filter=agent` in a second
-terminal. See `setup.md` → "Running the agent".
-
 Then:
 
-1. Open `http://localhost:3000` and sign in with an address in `ALLOWED_SIGN_IN`.
-2. Go to **Settings → Compliance**. Check the first message, the disclosure mode and
-   **Auto-send**. Leave auto-send off for the first test: every text becomes a draft.
-3. Go to **Contacts → Import** (`/<workspace>/contacts/import`). Upload
+1. Open `http://localhost:3000` and sign in with an address in `ALLOWED_SIGN_IN`
+   (or use the dev button, below). There is no onboarding form: the first sign-in
+   creates the workspace "My Insurance Agency". Rename it in **Settings → General**.
+2. Check **Today → Get started**. It shows the Telnyx number (masked), whether the model
+   key is set and the exact webhook URL to paste into Telnyx.
+3. Go to **Settings → Compliance**. Check the first message and the business name.
+   Leave **Auto-send first messages** off for the first test: every first text becomes
+   a draft.
+4. Go to **Leads → Import** (`/<workspace>/leads/import`). Upload
    [`docs/sample-leads.csv`](./sample-leads.csv). Accept the suggested mapping. Check the
    preview, then import.
-4. Each new lead gets one `first-touch` task. Its due time is the next allowed send
+5. Each new lead gets one `first-touch` task. Its due time is the next allowed send
    window for the lead's state or area code. Outside 8:00–21:00 local time (stricter in
    some states) the task waits.
-5. When the task runs, the first message appears in **Inbox → Drafts**
-   (`/<workspace>/inbox/drafts`). Approve it. In dry run the message is stored as sent
-   with an id `dryrun-…`. Telnyx gets nothing.
+6. When the task runs, the first messages appear on **Today** (Needs you) and in
+   **Inbox → Drafts**. Use **Send all drafts** or approve one by one. In dry run the
+   message is stored as sent with an id `dryrun-…`. Telnyx gets nothing.
+7. In test mode, open a lead and use **Simulate reply** to test the reply path with no
+   Telnyx webhook.
 
-Inbound texts cannot be simulated from the UI. To test the reply path locally you need
-a signed Telnyx webhook (section 4) or the unit tests in `apps/api/test/sms-*.spec.ts`.
+### What we learned running it locally
+
+- **eve needs Node 24 or newer.** On macOS: `brew install node@24`, then start the agent
+  with `PATH=/opt/homebrew/opt/node@24/bin:$PATH`. If you have no Docker, a Homebrew
+  Postgres 17 works: `brew install postgresql@17 && brew services start postgresql@17`,
+  then create the `crm` database and set `DATABASE_URL`.
+- **Start each package on its own** when you have no terminal for the turbo panes:
+  `bun run dev` in `apps/api`, `bun run dev` in `apps/app`, and in `apps/agent`
+  `set -a; . ../../.env; bun run dev:headless`. `eve dev` (without `:headless`) is a
+  terminal UI and needs a real terminal.
+- **Sign in without OAuth** with `DEV_LOGIN="true"` (next section).
+- **Models need `AI_GATEWAY_API_KEY`.** Without it first texts still go out, but a
+  positive reply cannot be answered. The lead shows **Needs you** with the reason
+  "The assistant could not reply: model unavailable. Check the AI key."
+- **The `.claude` and `.cc-writes` folders** that sandboxed tools leave inside source
+  folders break `prisma migrate` and eve. Delete the empty ones.
 
 ### Local sign-in without OAuth
 

@@ -34,6 +34,7 @@ async function LeadContent({
 	await Promise.all([
 		queryClient.prefetchQuery(trpc.today.lead.queryOptions({ contactId })),
 		queryClient.prefetchQuery(trpc.sms.thread.queryOptions({ contactId })),
+		queryClient.prefetchQuery(trpc.today.summary.queryOptions()),
 	]);
 
 	return (

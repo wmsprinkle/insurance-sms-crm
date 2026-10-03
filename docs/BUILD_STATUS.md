@@ -1076,3 +1076,40 @@ Commits: `09f7af6` (shell), `f59321c` (import), `2998217` (leads), `9008a50` (co
 - The Needs you list uses the first 25 open threads. Older open replies show only in Inbox.
 - Bulk Remove on Leads archives contacts. Send paths skip archived contacts. It does not suppress the phone.
 - The API read model sits outside the first scope list. It is new files plus one line in `app.module.ts`, `sms.router.ts`, `sms.module.ts` and the role map.
+
+# UI round 2 (worker-crm-ui2)
+
+Date: 2026-10-03. HEAD at start `6aa87d7`.
+
+## What changed
+
+| # | Item | Result |
+|---|---|---|
+| 1 | First-run gates | `/onboarding` and `/onboarding/research` are gone. `workspace.get` settles the workspace on first read: name "My Insurance Agency" (replaces the auth default "CRM"), slug from the name, onboarded. `proxy.ts` only resolves the slug now. Old setup paths redirect into the workspace. The brand and "profile of the company you work for" task is queued only when `FEATURE_ENRICHMENT=true` (`AgentTriggerService.workspaceChanged`). Website is optional in `workspace.update` and shown in Settings only with enrichment. The research key form stays in Settings when enrichment is on. |
+| 2 | Enriching pill | Hidden unless `FEATURE_ENRICHMENT` is on (`AppHeader showEnrichment`). |
+| 3 | Hydration error | Cause: the layout banner called `useQuery(today.summary)` before Today's `HydrationBoundary`. That put an empty pending query in the server cache. The boundary then deferred hydration to an effect, which does not run on the server. The server drew the spinner and the client drew the KPI strip. Fix: `TestModeNotice` is a server component. Today, Drafts and Lead pages prefetch what their client components read (`workspace.get`, `settings.sms`, `today.summary`). `PageShellFallback` uses id `main-content-loading`, so the page keeps one `main-content`. |
+| 4 | Declined leads | Decline, abusive and opt-out triage now call `markInboundHandled` (agent). The STOP keyword path marks inbound handled (API). `settleClosedThreads` marks older replies handled for leads whose status is Not interested, Opted out or Abusive. It runs in `sms.threadList` and `sms.thread`. Today no longer lists abusive holds or closed leads. The Leads table, lead detail and thread already read the funnel status. |
+| 5 | Bulk drafts | `smsDrafts.approveAll` and `smsDrafts.discardAll` (admin, role map and `bulkDrafts` compliance action). `approveAll` runs `approve` per draft, so each text passes the send gate. The result lists each outcome and the app shows one summary toast. `queue` rows carry `firstMessage` (the lead has not replied). The buttons act on first messages only; replies to leads stay for a person. The dialogs show the count and the exact text of the first draft. `AutoSendSwitch` on Today and Inbox → Drafts flips `sms.autoSend` after a confirm dialog (owner or admin). |
+| 6 | Get-started | `today.summary.setup` adds `telnyxApiKeySet`, `telnyxNumberSet`, `telnyxProfileSet`, `webhookKeySet`, `fromNumberMasked`, `modelKeySet` and `webhookUrl`. It no longer returns the raw number. Items: Telnyx (key and number reported separately), Model key (AI Gateway), Webhook URL (copy button), Test mode (info), Calendar, Leads, Business. Each item has one state, one line and at most one button (link or copy). |
+| 7 | Model failure | `@crm/validation/sms-failure`: typed reasons `model-unavailable`, `turn-failed`, `plan-failed`. The agent writes `failed: <reason>` on `turn.failed` and when a turn cannot start. The funnel treats a failed latest reply task as Needs you. `attention` (a plain sentence) is on `sms.threadList`, `sms.thread`, `today.leads` and `today.lead`. The thread shows it as an alert. The reply stays unhandled. Older outcomes (`failed`, `failed: the task could not be planned`) still parse. |
+| 8 | Layout | Server prefetch for every client query a page renders on first paint. `TodaySkeleton` reserves the auto-send row. Buttons wrap on narrow screens. |
+| 9 | Docs | `SMS_SETUP.md` section 3: no onboarding, Leads → Import, Simulate reply, Node 24 for eve, per-package start, DEV_LOGIN, `AI_GATEWAY_API_KEY`, brew steps. |
+
+## Commands and results
+
+| Command | Result |
+|---|---|
+| `bunx tsc --noEmit` in `apps/app`, `apps/api`, `apps/agent`, `packages/validation` | pass (app: only stale `.next/types` for the deleted onboarding pages, which `next dev` regenerates) |
+| `bun test` in `apps/app` | pass, 242 |
+| `bun test` in `packages/validation` | pass, 360 |
+| `bun test --preload pglite-preload` API: workspace-defaults, sms-drafts, today-setup, sms-funnel, sms-threads, sms-service, procedure-roles | pass |
+| `bun test --preload pglite-preload` agent: sms-pipeline, sms-triage-pipeline | pass |
+| `biome check` on changed files | pass (old warnings only) |
+
+## Not run / not done
+
+- No page was rendered in a browser. The hydration cause is read from the dev log trace and the React Query source, not reproduced.
+- `next build` was not run.
+- The agent task `workspace-profile` that was already queued in an existing database is not removed.
+- `Send all drafts` sends one by one inside one request. 200 drafts at real Telnyx speed can take over a minute.
+- Existing replies of declined leads are settled on the next thread read, not by a migration.
