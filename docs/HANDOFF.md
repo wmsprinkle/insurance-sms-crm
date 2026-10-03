@@ -1,6 +1,6 @@
 # Handoff — Insurance SMS CRM
 
-One page for the person who takes this over. Details: [`SMS_SETUP.md`](./SMS_SETUP.md), [`OPERATIONS.md`](./OPERATIONS.md), [`QA_REPORT.md`](./QA_REPORT.md).
+One page for the person who takes this over. Details: [`SMS_SETUP.md`](./SMS_SETUP.md), [`OAUTH_SETUP.md`](./OAUTH_SETUP.md), [`SECURITY_AUDIT.md`](./SECURITY_AUDIT.md), [`OPERATIONS.md`](./OPERATIONS.md), [`QA_REPORT.md`](./QA_REPORT.md).
 
 ## What exists
 
@@ -39,7 +39,7 @@ Then sign in at `http://localhost:3000`, open **Settings → Compliance**, leave
 
 1. **Telnyx account.** Create a messaging profile. Buy one toll-free number and assign it to the profile. Set `TELNYX_API_KEY`, `TELNYX_MESSAGING_PROFILE_ID`, `TELNYX_FROM_NUMBER` and `TELNYX_PUBLIC_KEY`.
 2. **Toll-free verification.** Fill and submit [`TOLLFREE_VERIFICATION.md`](./TOLLFREE_VERIFICATION.md). Publish the opt-in page, privacy policy and terms first. Wait for approval. Unverified numbers cannot send.
-3. **Google OAuth.** Create a Google Cloud OAuth client with the Gmail and Calendar APIs and the three booking scopes. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. Connect one Google account in **Settings → Connections**. Click **Grant calendar access** if it shows.
+3. **Google OAuth.** Follow [`OAUTH_SETUP.md`](./OAUTH_SETUP.md). Create a Google Cloud OAuth client with the Gmail and Calendar APIs and the three booking scopes. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. Connect one Google account in **Settings → Connections**. Click **Grant calendar access** if it shows.
 4. **Model key.** Set `AI_GATEWAY_API_KEY` (or the Vercel AI Gateway on Vercel). Without it the agent drafts nothing useful.
 5. **Hosting.** Three deployments (app, API, agent) and one Postgres. Run exactly one API instance that sends (the rate limiter is per process). Set the same `DATABASE_URL`, `BETTER_AUTH_SECRET` and `AGENT_BRIDGE_SECRET` everywhere. Point the Telnyx webhook at `https://<api-host>/webhooks/telnyx`.
 6. **Real database run.** Run `bun run db:deploy`, then `bun run test` with a real `TEST_DATABASE_URL`. Check for duplicate active phones first (migration `20261003140000` fails on them). Run the consent backfill check from `BUILD_STATUS.md` (fix round 2, N4) on production data.
