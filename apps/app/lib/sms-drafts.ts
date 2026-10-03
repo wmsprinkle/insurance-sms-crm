@@ -27,6 +27,16 @@ const BLOCKED = {
 		description:
 			"The send gate blocks every text to a contact without an active consent record.",
 	},
+	"frequency-cap": {
+		title: "Too many texts without an answer",
+		description:
+			"This lead already got the most texts allowed in a day or a week with no reply. Wait for an answer or try again later.",
+	},
+	"unsupported-number": {
+		title: "Number not supported",
+		description:
+			"Only US numbers (+1) can be texted. Nothing can be sent to this one.",
+	},
 } satisfies Record<
 	Extract<SmsSendOutcome, { status: "blocked" }>["reason"],
 	{ title: string; description: string }

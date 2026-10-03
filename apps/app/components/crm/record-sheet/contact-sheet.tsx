@@ -36,6 +36,7 @@ import {
 	savingValue,
 } from "@/components/crm/inline-field";
 import { OwnerCell } from "@/components/crm/owner-cell";
+import { SmsAgentSessions } from "@/components/crm/sms-agent-sessions";
 import { SmsThread } from "@/components/crm/sms-thread";
 import { ContactSocials } from "@/components/crm/social-links";
 import { DealStageMenu } from "@/components/crm/stage-change";
@@ -139,7 +140,12 @@ export function ContactSheet({ contactId }: { contactId: string }) {
 				{
 					value: "agent",
 					label: "Agent",
-					content: <AgentPanel record={{ kind: "contact", id: contact.id }} />,
+					content: (
+						<div className="flex min-h-0 flex-1 flex-col">
+							<SmsAgentSessions contactId={contact.id} />
+							<AgentPanel record={{ kind: "contact", id: contact.id }} />
+						</div>
+					),
 					keepMounted: true,
 				},
 			]

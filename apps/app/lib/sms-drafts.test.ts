@@ -2,6 +2,17 @@ import { describe, expect, it } from "bun:test";
 import { smsOutcomeNotice, smsTextProblem } from "./sms-drafts";
 import { smsComposerBlock } from "./sms-presentation";
 
+describe("smsOutcomeNotice blocked reasons", () => {
+	it.each([
+		["frequency-cap", "Too many texts without an answer"],
+		["unsupported-number", "Number not supported"],
+	] as const)("labels %s", (reason, title) => {
+		expect(
+			smsOutcomeNotice({ status: "blocked", reason, retryAt: null }),
+		).toMatchObject({ sent: false, tone: "destructive", title });
+	});
+});
+
 describe("smsOutcomeNotice", () => {
 	it("marks a dry run send as sent", () => {
 		const notice = smsOutcomeNotice({ status: "sent", dryRun: true });

@@ -12,6 +12,7 @@ import {
 import { requireSession } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+import { CalendarSettingsForm } from "./calendar-settings-form";
 import { DraftsQueue } from "./drafts-queue";
 import { QuietHours } from "./quiet-hours";
 import { SmsSettingsForm } from "./sms-settings-form";
@@ -27,8 +28,8 @@ export default function ComplianceSettingsPage() {
 				<PageShellHeading>
 					<PageShellTitle>Compliance</PageShellTitle>
 					<PageShellDescription>
-						What the agent says first, how it answers "are you a bot", and when
-						it is allowed to text.
+						What the agent says first, how it answers "are you a bot", whose
+						calendar it books and when it is allowed to text.
 					</PageShellDescription>
 				</PageShellHeading>
 			</PageShellHeader>
@@ -50,6 +51,8 @@ async function Compliance() {
 
 	await Promise.all([
 		queryClient.prefetchQuery(trpc.settings.sms.queryOptions()),
+		queryClient.prefetchQuery(trpc.settings.complianceLimits.queryOptions()),
+		queryClient.prefetchQuery(trpc.settings.calendar.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.quietHours.queryOptions()),
 		queryClient.prefetchQuery(trpc.smsDrafts.queue.queryOptions()),
 	]);
@@ -58,6 +61,7 @@ async function Compliance() {
 		<HydrateClient>
 			<div className="flex max-w-4xl flex-col gap-6">
 				<SmsSettingsForm />
+				<CalendarSettingsForm />
 				<DraftsQueue />
 				<QuietHours />
 			</div>

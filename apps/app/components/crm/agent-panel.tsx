@@ -387,7 +387,7 @@ const SOURCE_ICONS = {
 	web: Document,
 } satisfies Record<Source["network"], CarbonIcon>;
 
-function Item({ item }: { item: TranscriptItem }) {
+export function Item({ item }: { item: TranscriptItem }) {
 	if (item.kind === "said") {
 		return item.mine ? (
 			<Message align="end" className="min-w-0">

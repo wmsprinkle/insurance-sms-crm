@@ -17,6 +17,7 @@ import {
 	FieldGroup,
 	FieldLabel,
 } from "@crm/ui/components/field";
+import { Input } from "@crm/ui/components/input";
 import {
 	Select,
 	SelectContent,
@@ -28,6 +29,7 @@ import { Spinner } from "@crm/ui/components/spinner";
 import { Switch } from "@crm/ui/components/switch";
 import { Textarea } from "@crm/ui/components/textarea";
 import {
+	brandName,
 	firstMessageTemplate,
 	SMS_DISCLOSURE_MODES,
 	SMS_SETTINGS_LIMITS,
@@ -38,6 +40,12 @@ import {
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useId, useState } from "react";
 import { toast } from "sonner";
+import {
+	frequencyCapText,
+	parseStatesText,
+	statesProblem,
+	statesText,
+} from "@/lib/sms-settings-fields";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 
@@ -54,7 +62,9 @@ function sameSettings(a: SmsSettings, b: SmsSettings): boolean {
 	return (
 		a.firstMessageTemplate === b.firstMessageTemplate &&
 		a.disclosureMode === b.disclosureMode &&
-		a.autoSend === b.autoSend
+		a.autoSend === b.autoSend &&
+		a.brandName === b.brandName &&
+		a.licensedStates.join() === b.licensedStates.join()
 	);
 }
 
@@ -64,12 +74,19 @@ export function SmsSettingsForm() {
 	const templateId = useId();
 	const disclosureId = useId();
 	const autoSendId = useId();
+	const brandId = useId();
+	const statesId = useId();
 
 	const sms = useQuery(trpc.settings.sms.queryOptions());
+	const limits = useQuery(trpc.settings.complianceLimits.queryOptions());
 	const [draft, setDraft] = useState<SmsSettings | null>(null);
+	const [states, setStates] = useState("");
 
 	useEffect(() => {
-		if (sms.data) setDraft(sms.data.settings);
+		if (sms.data) {
+			setDraft(sms.data.settings);
+			setStates(statesText(sms.data.settings.licensedStates));
+		}
 	}, [sms.data]);
 
 	const save = useMutation(
@@ -90,7 +107,18 @@ export function SmsSettingsForm() {
 	const templateError = templateCheck.success
 		? null
 		: (templateCheck.error.issues[0]?.message ?? null);
-	const unchanged = sameSettings(draft, sms.data.settings);
+	const brandCheck = brandName.safeParse(draft.brandName);
+	const brandError = brandCheck.success
+		? null
+		: (brandCheck.error.issues[0]?.message ?? null);
+	const statesError = statesProblem(states);
+	const next: SmsSettings = {
+		...draft,
+		licensedStates: parseStatesText(states),
+	};
+	const invalid =
+		templateError !== null || brandError !== null || statesError !== null;
+	const unchanged = sameSettings(next, sms.data.settings);
 	const defaults = sms.data.defaults;
 
 	return (
@@ -105,7 +133,7 @@ export function SmsSettingsForm() {
 					<Button
 						type="submit"
 						form="sms-settings"
-						disabled={save.isPending || unchanged || templateError !== null}
+						disabled={save.isPending || unchanged || invalid}
 					>
 						{save.isPending ? <Spinner data-icon="inline-start" /> : null}
 						Save
@@ -118,14 +146,35 @@ export function SmsSettingsForm() {
 					id="sms-settings"
 					onSubmit={(event) => {
 						event.preventDefault();
-						if (templateError) {
-							toast.error(templateError);
+						const problem = templateError ?? brandError ?? statesError;
+						if (problem) {
+							toast.error(problem);
 							return;
 						}
-						save.mutate(draft);
+						save.mutate(next);
 					}}
 				>
 					<FieldGroup>
+						<Field data-invalid={brandError !== null}>
+							<FieldLabel htmlFor={brandId}>Business name</FieldLabel>
+							<Input
+								id={brandId}
+								value={draft.brandName}
+								disabled={save.isPending}
+								aria-invalid={brandError !== null}
+								placeholder="Same as your workspace name"
+								onChange={(event) =>
+									setDraft({ ...draft, brandName: event.target.value })
+								}
+							/>
+							<FieldDescription>
+								The name leads see. It opens the first message, the booking
+								confirmation, the first reply of each conversation and the STOP
+								and HELP replies. Leave it empty to use the workspace name.
+							</FieldDescription>
+							{brandError ? <FieldError>{brandError}</FieldError> : null}
+						</Field>
+
 						<Field data-invalid={templateError !== null}>
 							<FieldLabel htmlFor={templateId}>First message</FieldLabel>
 							<Textarea
@@ -199,6 +248,23 @@ export function SmsSettingsForm() {
 							</FieldDescription>
 						</Field>
 
+						<Field data-invalid={statesError !== null}>
+							<FieldLabel htmlFor={statesId}>Licensed states</FieldLabel>
+							<Input
+								id={statesId}
+								value={states}
+								disabled={save.isPending}
+								aria-invalid={statesError !== null}
+								placeholder="TX, FL, GA"
+								onChange={(event) => setStates(event.target.value)}
+							/>
+							<FieldDescription>
+								Two-letter codes, separated by commas. A lead in any other state
+								is not qualified. Leave it empty to accept every state.
+							</FieldDescription>
+							{statesError ? <FieldError>{statesError}</FieldError> : null}
+						</Field>
+
 						<Field orientation="horizontal">
 							<FieldContent>
 								<FieldLabel htmlFor={autoSendId}>
@@ -217,6 +283,16 @@ export function SmsSettingsForm() {
 								onCheckedChange={(autoSend) => setDraft({ ...draft, autoSend })}
 							/>
 						</Field>
+
+						{limits.data ? (
+							<Field>
+								<FieldLabel>Frequency cap</FieldLabel>
+								<FieldDescription>
+									{frequencyCapText(limits.data.frequency)} This limit is built
+									in and cannot be changed here.
+								</FieldDescription>
+							</Field>
+						) : null}
 					</FieldGroup>
 				</form>
 			</CardContent>
