@@ -11,7 +11,7 @@ export function ImportLeadsButton() {
 
 	return (
 		<Button asChild variant="outline">
-			<Link href={workspaceUrl("/contacts/import")}>
+			<Link href={workspaceUrl("/leads/import")}>
 				<Icon icon={Upload} data-icon="inline-start" />
 				Import leads
 			</Link>

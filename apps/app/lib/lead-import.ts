@@ -38,20 +38,29 @@ export const LEAD_FIELD_OPTIONS: readonly {
 ];
 
 const REJECTION_LABELS = {
-	missing_phone: "No phone number",
-	invalid_phone: "Phone number is not valid",
-	invalid_email: "Email is not valid",
-	missing_consent_source: "No consent source",
-	invalid_consent_source: "Consent source is not a known value",
-	missing_consent_date: "No consent date",
-	invalid_consent_date: "Consent date cannot be read",
-	consent_date_in_future: "Consent date is in the future",
-	missing_opt_in_evidence: "No opt-in text or opt-in URL",
-	invalid_opt_in_url: "Opt-in URL is not http or https",
-	field_too_long: "A value is too long",
-	duplicate_in_batch: "Same lead appears earlier in this file",
-	duplicate_phone: "A contact already has this phone number",
-	duplicate_email: "A contact already has this email",
+	missing_phone: "This row has no phone number, so we cannot text this person.",
+	invalid_phone:
+		"We cannot read this phone number. Use a US number with 10 digits.",
+	invalid_email:
+		"This email address does not look right. Fix it or leave it empty.",
+	missing_consent_source:
+		"We cannot tell where this person agreed to be texted. Add a consent source.",
+	invalid_consent_source:
+		"The consent source is not one we know. Use WEB_FORM, LEAD_IMPORT, API, SMS_KEYWORD or MANUAL.",
+	missing_consent_date:
+		"We cannot tell when this person agreed to be texted. Add the date.",
+	invalid_consent_date:
+		"We cannot read the consent date. Use a format like 2026-09-30.",
+	consent_date_in_future:
+		"The consent date is in the future. Consent must come before the import.",
+	missing_opt_in_evidence:
+		"No proof of what they agreed to. Add the opt-in text or the page they signed up on.",
+	invalid_opt_in_url:
+		"The opt-in page link must start with http:// or https://.",
+	field_too_long: "One value in this row is too long. Shorten it.",
+	duplicate_in_batch: "The same person appears earlier in this file.",
+	duplicate_phone: "A lead in your CRM already has this phone number.",
+	duplicate_email: "A lead in your CRM already has this email address.",
 } satisfies Record<LeadRejection, string>;
 
 export function rejectionLabel(reason: LeadRejection): string {
@@ -104,4 +113,84 @@ export function commitMapping(
 	if (!phone || !consentSource || !consentCapturedAt) return null;
 	if (!hasOptInEvidence(mapping)) return null;
 	return { ...mapping, phone, consentSource, consentCapturedAt };
+}
+
+export const IMPORT_STEPS = [
+	{ id: "upload", label: "Upload" },
+	{ id: "map", label: "Match columns" },
+	{ id: "review", label: "Review & import" },
+] as const;
+
+export type ImportStepId = (typeof IMPORT_STEPS)[number]["id"];
+
+export type ImportStepState = "done" | "current" | "upcoming";
+
+export function stepStates(current: ImportStepId): {
+	id: ImportStepId;
+	label: string;
+	number: number;
+	state: ImportStepState;
+}[] {
+	const index = IMPORT_STEPS.findIndex((step) => step.id === current);
+	return IMPORT_STEPS.map((step, position) => ({
+		...step,
+		number: position + 1,
+		state:
+			position < index ? "done" : position === index ? "current" : "upcoming",
+	}));
+}
+
+export function currentStep(input: {
+	hasFile: boolean;
+	hasPreview: boolean;
+	wantsReview: boolean;
+}): ImportStepId {
+	if (!input.hasFile) return "upload";
+	if (input.wantsReview && input.hasPreview) return "review";
+	return "map";
+}
+
+export function mappingBlockers(mapping: LeadMapping): string[] {
+	const missing = missingRequiredFields(mapping);
+	const blockers = LEAD_FIELD_OPTIONS.filter((option) =>
+		missing.includes(option.field),
+	).map(
+		(option) => `Pick the column that holds the ${option.label.toLowerCase()}.`,
+	);
+	if (!hasOptInEvidence(mapping)) {
+		blockers.push(
+			"Pick the column with the opt-in text, the opt-in page link, or both.",
+		);
+	}
+	return blockers;
+}
+
+export function importBlockReason(ready: number): string | null {
+	return ready === 0
+		? "No row is ready. Fix the problems in your file and upload it again."
+		: null;
+}
+
+export function importLabel(count: number): string {
+	return count === 1 ? "Import 1 lead" : `Import ${count} leads`;
+}
+
+export function problemRows(rows: readonly LeadRow[]): LeadRow[] {
+	return rows.filter(
+		(row) => row.status === "rejected" || row.status === "duplicate",
+	);
+}
+
+type VisibleRows = { shown: LeadRow[]; total: number };
+
+export function visibleRows(
+	rows: readonly LeadRow[],
+	onlyProblems: boolean,
+	limit: number = LEAD_IMPORT.previewRows,
+): VisibleRows {
+	const pool = onlyProblems ? problemRows(rows) : rowsForReview(rows);
+	return {
+		shown: rowsForReview(pool).slice(0, limit),
+		total: pool.length,
+	};
 }
