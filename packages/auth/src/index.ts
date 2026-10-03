@@ -14,6 +14,7 @@ export {
 	isSlackConfigured,
 } from "./env";
 export {
+	canAssignOwner,
 	canChangeRole,
 	canImportLeads,
 	canManageCompliance,

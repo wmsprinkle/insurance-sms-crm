@@ -1,3 +1,4 @@
+import { isWorkspaceAdmin, workspaceRoleOf } from "@crm/auth";
 import {
 	type ContactBriefSections,
 	type Db,
@@ -10,6 +11,7 @@ import {
 import type { FieldDefinitionWithOptions } from "@crm/db/fields";
 import {
 	ConflictException,
+	ForbiddenException,
 	Injectable,
 	Logger,
 	NotFoundException,
@@ -492,7 +494,28 @@ export class ContactsService {
 		);
 	}
 
-	async update(id: string, input: ContactUpdateInput) {
+	private async requireAdminForPhoneChange(
+		id: string,
+		phone: string,
+		actingUserId: string,
+	): Promise<void> {
+		const current = await this.db.contact.findUnique({
+			where: { id },
+			select: { phone: true },
+		});
+		if (!current || current.phone === normalizePhone(phone)) return;
+
+		if (!isWorkspaceAdmin(await workspaceRoleOf(actingUserId, this.db))) {
+			throw new ForbiddenException(
+				"Only an owner or an admin can change a contact's phone number.",
+			);
+		}
+	}
+
+	async update(id: string, input: ContactUpdateInput, actingUserId: string) {
+		if (input.phone !== undefined) {
+			await this.requireAdminForPhoneChange(id, input.phone, actingUserId);
+		}
 		const data: Prisma.ContactUpdateInput = {};
 
 		if (input.firstName !== undefined) data.firstName = input.firstName.trim();

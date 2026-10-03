@@ -792,3 +792,62 @@ Date: 2026-10-03. bun 1.3.12. Findings from `docs/COMPLIANCE_SECURITY_REVIEW.md`
 | `subagents/.claude` breaks lockdown spec | fixed. The spec ignores dot-entries. `.gitignore` lists the directory. |
 
 Not proven: the real eve runtime (durable step replay of the stubs, runtime-action routing of subagent calls). No eve eval ran: no model credentials.
+
+# Security fixes round 2 — API side (worker-crm-fix2-api)
+
+Source: `docs/COMPLIANCE_RECHECK.md` R2..R7. Commits: `a1edfdb` (R2), `933ee03` (R3, R4, R6, R7),
+`3d1e2ab` (repair of hunks I misplaced in the two commits above), and the R5 commit that follows.
+
+| Item | Status | What changed |
+|---|---|---|
+| R2 opt-out phrases | fixed | `keywords.ts` folds text with NFKC, Cyrillic/Greek look-alikes, accents, zero-width marks, `S T O P` / `s.t.o.p` spacing, repeated letters (`stoooop`) and `txt`/`msg` slang. A stop word (`stop`, `stahp`, `unsub`...) in a message of 40 characters or fewer suppresses. New phrases: `send me any more`, `text me anymore`, `cease and desist`. Config: `SMS.optOutPhrases`. |
+| R3 timeout | fixed | `TelnyxUnknownOutcomeError` for a fetch failure or a 2xx without id. `SmsSender` rethrows it as `SendOutcomeUnknownError`. The receipt becomes `sms.send.unknown`. It is never reclaimed and never released. A repeat call answers `unknownOutcome`. Draft approve answers `unknownOutcome` and sends nothing. |
+| R4 cap race | fixed | The gate counts other in-flight receipts: `claimed` within the 5 minute lease and `unknown` within the week, for purposes conversation, first-touch and handoff. It skips its own receipt (`receiptId`). The API already rejects a missing or empty idempotency key (`smsSendRequest`). |
+| R5 roles | fixed | `procedure-roles.ts` plus `AuthMiddleware`. Admin-only: `settings.*`, `apiKeys.create`, `agents.deploy`, `*.purge`, `*.bulkPurge`, `leads.importCommit`, `currency.*`, `slack.disconnect`, `sso.*`, `tracking.*`, `workspace.update`, `workspace.setMemberRole`. Owner escalation: only an owner can set or change `owner` (`canAssignOwner` in `@crm/auth`). `contacts.update` needs admin only when the phone changes. |
+| R6 confirmation retry | fixed | `SmsSender` deletes the opt-out claim row when Telnyx refuses the send. An unknown outcome keeps the claim. |
+| R7 START | fixed | START grants consent only when the contact's phone is the sender and the number had a consent row (any state) or a lifted suppression. A WRONG_NUMBER suppression stays. |
+| N4 backfill note | documented | See below. |
+
+## Decisions
+
+- **Unknown outcome needs a person.** No webhook can reconcile it: the send has no Telnyx id. The rep checks Telnyx.
+  If the text did not arrive, the rep discards the draft and sends a new text from the composer (new key).
+  No approve override exists, so the contract and the UI are unchanged.
+- **Any fetch failure is "unknown".** A DNS failure is also unknown. The cost is one manual check. The gain is no double text.
+- **The cap is conservative under a burst.** Parallel sends each count the others in flight. Two sends at the edge can both
+  be blocked. Neither exceeds the cap. A blocked send retries after the in-flight send settles.
+  A claimed receipt whose `SmsMessage` row exists but is not yet settled counts twice for a few milliseconds.
+- **False positive of the stop word rule.** A short message that holds the word `stop` suppresses the number, for example
+  `How do I stop my renewal`. A person lifts it with START. `Stop by at 5`, `stop in`, `don't stop`, `bus stop` are excluded
+  (`SMS.optOutPhrases.benignStop`). A message over 40 characters needs an explicit phrase.
+- **START semantics.** The consent row has source `SMS_KEYWORD`, `optInText` is the message text, `capturedAt` is the receipt time.
+  A number with no history that texts START stays unconsented. A person adds consent through a lead import or a web form.
+- **Role classes.** `member` can still edit everything except a contact's phone. `*.purge` is now admin on contacts, companies
+  and deals. `fields.*`, `google.*`, `microsoft.*`, `agents.*` (except deploy) stay `member`: their services check ownership.
+- **Better Auth.** Its own `/organization/update-member-role` already blocks a non-owner from setting or changing an owner
+  (`crud-members.mjs`). The tRPC path was the gap.
+- **Backfill assumption (N4).** Migration `20261003170000_consent_phone_retention` sets `ConsentRecord.e164` from the
+  contact's current phone. A consent row given for an earlier number, on a contact whose phone was edited before the
+  migration, now covers the new number. Before production deploy, run a check for contacts whose phone changed after the
+  consent row was created (`SELECT` on `ConsentRecord` joined to `Contact`, `Contact.updatedAt > ConsentRecord.capturedAt`),
+  and revoke the rows it finds. Test data is not affected.
+
+## Commands and results
+
+| Command | Result |
+|---|---|
+| `bunx tsc --noEmit` in `apps/api`, `packages/auth` | pass |
+| `bunx biome check .` in `apps/api`, `packages/auth` | pass (4 old warnings in `apps/api`) |
+| `bun test --preload pglite-preload.ts` in `apps/api` | 672 pass, 7 fail: 5 `Auth (e2e)` and 1 `Tracking collector` bind a port (sandbox: EPERM) |
+| `test/core-loop.integration.spec.ts` (PGlite) | pass, 7 |
+| New specs: `compliance-fix2.spec.ts` (22), `procedure-roles.spec.ts` (27), R2 block in `sms-keywords.spec.ts` | pass; the R3, R4 tests fail with the fix removed (checked for R4) |
+| `bun test` in `packages/auth` | pass |
+
+## Not run / not done
+
+- `Auth (e2e)` specs need a listening port. The middleware is covered by unit calls, not through HTTP.
+- No real Postgres concurrency test for R4. The race test uses the in-memory fake and sequenced promises.
+- No alert to a rep when a send ends `unknown`. The log line is `SMS send outcome unknown`.
+- `apps/app` UI does not show the `unknownOutcome` text specially. It shows the API error string.
+- Role class for `fields.*` schema changes stays `member`. A decision for the owner.
+- Cross-scope: `apps/api/test/fields.spec.ts` (one call site for the new `actingUserId` argument).

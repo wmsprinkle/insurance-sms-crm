@@ -569,10 +569,14 @@ describe("a record update that fails", () => {
 
 		let refused: Error | null = null;
 		try {
-			await contacts.update(contact.id, {
-				companyId: `nobody-${suffix}`,
-				fields: { spec_note: "Reads the docs" },
-			});
+			await contacts.update(
+				contact.id,
+				{
+					companyId: `nobody-${suffix}`,
+					fields: { spec_note: "Reads the docs" },
+				},
+				"user-1",
+			);
 		} catch (cause) {
 			refused = cause as Error;
 		}

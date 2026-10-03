@@ -45,6 +45,10 @@ export function canImportLeads(role: WorkspaceRole | null): boolean {
 	return isWorkspaceAdmin(role);
 }
 
+export function canAssignOwner(role: WorkspaceRole | null): boolean {
+	return role === "owner";
+}
+
 export function canSendSms(role: WorkspaceRole | null): boolean {
 	return role !== null;
 }

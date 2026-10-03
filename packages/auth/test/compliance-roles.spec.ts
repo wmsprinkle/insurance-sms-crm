@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
+	canAssignOwner,
 	canImportLeads,
 	canManageCompliance,
 	canSendSms,
@@ -20,5 +21,14 @@ describe("compliance permissions", () => {
 	it("lets every workspace member send texts, and nobody outside it", () => {
 		for (const role of WORKSPACE_ROLES) expect(canSendSms(role)).toBe(true);
 		expect(canSendSms(null)).toBe(false);
+	});
+});
+
+describe("owner assignment", () => {
+	it("lets only an owner make or unmake an owner", () => {
+		expect(canAssignOwner("owner")).toBe(true);
+		expect(canAssignOwner("admin")).toBe(false);
+		expect(canAssignOwner("member")).toBe(false);
+		expect(canAssignOwner(null)).toBe(false);
 	});
 });

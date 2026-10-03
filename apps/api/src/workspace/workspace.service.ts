@@ -1,4 +1,5 @@
 import {
+	canAssignOwner,
 	canChangeRole,
 	canRenameWorkspace,
 	ensureWorkspaceMembership,
@@ -192,6 +193,15 @@ export class WorkspaceService {
 
 			if (!target) {
 				throw new NotFoundException("That person is not in this workspace.");
+			}
+
+			if (
+				(target.role === "owner" || input.role === "owner") &&
+				!canAssignOwner(role)
+			) {
+				throw new ForbiddenException(
+					"Only an owner can make someone an owner or change an owner's role.",
+				);
 			}
 
 			if (target.role === "owner" && input.role !== "owner") {

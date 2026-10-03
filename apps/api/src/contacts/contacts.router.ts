@@ -69,8 +69,11 @@ export class ContactsRouter {
 		output: contactBasicOutput,
 		meta: restMeta("PATCH", "/contacts/{id}", ["Contacts"]),
 	})
-	async update(@Input() input: z.infer<typeof contactUpdateArgs>) {
-		return this.contacts.update(input.id, input.data);
+	async update(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof contactUpdateArgs>,
+	) {
+		return this.contacts.update(input.id, input.data, ctx.user.id);
 	}
 
 	@Mutation({

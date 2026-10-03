@@ -99,6 +99,19 @@ every query still resolves through `WORKSPACE_ID`.
 - **Renaming moves the URL**, so `workspace-form.tsx` replaces the location onto the
   slug `workspace.update` returns.
 
+## Every mutating procedure has a role class
+
+`apps/api/src/trpc/procedure-roles.ts` maps each mutating tRPC procedure
+(`router.procedure`) to `member`, `admin` or `owner`. `AuthMiddleware` reads the map on
+every mutation and refuses a caller below the class. A mutation with no entry is refused,
+so a new mutation fails closed until someone classifies it. `test/procedure-roles.spec.ts`
+scans every `*.router.ts` and fails on a missing class, a stale class, or a router that
+skips `AuthMiddleware`. Add the entry in the same change as the procedure.
+
+Rules inside a service stay: only an owner can make or unmake an owner
+(`WorkspaceService.setMemberRole`), and a member cannot change a contact's phone number
+(`ContactsService.update`), because consent belongs to the number.
+
 ## SSO is a row, not a deployment
 
 An `ssoProvider` row via Better Auth's `sso` plugin, on Settings → SSO, because a
