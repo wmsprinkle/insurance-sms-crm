@@ -1,3 +1,4 @@
+import { featureEnabled } from "@crm/env/features";
 import { notFound, unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
@@ -6,6 +7,7 @@ import { AppIconRail, AppIconRailFallback } from "@/components/app-icon-rail";
 import { QuickSwitcher } from "@/components/crm/quick-switcher";
 import { RecordSheetHost } from "@/components/crm/record-sheet/record-sheet-host";
 import { MobileNavProvider } from "@/components/mobile-nav";
+import { TestModeBanner } from "@/components/test-mode-banner";
 import { requireMailboxAccess } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
@@ -21,9 +23,11 @@ export default function AppLayout({
 					<WorkspaceHeader params={params} />
 				</Suspense>
 
+				<TestModeBanner />
+
 				<div className="flex min-h-0 flex-1">
 					<Suspense fallback={<AppIconRailFallback />}>
-						<AppIconRail />
+						<AppIconRail showUpstream={featureEnabled("crm")} />
 					</Suspense>
 					{children}
 				</div>

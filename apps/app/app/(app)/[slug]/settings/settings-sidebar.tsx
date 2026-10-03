@@ -10,6 +10,7 @@ import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 type SettingsNavItem = {
 	title: string;
 	href: string;
+	upstream?: boolean;
 };
 
 const ROOT = "/settings";
@@ -17,12 +18,12 @@ const ROOT = "/settings";
 const ITEMS: SettingsNavItem[] = [
 	{ title: "General", href: ROOT },
 	{ title: "Compliance", href: `${ROOT}/compliance` },
-	{ title: "Tracking & Analytics", href: `${ROOT}/tracking` },
 	{ title: "Connections", href: `${ROOT}/connections` },
-	{ title: "Currencies", href: `${ROOT}/currencies` },
 	{ title: "Members", href: `${ROOT}/members` },
-	{ title: "API Keys", href: `${ROOT}/api-keys` },
-	{ title: "SSO", href: `${ROOT}/sso` },
+	{ title: "Tracking & Analytics", href: `${ROOT}/tracking`, upstream: true },
+	{ title: "Currencies", href: `${ROOT}/currencies`, upstream: true },
+	{ title: "API Keys", href: `${ROOT}/api-keys`, upstream: true },
+	{ title: "SSO", href: `${ROOT}/sso`, upstream: true },
 ];
 
 function isActive(href: string, root: string, pathname: string): boolean {
@@ -62,6 +63,7 @@ function NavLink({
 }
 
 export function SettingsSidebarFallback() {
+	const shown = ITEMS.filter((item) => !item.upstream);
 	return (
 		<>
 			<aside className="hidden w-56 shrink-0 border-r md:block [view-transition-name:settings-sidebar]">
@@ -70,7 +72,7 @@ export function SettingsSidebarFallback() {
 					aria-busy="true"
 					className="flex flex-col gap-0.5 p-3"
 				>
-					{ITEMS.map((item) => (
+					{shown.map((item) => (
 						<Button
 							key={item.href}
 							variant="ghost"
@@ -88,7 +90,7 @@ export function SettingsSidebarFallback() {
 				aria-busy="true"
 				className="flex gap-1 overflow-x-auto border-b p-2 md:hidden [view-transition-name:settings-sidebar]"
 			>
-				{ITEMS.map((item) => (
+				{shown.map((item) => (
 					<Button
 						key={item.href}
 						variant="ghost"
@@ -103,14 +105,22 @@ export function SettingsSidebarFallback() {
 	);
 }
 
-export function SettingsSidebar() {
+export function SettingsSidebar({
+	showUpstream = false,
+}: {
+	showUpstream?: boolean;
+}) {
 	const pathname = usePathname();
 	const workspaceUrl = useWorkspaceUrl();
 
 	const root = workspaceUrl(ROOT);
 	const items = useMemo(
-		() => ITEMS.map((item) => ({ ...item, href: workspaceUrl(item.href) })),
-		[workspaceUrl],
+		() =>
+			ITEMS.filter((item) => showUpstream || !item.upstream).map((item) => ({
+				...item,
+				href: workspaceUrl(item.href),
+			})),
+		[workspaceUrl, showUpstream],
 	);
 
 	return (

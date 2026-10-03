@@ -1,3 +1,4 @@
+import { featureEnabled } from "@crm/env/features";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import {
@@ -28,7 +29,7 @@ export default function GeneralSettingsPage() {
 				<PageShellHeading>
 					<PageShellTitle>General</PageShellTitle>
 					<PageShellDescription>
-						Who you are, and the model the research agent thinks with.
+						Your business name and the workspace members.
 					</PageShellDescription>
 				</PageShellHeading>
 			</PageShellHeader>
@@ -60,7 +61,7 @@ async function Settings() {
 		<HydrateClient>
 			<div className="flex max-w-3xl flex-col gap-6">
 				<WorkspaceForm />
-				<ResearchKey />
+				{featureEnabled("enrichment") ? <ResearchKey /> : null}
 				<ArchiveRetention />
 				<AgentModel />
 			</div>

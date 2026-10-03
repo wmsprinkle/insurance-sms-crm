@@ -4,6 +4,7 @@ export const FEATURES = {
 	enrichment: "FEATURE_ENRICHMENT",
 	slack: "FEATURE_SLACK",
 	tracking: "FEATURE_TRACKING",
+	crm: "FEATURE_CRM",
 } as const;
 
 export type Feature = keyof typeof FEATURES;

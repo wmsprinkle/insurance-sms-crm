@@ -1,3 +1,4 @@
+import { featureEnabled } from "@crm/env/features";
 import { Suspense } from "react";
 import { SettingsSidebar, SettingsSidebarFallback } from "./settings-sidebar";
 
@@ -9,7 +10,7 @@ export default function SettingsLayout({
 	return (
 		<div className="flex min-h-0 min-w-0 flex-1 flex-col md:flex-row">
 			<Suspense fallback={<SettingsSidebarFallback />}>
-				<SettingsSidebar />
+				<SettingsSidebar showUpstream={featureEnabled("crm")} />
 			</Suspense>
 			{children}
 		</div>
