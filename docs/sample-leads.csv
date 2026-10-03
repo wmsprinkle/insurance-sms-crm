@@ -1,0 +1,5 @@
+first_name,last_name,email,phone,consent_source,consent_date,opt_in_text,opt_in_url,consent_ip
+Ava,Example,ava@example.com,(202) 555-0101,WEB_FORM,2026-10-01T15:04:05Z,"I agree to receive text messages from Example Agency about my quote request. Msg & data rates may apply. Reply STOP to opt out.",https://example.com/quote,203.0.113.10
+Ben,Sample,ben@example.com,202-555-0102,WEB_FORM,2026-10-01T16:20:00Z,"I agree to receive text messages from Example Agency about my quote request. Msg & data rates may apply. Reply STOP to opt out.",https://example.com/quote,203.0.113.11
+Cara,Test,,+1 312 555 0103,WEB_FORM,2026-10-02T09:15:00Z,"I agree to receive text messages from Example Agency about my quote request. Msg & data rates may apply. Reply STOP to opt out.",https://example.com/quote,198.51.100.7
+Dev,Placeholder,dev@example.com,713.555.0104,MANUAL,2026-10-02T11:00:00Z,"Verbal consent on a call: agreed to receive quote follow-up texts. Reply STOP to opt out.",,

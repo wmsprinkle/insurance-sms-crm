@@ -23,6 +23,29 @@
 > (Context.dev / LinkedIn / Perplexity), Slack and website tracking are kept in the code but
 > switched off by default; see "Feature flags".
 
+## Insurance SMS CRM
+
+| Doc | For |
+|---|---|
+| [docs/SMS_SETUP.md](./docs/SMS_SETUP.md) | Prerequisites, every env var, local dry run, Telnyx, Google booking scopes, deploy, go-live checklist |
+| [docs/OPERATIONS.md](./docs/OPERATIONS.md) | Daily use: import, drafts, handoffs, STOP, knowledge files, licensed states, calendar settings |
+| [docs/TOLLFREE_VERIFICATION.md](./docs/TOLLFREE_VERIFICATION.md) | The Telnyx toll-free verification packet to fill and submit |
+| [docs/sample-leads.csv](./docs/sample-leads.csv) | A fake four-lead CSV with the required consent columns |
+| [docs/BUILD_STATUS.md](./docs/BUILD_STATUS.md) | What each build phase did, what passed, what was not run |
+
+**Verified** (unit tests, type checks and lint pass; see `BUILD_STATUS.md`): Telnyx send
+in dry run, webhook signature check, send gate (consent, suppression, quiet hours),
+STOP/HELP/START, CSV import and the lead webhook, first-touch queueing, the agent's SMS
+tools, guard and pipeline, drafts and handoffs, Google free/busy and booking logic.
+All of it against in-memory fakes.
+
+**Not yet tested**: nothing has run against a real Postgres (no integration tests, no
+`prisma migrate deploy` of the four new migrations); no page has been rendered
+(`next build` was blocked); no real Telnyx or Google call; no `eve eval` with a model;
+the API has not been booted with every module wired. The per-state quiet-hours table
+has no legal review. There is no UI for the calendar owner or the fallback booking
+link, and no round-robin across reps.
+
 ## Feature flags
 
 | Variable | Turns on | Default |

@@ -629,3 +629,22 @@ Date: 2026-10-03. bun 1.3.12. Plan: `../RESEARCH.md` §2.7, §4 P4.
 - No real Google call. Duplicate (409) bookings return no Meet link (no `events.get`).
 - The confirmation SMS obeys approval mode: with auto-send off it becomes a draft after the event exists.
 - No settings UI for `calendar.ownerUserId` / `calendar.fallbackBookingLink`.
+
+# Build status — operator docs (worker-crm-docs)
+
+Date: 2026-10-03. Docs only; no code changed.
+
+- `docs/SMS_SETUP.md` (setup), `docs/OPERATIONS.md` (daily use), `docs/TOLLFREE_VERIFICATION.md`
+  (task 21 packet), `docs/sample-leads.csv`, README section "Insurance SMS CRM".
+- The setup doc is `SMS_SETUP.md`, not `SETUP.md`: upstream `docs/setup.md` exists, and on a
+  case-insensitive file system (macOS default) `SETUP.md` is the same file.
+- Every env var was checked against `.env.example`, `apps/api/src/config/env.validation.ts`,
+  `packages/env/src/sms.ts`, `apps/agent/agent/lib/sms-outbound.ts` and `apps/agent/turbo.json`.
+  P2c's note "`SMS_DRY_RUN=true` in env" means `DRY_RUN`; no `SMS_DRY_RUN` variable exists
+  (`SMS_DRY_RUN_SENDER` is a Nest provider token).
+- `docs/sample-leads.csv` was run through `parseCsv` → `suggestMapping` → `resolveMapping` →
+  `checkRows` → `triage` in a throwaway bun test: 4 rows, 4 `ready`, 0 rejected. The test was
+  not committed (outside docs scope).
+
+Not run: the local run steps in `SMS_SETUP.md` §3 (no Postgres, no browser), the SQL in
+`OPERATIONS.md` (no database), any Telnyx or Google console step.
