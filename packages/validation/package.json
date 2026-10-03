@@ -16,7 +16,8 @@
 		"./field-templates": "./src/field-templates.ts",
 		"./phone": "./src/phone.ts",
 		"./saved-view": "./src/saved-view.ts",
-		"./sms-reply-task": "./src/sms-reply-task.ts"
+		"./sms-reply-task": "./src/sms-reply-task.ts",
+		"./sms-settings": "./src/sms-settings.ts"
 	},
 	"scripts": {
 		"check-types": "tsc --noEmit",

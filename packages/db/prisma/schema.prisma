@@ -1349,6 +1349,8 @@ model SmsMessage {
   telnyxId  String?      @unique
   status    SmsStatus    @default(QUEUED)
   errorCode String?
+  /// Set when a rep marks an inbound message handled in the Conversations inbox.
+  handledAt DateTime?
   createdAt DateTime     @default(now())
 
   @@index([contactId, createdAt])
@@ -1406,6 +1408,9 @@ model AppSetting {
   trackingCookieDays       Int     @default(395)
   trackingConfigHash       String?
   trackingPaused           Boolean @default(false)
+
+  /// SMS settings, shape in @crm/validation/sms-settings.
+  sms Json?
 
   updatedAt DateTime @updatedAt
 
