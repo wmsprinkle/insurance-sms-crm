@@ -33,18 +33,25 @@
 | [docs/sample-leads.csv](./docs/sample-leads.csv) | A fake four-lead CSV with the required consent columns |
 | [docs/BUILD_STATUS.md](./docs/BUILD_STATUS.md) | What each build phase did, what passed, what was not run |
 
-**Verified** (unit tests, type checks and lint pass; see `BUILD_STATUS.md`): Telnyx send
-in dry run, webhook signature check, send gate (consent, suppression, quiet hours),
-STOP/HELP/START, CSV import and the lead webhook, first-touch queueing, the agent's SMS
-tools, guard and pipeline, drafts and handoffs, Google free/busy and booking logic.
-All of it against in-memory fakes.
+**Verified** (unit tests, type checks, lint and PGlite integration suites pass; see
+[docs/QA_REPORT.md](./docs/QA_REPORT.md)): Telnyx send in dry run and against a fake
+Telnyx, webhook signature check, send gate (consent bound to the phone, suppression,
+quiet hours, frequency cap), STOP/HELP/START and free-text opt-out phrases, CSV import
+and the lead webhook, first-touch queueing, the agent's SMS tools and pipeline, drafts
+and handoffs, an unknown Telnyx outcome refusing a draft approve, role gating of admin
+procedures, Google free/busy and booking logic against a fake, and the business name,
+licensed states, calendar owner and fallback booking link as settings. All 61 migrations
+apply in order on PGlite and match `schema.prisma`. A core-loop end-to-end test and a
+security-paths end-to-end test run import, first touch, reply, qualify, book and STOP
+in process.
 
-**Not yet tested**: nothing has run against a real Postgres (no integration tests, no
-`prisma migrate deploy` of the four new migrations); no page has been rendered
-(`next build` was blocked); no real Telnyx or Google call; no `eve eval` with a model;
-the API has not been booted with every module wired. The per-state quiet-hours table
-has no legal review. There is no UI for the calendar owner or the fallback booking
-link, and no round-robin across reps.
+**Not verified**: nothing has run against a real Postgres server (no concurrency test,
+no `prisma migrate deploy`); no page has been rendered (`next build` is blocked by
+Google Fonts here); no real Telnyx or Google call; no `eve` runtime lockdown proof and no
+`eve eval` with a model; no toll-free carrier verification; no legal review of the
+per-state quiet-hours table or of the counsel decisions in
+[docs/COMPLIANCE_RECHECK.md](./docs/COMPLIANCE_RECHECK.md). There is no round-robin across
+reps.
 
 ## Feature flags
 

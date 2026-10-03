@@ -158,7 +158,7 @@ id is stored once.
 **Re-consent.** A Google account connected before the booking scopes existed keeps
 syncing but cannot book. **Settings → Connections** shows **Grant calendar access** for
 that account. Click it and accept the new scopes. Until then, booking answers
-`needs-reconsent` and the agent falls back (see `OPERATIONS.md` → "Calendar owner").
+`needs-reconsent` and the agent falls back (see `OPERATIONS.md` → "Calendar owner and fallback booking link").
 
 Microsoft calendars are not supported for booking.
 
@@ -248,10 +248,14 @@ Same as upstream: three deployments and one Postgres.
   (`apps/agent/agent/schedules/dispatch.ts`). First-touch and reply tasks wait for it.
 - The Telnyx webhook and the lead webhook point at the API origin.
 - `apps/api/src/generated/server.ts` is committed. `build` never regenerates it.
-- Migrations run with `bun run db:deploy`. This fork adds four:
+- Migrations run with `bun run db:deploy`. This fork adds five:
   `20261003140000_sms_consent_suppression`, `20261003150000_sms_settings_handled`,
-  `20261003153000_sms_drafts_handoffs`, `20261003160000_calendar_settings`.
-  None of them has run against a real database yet.
+  `20261003153000_sms_drafts_handoffs`, `20261003160000_calendar_settings`,
+  `20261003170000_consent_phone_retention`.
+  All five apply in order on PGlite and match `schema.prisma` (see `QA_REPORT.md`).
+  None has run through `prisma migrate deploy` against a real Postgres yet.
+  `20261003140000` fails when two active contacts share a phone after normalisation:
+  merge or archive duplicates first.
 
 ## 10. Going-live checklist
 
@@ -261,14 +265,17 @@ Same as upstream: three deployments and one Postgres.
       No purchased or third-party affiliate leads.
 - [ ] Quiet-hours table reviewed by a lawyer (`apps/api/src/compliance/compliance-config.ts`,
       shown read-only on **Settings → Compliance**). It is unverified.
-- [ ] Licensed states set (see `OPERATIONS.md`).
+- [ ] Business name set on **Settings → Compliance → Business name**, equal to the name on the
+      verification form (see `OPERATIONS.md`).
+- [ ] Licensed states set on **Settings → Compliance → Licensed states** (see `OPERATIONS.md`).
 - [ ] Knowledge files reviewed for your lines of insurance (no prices, no promises).
 - [ ] Disclosure mode chosen. `disclose` is the default; some states require it.
 - [ ] First message matches the sample message submitted for verification.
 - [ ] `AGENT_BRIDGE_SECRET` identical in app, API and agent.
 - [ ] `API_URL` set on the agent.
 - [ ] Google account connected with booking scopes (no **Grant calendar access** prompt).
-- [ ] `calendar.ownerUserId` and `calendar.fallbackBookingLink` set (see `OPERATIONS.md`).
+- [ ] Calendar owner and fallback booking link set on **Settings → Compliance → Booking**
+      (`calendar.ownerUserId`, `calendar.fallbackBookingLink`; see `OPERATIONS.md`).
 - [ ] Migrations applied with `bun run db:deploy`; `bun run test` green against a real
       `TEST_DATABASE_URL`.
 - [ ] One end-to-end test in dry run: import → draft → approve → stored as sent.

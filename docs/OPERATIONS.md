@@ -135,60 +135,60 @@ its `description` matches the lead's question.
 
 State-specific facts go in the relevant knowledge file or in `knowledge-agency.md`.
 
+## Business name
+
+**Settings → Compliance → Texting → Business name** (`sms.brandName`, at most 80
+characters, no link or email address). Only an owner or an admin can save it.
+
+The name opens the first message (`{agency}`), the booking confirmation, the first reply
+of each conversation, and the STOP and HELP replies. An empty value uses the workspace
+name. With no workspace name the texts say "Our team".
+
+A queued first touch keeps the text it was queued with. Change the name before an import,
+not after. The toll-free verification form must show the same name (see
+`TOLLFREE_VERIFICATION.md`).
+
 ## Change licensed states
 
-Two places, which must list the same states in the same order (a test checks it):
+**Settings → Compliance → Texting → Licensed states** (`sms.licensedStates`). Enter
+two-letter codes separated by commas, for example `TX, FL, GA`. Up to 60 codes, no
+duplicates. Only an owner or an admin can save it.
 
-1. `apps/agent/agent/lib/sms-config.ts` → `SMS_AGENT.licensedStates`, for example
-   `["TX", "FL", "GA"] as readonly string[]`.
-2. `apps/agent/agent/skills/knowledge-agency.md` → the `## Licensed states` section,
-   with the same two-letter codes (replace "Not set.").
-
-An empty list means no state is refused. With a list, a lead in another state is marked
-not qualified (`UNQUALIFIED_TO_BUY`). Run `bun test test/sms-qualification.spec.ts` in
-`apps/agent`, then redeploy the agent.
+An empty list means no state is refused, and the agent does not name any state. With a
+list, the agent states the list in each task and a lead in another state is marked not
+qualified (`UNQUALIFIED_TO_BUY`). No code edit and no redeploy is needed.
 
 ## Calendar owner and fallback booking link
 
-There is no UI for these yet. They live in the `calendar` JSON column of the single
-settings row (table `appSetting`, id `app`). Shape: `@crm/validation/calendar-settings`.
+**Settings → Compliance → Booking** (`calendar.ownerUserId`,
+`calendar.fallbackBookingLink`). Only an owner or an admin can save it. Shape:
+`@crm/validation/calendar-settings`.
 
-| Key | Meaning | When unset |
-| --- | --- | --- |
-| `calendar.ownerUserId` | The CRM user whose Google Calendar receives bookings. | The user of the oldest connected Google account. |
-| `calendar.fallbackBookingLink` | An `http(s)` booking page (at most 500 characters) the agent texts when the calendar is unavailable. | The agent hands the lead to a person instead. |
+| Field | Key | Meaning | When unset |
+| --- | --- | --- | --- |
+| Calendar owner | `calendar.ownerUserId` | The CRM user whose Google Calendar receives bookings. Only people who connected Google can be picked. | The user of the oldest connected Google account. |
+| Fallback booking link | `calendar.fallbackBookingLink` | An `http(s)` booking page (at most 500 characters). The agent texts it only when it cannot read the calendar. | The agent hands the lead to a person instead. |
 
-Find the user id:
-
-```sql
-SELECT id, email FROM "user";
-```
-
-Set both (Postgres; `docker exec -it crm-postgres psql -U postgres crm` locally, or
-`bun run db:studio`):
-
-```sql
-INSERT INTO "appSetting" (id, calendar, "updatedAt")
-VALUES ('app', '{"ownerUserId": "<user id>", "fallbackBookingLink": "https://example.com/book"}', now())
-ON CONFLICT (id) DO UPDATE
-SET calendar = EXCLUDED.calendar, "updatedAt" = now();
-```
-
-Use `null` for a key you want unset. A value that fails the schema (for example a
-non-http link) makes booking fail with "Unreadable calendar settings". Check the JSON before
-you save it.
+The page refuses a link that is not `http(s)`. If the stored JSON is edited by hand and
+fails the schema, booking fails with "Unreadable calendar settings".
 
 The owner's Google account must hold the booking scopes. If **Settings → Connections**
 shows **Grant calendar access**, click it first.
 
 ## Settings → Compliance
 
+- **Business name**: see "Business name" above.
 - **First message**: 20–320 characters, must contain STOP. Tokens `{firstName}` and
-  `{agency}` (the workspace name). A queued first touch keeps the text it was queued
+  `{agency}` (the business name). A queued first touch keeps the text it was queued
   with.
+- **Licensed states**: see "Change licensed states" above.
 - **Disclosure mode**: `disclose` (default; the agent says it is an automated assistant
   when asked) or `deflect`.
 - **Auto-send**: off = every agent and first-touch text waits in Drafts.
+- **Frequency cap**: read-only. At most 3 texts a day and 7 a week to one lead while the
+  lead sends no answer. An answer from the lead restarts the count. The limit is in
+  `COMPLIANCE.frequency` (`apps/api/src/compliance/compliance-config.ts`) and has no
+  setting.
 - **Quiet hours**: read-only table. Federal 8:00–21:00 local time plus stricter state
   rules. Unknown state = the strictest window across all US zones. The table is not
   legally reviewed.

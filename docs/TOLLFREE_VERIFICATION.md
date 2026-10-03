@@ -18,7 +18,7 @@ Fill every `«…»`.
 | Field | Value |
 | --- | --- |
 | Legal business name | «exact name on the IRS record» |
-| DBA / brand name shown in texts | «the `{agency}` name; must match the workspace name in the CRM» |
+| DBA / brand name shown in texts | «the `{agency}` name; must match **Settings → Compliance → Business name** (empty = the workspace name)» |
 | Business registration number (EIN) | «XX-XXXXXXX» — required since 2026-02-17 |
 | Registration number type | EIN |
 | Registration country | US |
@@ -44,8 +44,9 @@ Fill every `«…»`.
 
 ## 3. Sample messages
 
-These match what the CRM sends today. If you change the first message on
-**Settings → Compliance**, change sample 1 here to the same text.
+These match what the CRM sends today. «Agency» is **Settings → Compliance → Business
+name** (the workspace name when empty). If you change the first message or the business
+name there, change the samples here to match.
 
 1. **First touch** (default template in `@crm/validation/sms-settings`):
    > Hi «Ava», this is «Agency». You asked us about an insurance quote, so we are
@@ -54,8 +55,8 @@ These match what the CRM sends today. If you change the first message on
    > Happy to help. A licensed agent can go over options on a short call. Would Tue,
    > Oct 6 at 10:00 AM CDT or Wed, Oct 7 at 2:00 PM CDT work for you?
 3. **Booking confirmation** (`apps/agent/agent/lib/sms-booking.ts`):
-   > You are booked for Tue, Oct 6 at 10:00 AM CDT. A calendar invite with a video link
-   > is on its way to your email. Reply here if you need to change it.
+   > «Agency»: You are booked for Tue, Oct 6 at 10:00 AM CDT. A calendar invite with a
+   > video link is on its way to your email. Reply here if you need to change it.
 4. **STOP reply** (`apps/api/src/sms/sms-config.ts`):
    > «Agency»: You are unsubscribed and will get no more messages. Reply START to
    > resubscribe.
