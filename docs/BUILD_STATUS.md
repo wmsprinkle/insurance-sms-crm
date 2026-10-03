@@ -202,3 +202,73 @@ Date: 2026-10-03. Code in `apps/api/src/leads/`. Task 9 (first-touch enqueue) is
 - `toE164` does not check that an area code exists. libphonenumber-js would catch more bad numbers.
 - Task 9: each created lead must enqueue a first-touch `AgentTask`; `LeadWriterService.writeOne` is
   the place.
+
+# Build status — P1 tasks 3–6 (worker-crm-p1-sms)
+
+Date: 2026-10-03. SMS plumbing, DRY_RUN by default. Plan: `../RESEARCH.md` §2.1–2.4, §4 P1.
+
+## Task 3 — `TelnyxClient` (`apps/api/src/sms/telnyx.client.ts`)
+
+- `send({ to, text, from? })` → `{ id, from, dryRun }`. Rejects a recipient that is not E.164.
+- Dry run returns `dryrun-<uuid>` and never calls Telnyx. Dry run is on unless `DRY_RUN="false"`
+  **and** `TELNYX_API_KEY` is set (`@crm/env/sms` `readSmsEnv`).
+- Per-sending-number token bucket (`rate-limiter.ts`), `TELNYX_MPS` (default 1, burst 1).
+- Env: `DRY_RUN`, `TELNYX_API_KEY`, `TELNYX_MESSAGING_PROFILE_ID`, `TELNYX_FROM_NUMBER`,
+  `TELNYX_PUBLIC_KEY`, `TELNYX_MPS` — all optional, in `.env.example` and `env.validation.ts`.
+- Tunables in `apps/api/src/sms/sms-config.ts` (`SMS`).
+
+## Task 4 — `POST /webhooks/telnyx` (`telnyx-webhook.controller.ts`)
+
+- Anonymous. Reads the raw body (256 KiB cap → 413), verifies Ed25519 over `{timestamp}|{raw body}`
+  with `TELNYX_PUBLIC_KEY` (base64, raw 32 bytes), ±300 s replay window → 401. No key → 503.
+  Not a Telnyx event → 400.
+- `message.received`: sender normalised to E.164, matched to an active contact, `SmsMessage`
+  inserted (unique `telnyxId` → retries answer `duplicate`), and an `AgentTask` kind `sms-reply`
+  queued in the same transaction. A second message folds into the not-yet-started task.
+  Payload shape: `@crm/validation/sms-reply-task` (`{ type: "sms.received", smsMessageIds, from }`).
+- `message.sent` / `message.finalized`: status from `to[0].status`; a status never moves backwards.
+- Work per request is one lookup plus one transaction; no model call.
+
+## Task 5 — send gate (`apps/api/src/compliance/*`, `sms/sms-sender.service.ts`)
+
+- `SendGateService.check({ to, contactId, purpose, state? })`. Order: keyword reply → allowed;
+  `PhoneSuppression` → blocked; no un-revoked `ConsentRecord` → blocked; outside quiet hours →
+  blocked with `retryAt` (next allowed instant, 15-min steps, 8-day horizon).
+- Quiet hours: federal 8:00–21:00 plus a per-state table (`compliance-config.ts`). State comes from
+  a declared state, else the area code (`area-codes.ts`). Split-time-zone states must be in window
+  in every zone. Unknown state → every US zone and every state rule at once (strictest).
+- Every decision writes an `AgentEvent` (`sessionId` `compliance:send-gate`, type
+  `sms.send.allowed` / `sms.send.blocked`, data: to, purpose, reason, retryAt, state, timezones).
+  The audit write happens before the send; a failed audit write fails the send.
+- `SmsSender.send` = gate → `TelnyxClient` → `SmsMessage` OUTBOUND (dry run `SENT`, live `SENDING`,
+  refused `SENDING_FAILED` with the Telnyx code).
+
+## Task 6 — keyword fast path (`sms/keywords.ts`, `sms/keyword.service.ts`)
+
+- Whole-message match only (case, spaces, quotes and end punctuation ignored). Sentences such as
+  "please stop texting me" go to the agent's classifier (task 12).
+- STOP set (STOP, STOPALL, UNSUBSCRIBE, CANCEL, END, QUIT, OPTOUT, OPT-OUT, REVOKE): suppress the
+  number (`STOP_KEYWORD`), revoke consent, finish open `sms-reply` / `first-touch` / `sms-follow-up`
+  tasks with outcome `opted-out`, one confirmation. Works for unknown numbers too.
+- START / UNSTOP: lift only `STOP_KEYWORD` / `OPT_OUT_REQUEST` suppressions, add a `SMS_KEYWORD`
+  consent. HELP / INFO: reply only. No `sms-reply` task for any keyword.
+- Replies use the workspace name; text lives in `SMS.keywordReplies`.
+
+## Commands and results
+
+| Command | Result |
+|---|---|
+| `bun test test/sms-*.spec.ts test/compliance-*.spec.ts` (apps/api, `TEST_DATABASE_URL` pointed at an unreachable `*_test` URL so nothing connects) | pass, 69 tests |
+| `bun test` in `packages/env` | pass, 22 tests (5 new) |
+| `bun run check-types` in `apps/api`, `packages/env`, `packages/validation` | pass |
+| `bun run lint` (biome) in `apps/api`, `packages/env`, `packages/validation` | pass (4 warnings, none in P1 files) |
+| `oxlint` on P1 files | pass |
+
+## Not run / not done
+
+- No database: services are tested against an in-memory fake (`test/support/sms-db.ts`), not Postgres.
+- Nest boot with `SmsModule` wired was not run (needs `DATABASE_URL` and a live app).
+- Quiet-hour state rules and the area-code table are unverified [A]; they need a legal check.
+  State holidays are not modelled.
+- Inbound from a number no contact has: keywords are honoured, other text is logged and dropped.
+- No `SMS` `Activity` row on the timeline yet (P5 task 19).
