@@ -86,6 +86,8 @@ const VERBS: ToolVerbs = {
 	opt_out_contact: "Stopped texting this contact",
 	handoff_to_human: "Handed the conversation to a person",
 	record_qualification: "Recorded what the lead needs",
+	propose_slots: "Looked for free call times",
+	book_meeting: "Booked a call with the lead",
 	manage_fields: "Changed what the CRM tracks",
 	archive_field: "Asked to retire a field",
 
