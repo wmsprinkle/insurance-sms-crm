@@ -408,3 +408,95 @@ Date: 2026-10-03. bun 1.3.12. Commits 45983e4, 680d36f, 5e23f90, c54326e.
   `@crm/auth/client`, `@crm/auth/scopes` and the zod-only `@crm/validation/sms-settings`.
 - No Postgres: the thread service, settings writes and `prisma migrate deploy` are untested against
   a database.
+
+# Build status — P3b tasks 12–15 (worker-crm-p3b-agent)
+
+Date: 2026-10-03. bun 1.3.12. Agent side of the SMS conversation. Plan: `../RESEARCH.md` §2.6, §3, §4 P3.
+
+## Task 12 — tools (`apps/agent/agent/tools/`)
+
+- `send_sms({ body })` → `lib/sms-delivery.ts` `deliver()`: contact + phone check → open handoff refuses →
+  `guardOutbound({ message, bookingLink, disclosure })` → approval hold → bridge send → result
+  `sent | drafted (reason, retryAt) | refused`. Input stays `outboundSmsInput`, so the observe hook still sees it.
+- Bridge: `lib/sms-outbound.ts` POSTs `{API_URL}/internal/sms/send` with `Bearer AGENT_BRIDGE_SECRET`.
+  Contract `@crm/validation/sms-send` (request has `dryRun`, purposes `conversation | first-touch |
+  handoff | opt-out-confirmation`). Unset env, network error or non-2xx → `unavailable` → draft
+  `no-send-path`. An unreadable 2xx body throws (it may have been sent). Endpoint: apps/api 223a3d9.
+- DRY_RUN: the agent sends `dryRun = DRY_RUN !== "false"`; the API forces a dry run when it is true.
+- `classify_reply({ label, quote? })`: enum `@crm/validation/sms-qualification` `SMS_REPLY_CLASSES`
+  (skill order). Returns the next action. `qualified` is re-checked against stored facts; missing
+  facts downgrade it to `interested`. `not_interested`, `opt_out`, `wrong_number` move linked open
+  deals to `UNQUALIFIED_TO_BUY`. Works outside an SMS session without writes (evals use that).
+- `opt_out_contact({ reason: opt_out | wrong_number })`: `PhoneSuppression` (`OPT_OUT_REQUEST` /
+  `WRONG_NUMBER`), revokes consent, finishes open SMS tasks (`opted-out`), deal → `UNQUALIFIED_TO_BUY`,
+  then one confirmation with purpose `opt-out-confirmation` (gate treats it like a keyword reply).
+- `handoff_to_human({ reason })`: `lib/sms-handoff.ts`. Opens an `SmsHandoff` row, finishes other SMS
+  tasks (`handed-off`), sends `SMS_AGENT.messages.handoff` once. While the row has no `resolvedAt`,
+  every send except handoff/opt-out text is refused and new replies settle without a model.
+- `record_qualification({ line?, state?, ageBand?, coverage?, timeline?, underAge? })`: creates the
+  five CONTACT custom fields on first use (`sms_line_of_insurance`, `sms_state`, `sms_age_band`,
+  `sms_coverage_wanted`, `sms_timeline`), writes through `lib/fields.ts` `writeField`, reads back,
+  `judgeQualification` → qualified: deal `QUALIFIED_TO_BUY`; rejected (under 18, unlicensed state):
+  `UNQUALIFIED_TO_BUY`.
+- SMS tools act only on the session's own contact (`lib/sms-session.ts` reads `taskKind`,
+  `contactId`, `taskId`, `disclosure` from session auth attributes). The model cannot pick a number.
+- Prisma (additive, migration `20261003153000_sms_drafts_handoffs`): `SmsDraft` (+ enum
+  `SmsDraftStatus PENDING|APPROVED|DISCARDED`), `SmsHandoff` (one row per contact). Back-relations
+  `Contact.smsDrafts`, `Contact.smsHandoff`.
+
+## Task 13 — pipeline (`lib/sms-pipeline.ts`, `lib/sms-runtime.ts`)
+
+- `runResearchLane` diverts kinds `sms-reply` and `first-touch` to `runSmsTask` (no `markRunning`,
+  so the contact never shows *Researching*).
+- `first-touch`: no model. Sends `payload.message` through `deliver()` (guard + gate + approval).
+  Blocked by quiet hours → the task is rescheduled to `retryAt`. Other outcomes close the task.
+- `sms-reply`, in order: an earlier turn still running → defer 30 s → open handoff → settle →
+  budget (inbound > 12 in the last hour, or > 20 in total; port of `_over_budget`) → handoff →
+  `detectInjection` on the new inbound text → handoff → model turn.
+- Model turn: one eve session per contact, token `sms:<contactId>` (`crm:sms:<id>` after eve's
+  namespace). Message has the lead's words fenced as untrusted, the last 16 lines (400 chars each),
+  `Disclosure mode: disclose|deflect` from settings, and the booking link line (none yet, task 18).
+- Wiring (approved by god): `lib/dispatch.ts` (start callback takes an optional SMS turn),
+  `channels/crm.ts` (dispatch route, `receive` target `smsContactId`, `closeSmsTurn` on
+  `session.waiting`, `session.completed`, `turn.failed`, `turn.cancelled`), `schedules/dispatch.ts`
+  (same 2 lines for the cron path).
+- Tunables: `lib/sms-config.ts` `SMS_AGENT`.
+
+## Task 14 — approval mode (`lib/approval-sms.ts`)
+
+- Setting: `AppSetting.sms.autoSend` (`@crm/validation/sms-settings`, default off). Off → every
+  model or first-touch text becomes an `SmsDraft` with reason `approval-mode`. Handoff and opt-out
+  confirmations never wait.
+- Other holds: `quiet-hours` (with `retryAt`), `send-failed`, `no-send-path`. Labels in
+  `SMS_HOLD_REASON_LABELS`; the tool result says why and tells the model not to resend.
+- Not `AgentAction`: that table requires an `AgentDefinition` + `AgentRun` (team agents). Not eve
+  HITL approval: it parks an unattended session. A row a rep can approve is the queue P5b reads.
+
+## Task 15 — evals and tests
+
+- `apps/agent/evals/sms/replies.eval.ts` (12 cases in `evals/sms/cases.ts`): opt-out phrasing,
+  "no problem, tell me more" not cold, quote and advice requests (no price in the reply),
+  qualification facts, under-18 rejection, claim → handoff, wrong number. Skips without an AI
+  Gateway credential.
+- Unit tests: `test/sms-delivery.spec.ts`, `sms-pipeline.spec.ts`, `sms-qualification.spec.ts`,
+  `sms-evals.spec.ts` (injection table never reaches the model; free-text opt-out reaches the
+  classifier); `packages/validation/test/sms-send.spec.ts`, `sms-qualification.spec.ts`.
+
+## Commands and results
+
+| Command | Result |
+|---|---|
+| `bun test test/sms-*.spec.ts test/drain.spec.ts` (apps/agent, `TEST_DATABASE_URL` unreachable `*_test`) | pass, 92 tests |
+| `bun test test/outbound-guard.spec.ts test/crm-token.spec.ts test/channel-auth.spec.ts` (apps/agent) | pass |
+| `bun test` (packages/validation) | pass, 37 tests |
+| `bun run check-types` (apps/agent, packages/validation, packages/db, apps/api) | pass |
+| `bun run lint` (apps/agent, packages/validation) | pass; 1 pre-existing warning in `agent/lib/tasks.ts` |
+| `bun run lint:slop` (root oxlint) | pass |
+| `prisma validate`, `prisma generate` | pass |
+
+## Not run
+
+- `eve eval` (spends model credits; no credential). The eval cases run outside an SMS session, so
+  the side-effect tools answer "not an SMS session"; the assertions check the calls and inputs.
+- No Postgres: `lib/sms-store.ts` (Prisma) has no integration test; logic is tested against a fake.
+- `prisma migrate deploy` of `20261003153000_sms_drafts_handoffs`.
