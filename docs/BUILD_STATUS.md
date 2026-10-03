@@ -500,3 +500,61 @@ Date: 2026-10-03. bun 1.3.12. Agent side of the SMS conversation. Plan: `../RESE
   the side-effect tools answer "not an SMS session"; the assertions check the calls and inputs.
 - No Postgres: `lib/sms-store.ts` (Prisma) has no integration test; logic is tested against a fake.
 - `prisma migrate deploy` of `20261003153000_sms_drafts_handoffs`.
+
+# Build status — P5b task 20 remainder, drafts queue (worker-crm-p5b-drafts)
+
+Date: 2026-10-03. bun 1.3.12. Commits 48d4eb8 (API + guard), c230ee1 (UI).
+
+## API — tRPC router `smsDrafts` (`apps/api/src/sms/drafts.*`)
+
+- `queue` — pending `SmsDraft` rows (oldest first, cap `SMS_DRAFTS.list`) with contact name, phone,
+  reason, reason label (`SMS_HOLD_REASON_LABELS`), `retryAt`, `handedOff`; plus open `SmsHandoff` rows.
+- `approve({ draftId, text? })` — sends through `SmsInternalService.send` (contact check → idempotency
+  → `SmsSender` → send gate → Telnyx). Key `sms-draft:<draftId>`: new, not the agent's key; a repeat
+  replays, a block releases it for a later retry. Edited text (differs from the stored body) runs the
+  guard first; an unedited body was already guarded by the agent. Sent → `APPROVED`, `body`,
+  `decidedAt`, `decidedById`. Blocked → draft stays `PENDING`; quiet hours also update `reason` and
+  `retryAt`. Not pending → `failed` "no longer pending".
+- `discard({ draftId })` — `PENDING` → `DISCARDED` with `decidedAt`/`decidedById`.
+- `handBack({ contactId })` — sets `SmsHandoff.resolvedAt`, then queues an `sms-reply` `AgentTask`
+  with the inbound messages since the handoff (advisory lock `agent-task:sms-reply:<contactId>`,
+  folds into an unstarted task). No inbound since the handoff → resolved, no task.
+- `compose({ contactId, text, idempotencyKey })` — manual rep text: guard → same send path, key
+  `sms-compose:<client uuid>`.
+- Result union `smsSendOutcome`: `sent` | `blocked` (reason, `retryAt`) | `guarded` (reason,
+  `suggestion`) | `failed`. The guard never rewrites a rep's text silently: it returns a suggestion.
+- Guard: pure copy of the agent's `guardOutbound` in `@crm/validation/outbound-guard` (no eve).
+  Booking link is `null`, so a rep-edited link is stripped (returned as a suggestion).
+- `SmsModule` registers `SmsDraftsService` and `SmsDraftsRouter`. `server.ts` regenerated (only the
+  `smsDrafts` router changed).
+
+## App
+
+- `/[slug]/inbox/drafts`: drafts (editable text, approve / send edited, discard, reset, guard
+  suggestion, quiet-hours retry time) and handoffs ("Hand back to agent"). "Drafts" button on the
+  Inbox header. Compliance settings card now shows counts and links to the queue.
+- `SmsComposer` under every SMS thread (Inbox and contact Texts tab). Disabled with a reason when the
+  contact has no phone, opted out, or has no consent. Cmd/Ctrl+Enter sends.
+- Presentation: `lib/sms-drafts.ts` (`smsOutcomeNotice`, `smsTextProblem`),
+  `lib/sms-presentation.ts` `smsComposerBlock`.
+
+## Commands and results
+
+| Command | Result |
+|---|---|
+| `bun run test test/sms-drafts.spec.ts` (apps/api, unreachable `TEST_DATABASE_URL`) | pass, 18 |
+| `bun test` (packages/validation) | pass, 54 (7 new guard tests) |
+| `bun test lib/sms-drafts.test.ts lib/sms-presentation.test.ts` (apps/app) | pass, 12 |
+| `bun test` (apps/app) | 182 pass, 1 fail: `workspace-label.spec.ts` needs `TEST_DATABASE_URL` (pre-existing) |
+| `bun run check-types` (root, turbo, after `next typegen`) | pass, 13/13 |
+| `bun run lint` in apps/api, apps/app, packages/validation | pass (old warnings only) |
+| `oxlint` on every P5b file | pass |
+| root `bun run lint` / `lint:slop` | fail only on uncommitted P4b files in `apps/agent` |
+
+## Not run / not done
+
+- No page was rendered: `next build` cannot reach `fonts.googleapis.com` in the sandbox.
+- No Postgres: the service is tested against an in-test fake, not real transactions or locks.
+- `apps/agent/agent/hooks/outbound-guard.ts` still has its own copy of the guard. Switch it to
+  `@crm/validation/outbound-guard` so the two cannot drift.
+- No icon-rail entry for the drafts page (shared navigation was out of scope).
