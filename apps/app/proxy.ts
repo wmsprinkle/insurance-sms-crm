@@ -2,12 +2,7 @@ import { AUTH_COOKIE_PREFIX } from "@crm/auth/cookies";
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
 import { isMarketing } from "@/lib/env";
-import {
-	ONBOARDING_PATH,
-	RESEARCH_PATH,
-	readResearchGate,
-	readWorkspaceGate,
-} from "@/lib/onboarding";
+import { ONBOARDING_PATH, readWorkspaceSlug } from "@/lib/onboarding";
 import { workspaceUrl } from "@/lib/workspace-url";
 
 const LANDING_PATH = "/";
@@ -37,21 +32,11 @@ export async function proxy(request: NextRequest) {
 
 	if (isUngated(pathname)) return NextResponse.next();
 
-	// Both answers, every time, and concurrently — so the gate costs one round
-	// trip rather than two, and neither answer can be stale.
-	const [workspace, research] = await Promise.all([
-		readWorkspaceGate(request),
-		readResearchGate(request),
-	]);
+	const slug = await readWorkspaceSlug(request);
 
-	if (workspace.gate === "required") return sendTo(ONBOARDING_PATH, request);
-	if (research === "required") return sendTo(RESEARCH_PATH, request);
+	if (!slug) return NextResponse.next();
 
-	const settled = workspace.gate === "settled" && research === "settled";
-
-	if (!settled || !workspace.slug) return NextResponse.next();
-
-	return sendTo(appPath(pathname, workspace.slug), request);
+	return sendTo(appPath(pathname, slug), request);
 }
 
 function appPath(pathname: string, slug: string): string {
@@ -87,7 +72,7 @@ function isAnonymous(pathname: string): boolean {
 }
 
 function isSetup(pathname: string): boolean {
-	return pathname === ONBOARDING_PATH || pathname === RESEARCH_PATH;
+	return isUnder(pathname, ONBOARDING_PATH);
 }
 
 function sendTo(path: string, request: NextRequest): NextResponse {

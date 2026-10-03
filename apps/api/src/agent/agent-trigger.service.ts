@@ -3,6 +3,7 @@ import { PRIORITY } from "@crm/db/agent-tasks";
 import { CRM_EVENT_CATALOG, type CrmEventType } from "@crm/db/crm-events";
 import { RECORD_ID_COLUMNS } from "@crm/db/fields";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
+import { featureEnabled } from "@crm/env/features";
 import { fieldBackfillPayload } from "@crm/validation/field-backfill";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
@@ -98,6 +99,8 @@ export class AgentTriggerService {
 	}
 
 	async workspaceChanged(website: string, reason: string): Promise<void> {
+		if (!featureEnabled("enrichment")) return;
+
 		await this.enqueue({
 			kind: "workspace-profile",
 			reason: `${reason} (${website})`,

@@ -60,7 +60,7 @@ async function Settings() {
 	return (
 		<HydrateClient>
 			<div className="flex max-w-3xl flex-col gap-6">
-				<WorkspaceForm />
+				<WorkspaceForm showWebsite={featureEnabled("enrichment")} />
 				{featureEnabled("enrichment") ? <ResearchKey /> : null}
 				<ArchiveRetention />
 				<AgentModel />

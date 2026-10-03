@@ -32,7 +32,7 @@ import { useTRPC } from "@/lib/trpc/client";
 import { useWorkspaceSlug } from "@/lib/use-workspace-url";
 import { workspaceUrl } from "@/lib/workspace-url";
 
-export function WorkspaceForm() {
+export function WorkspaceForm({ showWebsite }: { showWebsite: boolean }) {
 	const trpc = useTRPC();
 	const cache = useCrmCache();
 	const router = useRouter();
@@ -77,7 +77,9 @@ export function WorkspaceForm() {
 			<CardHeader>
 				<CardTitle>Workspace</CardTitle>
 				<CardDescription>
-					The name and website of the company using this CRM.
+					{showWebsite
+						? "The name and website of the company using this CRM."
+						: "The name of your agency. It appears in the header."}
 				</CardDescription>
 
 				<CardAction>
@@ -88,8 +90,7 @@ export function WorkspaceForm() {
 							!canRename ||
 							save.isPending ||
 							!dirty ||
-							values.name.trim() === "" ||
-							values.website.trim() === ""
+							values.name.trim() === ""
 						}
 					>
 						{save.isPending ? <Spinner data-icon="inline-start" /> : null}
@@ -126,6 +127,7 @@ export function WorkspaceForm() {
 							</FieldDescription>
 						</Field>
 
+						{showWebsite ? (
 						<Field>
 							<FieldLabel htmlFor={websiteId}>Website</FieldLabel>
 							<InputGroup>
@@ -147,6 +149,7 @@ export function WorkspaceForm() {
 							</InputGroup>
 							<FieldDescription>Your own company's website.</FieldDescription>
 						</Field>
+						) : null}
 					</FieldGroup>
 				</form>
 

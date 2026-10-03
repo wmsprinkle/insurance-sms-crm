@@ -28,6 +28,7 @@ import {
 	paginate,
 	resolveOrderBy,
 } from "../trpc/list-input";
+import { DEFAULT_WORKSPACE } from "./workspace.config";
 import type {
 	MemberListInput,
 	SetMemberRoleInput,
@@ -45,6 +46,14 @@ const MEMBER_SELECT = {
 } as const;
 
 type MemberRow = Prisma.MemberGetPayload<{ select: typeof MEMBER_SELECT }>;
+
+type WorkspaceRow = {
+	id: string;
+	slug: string;
+	name: string;
+	website: string | null;
+	metadata: string | null;
+};
 
 const SORTABLE: OrderByColumns<Prisma.MemberOrderByWithRelationInput> = {
 	name: (dir) => ({ user: { name: dir } }),
@@ -80,6 +89,10 @@ export class WorkspaceService {
 			);
 		}
 
+		if (!isOnboarded(row.metadata)) {
+			row = await this.settleDefaults(row);
+		}
+
 		const role = await workspaceRoleOf(userId);
 
 		return {
@@ -111,9 +124,9 @@ export class WorkspaceService {
 			select: { website: true, metadata: true },
 		});
 
-		const website = normalizeDomain(input.website);
+		const website = input.website ? normalizeDomain(input.website) : null;
 
-		if (!website) {
+		if (input.website && !website) {
 			throw new BadRequestException(
 				"That is not a website. Enter the domain, like acme.com.",
 			);
@@ -131,7 +144,7 @@ export class WorkspaceService {
 
 		this.logger.log({ message: "Workspace updated", userId });
 
-		if (website !== before?.website) {
+		if (website && website !== before?.website) {
 			await this.agent.workspaceChanged(
 				website,
 				before?.website
@@ -272,6 +285,26 @@ export class WorkspaceService {
 		}
 
 		return where;
+	}
+
+	private async settleDefaults(
+		row: WorkspaceRow,
+	) {
+		const name =
+			row.name === DEFAULT_WORKSPACE.legacyName
+				? DEFAULT_WORKSPACE.name
+				: row.name;
+
+		await this.db.organization.update({
+			where: { id: WORKSPACE_ID },
+			data: {
+				name,
+				slug: workspaceSlug(name),
+				metadata: markOnboarded(row.metadata, new Date()),
+			},
+		});
+
+		return (await this.readWorkspace()) ?? row;
 	}
 
 	private async readWorkspace() {

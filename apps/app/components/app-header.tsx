@@ -31,7 +31,13 @@ import { workspaceLabel } from "@/lib/workspace-label";
 
 type User = { name: string; email: string; image: string | null };
 
-export function AppHeader({ user }: { user: User }) {
+export function AppHeader({
+	user,
+	showEnrichment,
+}: {
+	user: User;
+	showEnrichment: boolean;
+}) {
 	const { setOpen: setMobileNavOpen } = useMobileNav();
 	const trpc = useTRPC();
 	const workspaceUrl = useWorkspaceUrl();
@@ -62,7 +68,7 @@ export function AppHeader({ user }: { user: User }) {
 			</div>
 
 			<div className="ml-auto flex shrink-0 items-center gap-1.5">
-				<EnrichmentQueue />
+				{showEnrichment ? <EnrichmentQueue /> : null}
 				<UserMenu
 					user={user}
 					onSignOut={() => {
