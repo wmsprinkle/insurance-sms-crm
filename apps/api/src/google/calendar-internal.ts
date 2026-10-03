@@ -3,11 +3,9 @@ import type {
 	CalendarSlot,
 	CalendarUnavailableReason,
 } from "@crm/validation/calendar-book";
-import { sendWindowFor } from "../compliance/quiet-hours";
-import type {
-	CalendarWriteFailure,
-	CalendarWriteResult,
-} from "./calendar-write.contracts";
+import { localClock, sendWindowFor } from "../compliance/quiet-hours";
+import { CALENDAR_WRITE } from "./calendar-write.config";
+import type { CalendarWriteFailure } from "./calendar-write.contracts";
 import type { Slot } from "./calendar-write.slots";
 
 const KILOBYTE = 1024;
@@ -18,6 +16,8 @@ export const CALENDAR_INTERNAL = {
 	errors: {
 		noOwner:
 			"No calendar owner: set calendar.ownerUserId or connect a Google account.",
+		outsideHours:
+			"The time is outside business hours in the lead's time zone. Offer the free slots instead.",
 	},
 } as const;
 
@@ -25,6 +25,24 @@ export function leadTimeZone(phone: string, state: string | null): string {
 	return (
 		sendWindowFor({ e164: phone, state }).timezones[0] ??
 		CALENDAR_INTERNAL.fallbackTimeZone
+	);
+}
+
+export function withinBusinessHours(
+	start: Date,
+	end: Date,
+	timeZone: string,
+): boolean {
+	const hours = CALENDAR_WRITE.businessHours;
+	const from = localClock(start, timeZone);
+	const to = localClock(end, timeZone);
+	const weekdays: readonly number[] = hours.weekdays;
+	return (
+		weekdays.includes(from.weekday) &&
+		from.weekday === to.weekday &&
+		from.minutes >= hours.startMinute &&
+		to.minutes <= hours.endMinute &&
+		to.minutes > from.minutes
 	);
 }
 
@@ -74,7 +92,14 @@ export function noOwner(): Extract<
 	};
 }
 
-export type SlotSource = (
-	userId: string,
-	timeZone: string,
-) => Promise<CalendarWriteResult<Slot[]>>;
+export function outsideBusinessHours(): Extract<
+	CalendarBridgeResponse,
+	{ status: "unavailable" }
+> {
+	return {
+		status: "unavailable",
+		reason: "invalid-input",
+		detail: CALENDAR_INTERNAL.errors.outsideHours,
+		retryable: false,
+	};
+}

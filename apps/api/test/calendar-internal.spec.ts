@@ -6,7 +6,11 @@ import type {
 } from "@crm/validation/calendar-book";
 import type { ConfigService } from "@nestjs/config";
 import type { EnvironmentVariables } from "../src/config/env.validation";
-import { leadTimeZone, unavailable } from "../src/google/calendar-internal";
+import {
+	leadTimeZone,
+	unavailable,
+	withinBusinessHours,
+} from "../src/google/calendar-internal";
 import { CalendarInternalController } from "../src/google/calendar-internal.controller";
 import { CalendarInternalService } from "../src/google/calendar-internal.service";
 import type { CalendarWriteClient } from "../src/google/calendar-write.client";
@@ -33,7 +37,6 @@ const BOOK: CalendarBookRequest = {
 	state: null,
 	start: SLOT.start.toISOString(),
 	end: SLOT.end.toISOString(),
-	timeZone: "America/Chicago",
 	summary: "Insurance call with Dana",
 	description: "Booked by SMS.",
 	attendee: { email: "dana@example.com", name: "Dana" },
@@ -127,6 +130,28 @@ describe("leadTimeZone", () => {
 	});
 });
 
+describe("withinBusinessHours", () => {
+	it("accepts a weekday slot and refuses evenings and weekends", () => {
+		expect(withinBusinessHours(SLOT.start, SLOT.end, "America/Chicago")).toBe(
+			true,
+		);
+		expect(
+			withinBusinessHours(
+				new Date("2026-10-06T23:00:00.000Z"),
+				new Date("2026-10-06T23:30:00.000Z"),
+				"America/Chicago",
+			),
+		).toBe(false);
+		expect(
+			withinBusinessHours(
+				new Date("2026-10-10T15:00:00.000Z"),
+				new Date("2026-10-10T15:30:00.000Z"),
+				"America/Chicago",
+			),
+		).toBe(false);
+	});
+});
+
 describe("unavailable", () => {
 	it("marks only transient failures retryable", () => {
 		expect(
@@ -211,6 +236,7 @@ describe("CalendarInternalService", () => {
 		expect(await api.handle(BOOK)).toEqual({
 			status: "booked",
 			ownerUserId: "u-first",
+			timeZone: "America/Chicago",
 			organizerEmail: "u-first@agency.test",
 			eventId: "abc123def",
 			iCalUID: "abc123def@google.com",
@@ -248,6 +274,22 @@ describe("CalendarInternalService", () => {
 
 		await api.handle({ ...BOOK, attendee: null });
 		expect(calls.books[0]?.input.attendees).toEqual([]);
+	});
+
+	it("refuses a time outside business hours in the lead's zone", async () => {
+		const { service: api, calls } = service(
+			{ accounts: GOOGLE },
+			{ slots: [], books: [] },
+		);
+
+		expect(
+			await api.handle({
+				...BOOK,
+				start: "2026-10-06T03:00:00.000Z",
+				end: "2026-10-06T03:30:00.000Z",
+			}),
+		).toMatchObject({ status: "unavailable", reason: "invalid-input" });
+		expect(calls.books).toHaveLength(0);
 	});
 
 	it("treats a repeated event id as already booked", async () => {

@@ -13,8 +13,10 @@ import { InjectDatabase } from "../database/database.constants";
 import {
 	leadTimeZone,
 	noOwner,
+	outsideBusinessHours,
 	slotsOut,
 	unavailable,
+	withinBusinessHours,
 } from "./calendar-internal";
 import { CalendarWriteClient } from "./calendar-write.client";
 
@@ -83,12 +85,19 @@ export class CalendarInternalService {
 		const ownerUserId = await this.ownerUserId();
 		if (!ownerUserId) return noOwner();
 
+		const timeZone = leadTimeZone(request.phone, request.state);
+		const start = new Date(request.start);
+		const end = new Date(request.end);
+		if (!withinBusinessHours(start, end, timeZone)) {
+			return outsideBusinessHours();
+		}
+
 		const result = await this.calendar.bookSlot(ownerUserId, {
 			summary: request.summary,
 			description: request.description,
-			start: new Date(request.start),
-			end: new Date(request.end),
-			timeZone: request.timeZone,
+			start,
+			end,
+			timeZone,
 			attendees: request.attendee
 				? [
 						{
@@ -115,6 +124,7 @@ export class CalendarInternalService {
 			return {
 				status: "booked",
 				ownerUserId,
+				timeZone,
 				organizerEmail: owner?.email ?? null,
 				eventId: booked?.eventId ?? request.eventId,
 				iCalUID: booked?.iCalUID ?? null,
@@ -125,7 +135,6 @@ export class CalendarInternalService {
 		}
 
 		if (result.outcome === "slot-taken") {
-			const timeZone = leadTimeZone(request.phone, request.state);
 			const fresh = await this.calendar.availableSlots(ownerUserId, {
 				now: this.now(),
 				timeZone,

@@ -26,7 +26,6 @@ export const calendarBookRequest = z
 		...leadFields,
 		start: z.iso.datetime({ offset: true }),
 		end: z.iso.datetime({ offset: true }),
-		timeZone: z.string().trim().min(1).max(100),
 		summary: z.string().trim().min(1).max(1024),
 		description: z.string().max(8192),
 		attendee: z
@@ -84,6 +83,7 @@ export const calendarBridgeResponse = z.discriminatedUnion("status", [
 	z.object({
 		status: z.literal("booked"),
 		ownerUserId: z.string().min(1),
+		timeZone: z.string().min(1),
 		organizerEmail: z.string().nullable(),
 		eventId: z.string().min(1),
 		iCalUID: z.string().nullable(),

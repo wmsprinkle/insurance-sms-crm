@@ -12,7 +12,6 @@ const BOOK = {
 	state: "TX",
 	start: "2026-10-06T15:00:00.000Z",
 	end: "2026-10-06T15:30:00.000Z",
-	timeZone: "America/Chicago",
 	summary: "Insurance call with Dana",
 	description: "Booked by SMS.",
 	attendee: { email: "dana@example.com", name: "Dana" },
