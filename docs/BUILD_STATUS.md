@@ -486,7 +486,7 @@ Date: 2026-10-03. bun 1.3.12. Agent side of the SMS conversation. Plan: `../RESE
 
 | Command | Result |
 |---|---|
-| `bun test test/sms-*.spec.ts test/drain.spec.ts` (apps/agent, `TEST_DATABASE_URL` unreachable `*_test`) | pass, 92 tests |
+| `bun test test/sms-*.spec.ts test/drain.spec.ts` (apps/agent, `TEST_DATABASE_URL` unreachable `*_test`) | pass, 93 tests |
 | `bun test test/outbound-guard.spec.ts test/crm-token.spec.ts test/channel-auth.spec.ts` (apps/agent) | pass |
 | `bun test` (packages/validation) | pass, 37 tests |
 | `bun run check-types` (apps/agent, packages/validation, packages/db, apps/api) | pass |
