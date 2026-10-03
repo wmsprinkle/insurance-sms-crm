@@ -355,3 +355,56 @@ Notes:
 - `test/sms-service.spec.ts` keyword-receipt test expected no `emittedAt`; fixed (it failed on HEAD).
 - The test fake `agentEvent` gained `findUnique`, `update`, `updateMany`.
 - Quiet-hours `retryAt` is tested on the mapping only; the gate reads the wall clock.
+
+# Build status — P5a tasks 19–20 UI (worker-crm-p5a-ui)
+
+Date: 2026-10-03. bun 1.3.12. Commits 45983e4, 680d36f, 5e23f90, c54326e.
+
+## Shared SMS settings (read by P2b and P3b)
+
+- Stored in one additive column `AppSetting.sms` (`Json?`, row `SETTINGS_ID`). Keys
+  `sms.firstMessageTemplate`, `sms.disclosureMode` (`disclose` | `deflect`, default `disclose`),
+  `sms.autoSend` (default `false` = drafts).
+- Shape and parser: `@crm/validation/sms-settings` (`parseSmsSettings`, `DEFAULT_SMS_SETTINGS`,
+  `renderFirstMessage` with tokens `{firstName}` and `{agency}`). The first message must contain STOP.
+- Migration `20261003150000_sms_settings_handled` also adds `SmsMessage.handledAt`.
+
+## Task 19 — Conversations
+
+- tRPC `sms.threadList` (list input + `filter: open | all`, returns `rows`, `total`,
+  `facetCounts.filter`), `sms.thread` (last 200 messages, consent and suppression flags),
+  `sms.markHandled` (sets `handledAt` on unhandled inbound messages). Code in
+  `apps/api/src/sms/sms.router.ts`, `sms-threads.*`. "Open" = an inbound message with no `handledAt`.
+- App: `/[slug]/inbox` (thread list + thread, URL keys `conversation` and `show`), a "Texts" tab on
+  the contact record (`components/crm/sms-thread.tsx`), Inbox in the icon rail.
+- No composer: a rep cannot type a text from the UI. Sending stays with the agent.
+
+## Task 20 — Import and Compliance
+
+- `/[slug]/contacts/import`: upload, column mapping (suggested by `leads.importPreview`), preview
+  with per-row reasons (problems first, 200 rows shown), commit with `leads.importCommit`.
+- `/[slug]/settings/compliance`: first message, disclosure mode, auto-send switch
+  (`settings.sms`, `settings.setSms`); read-only quiet-hours table (`settings.quietHours`, built from
+  `COMPLIANCE.quietHours`); drafts queue is a placeholder card.
+- Connections: Google copy no longer says read-only; `needsBookingGrant` on the Connections page shows
+  a "Grant calendar access" prompt that re-runs `linkSocial` with `SYNC_SCOPES`.
+- `lib/agent-transcript.ts`: verbs for the P3b tools (`send_sms`, `classify_reply`,
+  `opt_out_contact`, `handoff_to_human`, `record_qualification`); the app test failed without them.
+
+## Commands and results
+
+| Command | Result |
+|---|---|
+| `bun run check-types` (root, turbo) | pass, 13/13 |
+| `bun run lint` (root, turbo, biome) | pass, 9/9 |
+| `oxlint` on every P5a file | pass |
+| `bun test` new specs: validation `sms-settings` (8), api `sms-threads` + `quiet-hours-table` (11), app `sms-presentation` + `lead-import` (10) | pass |
+| `bun test` in `apps/app` | 173 pass; `workspace-label.spec.ts` needs `TEST_DATABASE_URL` (pre-existing) |
+
+## Not run
+
+- `next build` / `next dev`: the sandbox cannot reach `fonts.googleapis.com`, so the build stops at
+  `next/font`. No page was rendered. Client components import only `@crm/ui`, tRPC, React,
+  `@crm/auth/client`, `@crm/auth/scopes` and the zod-only `@crm/validation/sms-settings`.
+- No Postgres: the thread service, settings writes and `prisma migrate deploy` are untested against
+  a database.
