@@ -1,4 +1,8 @@
-import type { SmsHoldReason, SmsSendPurpose } from "@crm/validation/sms-send";
+import {
+	SMS_HOLD_REASON_LABELS,
+	type SmsHoldReason,
+	type SmsSendPurpose,
+} from "@crm/validation/sms-send";
 import type { SmsSettings } from "@crm/validation/sms-settings";
 import type { SendAttempt } from "./sms-outbound";
 
@@ -64,4 +68,14 @@ export function judgeAttempt(attempt: SendAttempt): AttemptVerdict {
 				detail: attempt.reason,
 			};
 	}
+}
+
+export function explainHold(
+	reason: SmsHoldReason,
+	retryAt: Date | null,
+	detail: string | null,
+): string {
+	const when = retryAt ? ` It can go out from ${retryAt.toISOString()}.` : "";
+	const why = detail ? ` ${detail}` : "";
+	return `Held as a draft for a rep. ${SMS_HOLD_REASON_LABELS[reason]}${why}${when} Do not send it again.`;
 }

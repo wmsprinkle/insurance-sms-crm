@@ -1,6 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import { OUTBOUND_GUARD } from "../agent/hooks/outbound-guard";
-import { holdBeforeSend, judgeAttempt } from "../agent/lib/approval-sms";
+import {
+	explainHold,
+	holdBeforeSend,
+	judgeAttempt,
+} from "../agent/lib/approval-sms";
 import { SMS_AGENT } from "../agent/lib/sms-config";
 import { type DeliveryRequest, deliver } from "../agent/lib/sms-delivery";
 import { handOff } from "../agent/lib/sms-handoff";
@@ -319,6 +323,31 @@ describe("apiSendPath", () => {
 			Response.json({ status: "sent" })) as unknown as typeof fetch;
 		await expect(apiSendPath(env, fetcher)(request)).rejects.toThrow(
 			/telnyxId/,
+		);
+	});
+});
+
+describe("explainHold", () => {
+	it("states the reason, the retry time and not to resend", () => {
+		const text = explainHold(
+			"quiet-hours",
+			new Date("2026-10-04T13:00:00.000Z"),
+			"The send gate blocked it for quiet hours.",
+		);
+		expect(text).toContain("quiet hours");
+		expect(text).toContain("2026-10-04T13:00:00.000Z");
+		expect(text).toContain("Do not send it again.");
+	});
+
+	it("explains approval mode in a draft from deliver", async () => {
+		const fake = fakeSms();
+		const result = await deliver(REQUEST, {
+			store: fake.store,
+			sendPath: recordingPath(SENT).path,
+			dryRun: true,
+		});
+		expect(result.status === "drafted" && result.detail).toContain(
+			"Auto send is off",
 		);
 	});
 });

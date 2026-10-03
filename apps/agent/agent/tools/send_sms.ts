@@ -7,7 +7,7 @@ import { NOT_AN_SMS_SESSION, smsSessionOf } from "../lib/sms-session";
 import { prismaSmsStore } from "../lib/sms-store";
 
 export default defineTool({
-	description: `Text the lead in this SMS conversation. One short message, at most ${OUTBOUND_GUARD.maxChars} characters, no links except the booking link the task gives you. The code checks the text, then sends it or holds it as a draft for a rep and says why. Call it at most once per inbound message.`,
+	description: `Text the lead in this SMS conversation. One short message, at most ${OUTBOUND_GUARD.maxChars} characters, no links except the booking link the task gives you. The code checks the text, then sends it or holds it as a draft for a rep and says why. A drafted reply counts as your reply: do not send it again or rephrase it. Call it at most once per inbound message.`,
 	inputSchema: outboundSmsInput.describe(
 		"body is the exact text the lead will read.",
 	),

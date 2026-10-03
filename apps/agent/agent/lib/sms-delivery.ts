@@ -4,7 +4,7 @@ import {
 	guardOutbound,
 	type OutboundVerdict,
 } from "../hooks/outbound-guard";
-import { holdBeforeSend, judgeAttempt } from "./approval-sms";
+import { explainHold, holdBeforeSend, judgeAttempt } from "./approval-sms";
 import type { SendPath } from "./sms-outbound";
 import type { SmsStore } from "./sms-store";
 
@@ -80,7 +80,7 @@ export async function deliver(
 	const hold = async (
 		reason: SmsHoldReason,
 		retryAt: Date | null,
-		detail: string,
+		detail: string | null,
 	): Promise<Delivery> => {
 		const draft = await deps.store.saveDraft({
 			contactId: request.contactId,
@@ -96,12 +96,12 @@ export async function deliver(
 			draftId: draft.id,
 			reason,
 			retryAt: retryAt?.toISOString() ?? null,
-			detail,
+			detail: explainHold(reason, retryAt, detail),
 		};
 	};
 
 	const before = holdBeforeSend(settings, request.purpose);
-	if (before) return hold(before, null, "Held for a rep to approve.");
+	if (before) return hold(before, null, null);
 
 	const attempt = await deps.sendPath({
 		contactId: request.contactId,
