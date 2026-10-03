@@ -6,7 +6,7 @@ import {
 	PageShellHeading,
 	PageShellTitle,
 } from "@/components/page-shell";
-import { ImportSkeleton } from "./page";
+import { ImportSkeleton } from "./import-skeleton";
 
 export default function Loading() {
 	return (
