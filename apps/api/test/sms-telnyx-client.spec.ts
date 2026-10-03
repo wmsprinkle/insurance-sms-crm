@@ -33,7 +33,9 @@ type FetchCall = { url: string; init: RequestInit };
 
 type RecordingFetcher = { fetcher: Fetcher; calls: FetchCall[] };
 
-function recordingFetcher(status: number, body: object): RecordingFetcher {
+type TelnyxReply = { data?: { id: string }; errors?: { code: string }[] };
+
+function recordingFetcher(status: number, body: TelnyxReply): RecordingFetcher {
 	const calls: FetchCall[] = [];
 	const fetcher = (async (url: string, init: RequestInit) => {
 		calls.push({ url, init });
