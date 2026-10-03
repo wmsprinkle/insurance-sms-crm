@@ -81,8 +81,6 @@ export const SMS = {
 			"leave me alone",
 			"lose my number",
 			"delete my number",
-		],
-		wrong_number: [
 			"send me any more",
 			"send me anymore",
 			"text me any more",
@@ -94,6 +92,8 @@ export const SMS = {
 			"cease and desist",
 			"fuck off",
 			"f off",
+		],
+		wrong_number: [
 			"wrong number",
 			"you have the wrong",
 			"you've got the wrong",

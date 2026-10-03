@@ -215,12 +215,12 @@ export class SmsInternalService {
 		receiptId: string,
 		request: SmsSendRequest,
 	): Promise<SmsSendResponse> {
-		if (receipt?.type === idempotency.unknown) {
-			return { status: "failed", error: errors.unknownOutcome };
-		}
 		const receipt = await this.db.agentEvent.findUnique({
 			where: { id: receiptId },
 		});
+		if (receipt?.type === idempotency.unknown) {
+			return { status: "failed", error: errors.unknownOutcome };
+		}
 		if (receipt?.type !== idempotency.sent) {
 			return { status: "failed", error: errors.inProgress };
 		}

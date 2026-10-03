@@ -241,6 +241,9 @@ export class KeywordService {
 				return;
 			case "help":
 				return;
+		}
+	}
+
 	private async start(
 		tx: Prisma.TransactionClient,
 		input: KeywordMessage,
@@ -277,9 +280,6 @@ export class KeywordService {
 			},
 			tx,
 		);
-	}
-
-		}
 	}
 
 	private async reply(input: KeywordMessage): Promise<void> {

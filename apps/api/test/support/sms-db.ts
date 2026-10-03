@@ -59,9 +59,9 @@ type Condition =
 	| Scalar
 	| { in: readonly Scalar[] }
 	| { not: Scalar }
-	| undefined;
 	| { gt: Date }
 	| { path: readonly string[]; equals: Scalar }
+	| undefined;
 
 type Where = { [key: string]: Condition | Where[] };
 
@@ -70,7 +70,6 @@ function satisfies(actual: Scalar, expected: Condition): boolean {
 	if (expected === null || expected instanceof Date) return actual === expected;
 	if (!(expected instanceof Object)) return actual === expected;
 	if ("in" in expected) return expected.in.includes(actual);
-	return actual !== expected.not;
 	if ("gt" in expected) {
 		return actual instanceof Date && actual.getTime() > expected.gt.getTime();
 	}
@@ -79,6 +78,7 @@ function satisfies(actual: Scalar, expected: Condition): boolean {
 		const json = actual as unknown as Record<string, Scalar> | null;
 		return head !== undefined && json?.[head] === expected.equals;
 	}
+	return actual !== expected.not;
 }
 
 function matches<Row extends object>(row: Row, where: Where = {}): boolean {
@@ -86,10 +86,10 @@ function matches<Row extends object>(row: Row, where: Where = {}): boolean {
 		if (key === "OR" && Array.isArray(expected)) {
 			return expected.some((branch) => matches(row, branch));
 		}
-		if (Array.isArray(expected)) return false;
 		if (key === "AND" && Array.isArray(expected)) {
 			return expected.every((branch) => matches(row, branch));
 		}
+		if (Array.isArray(expected)) return false;
 		return satisfies(Reflect.get(row, key) as Scalar, expected);
 	});
 }
@@ -326,11 +326,6 @@ export function fakeDb(seed: Partial<FakeState> = {}) {
 				Object.assign(row, data);
 				return row;
 			},
-			updateMany: async ({
-				where,
-				data,
-			}: {
-				where: Where;
 			findMany: async ({ where }: { where: Where }) =>
 				state.events.filter((row) => matches(row, where)),
 			deleteMany: async ({ where }: { where: Where }) => {
@@ -340,6 +335,11 @@ export function fakeDb(seed: Partial<FakeState> = {}) {
 				}
 				return { count: rows.length };
 			},
+			updateMany: async ({
+				where,
+				data,
+			}: {
+				where: Where;
 				data: Partial<FakeState["events"][number]>;
 			}) => {
 				const rows = state.events.filter((row) => matches(row, where));
