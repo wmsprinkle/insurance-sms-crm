@@ -95,9 +95,7 @@ export class TelnyxClient {
 				from,
 				to: input.to,
 				text: input.text,
-				...(this.env.messagingProfileId
-					? { messaging_profile_id: this.env.messagingProfileId }
-					: {}),
+				messaging_profile_id: this.env.messagingProfileId ?? undefined,
 			}),
 			signal: AbortSignal.timeout(SMS.telnyx.timeoutMs),
 		});

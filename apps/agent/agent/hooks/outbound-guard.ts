@@ -24,11 +24,20 @@ const INJECTION_PATTERNS: readonly RegExp[] = [
 	/<\/?(system|instruction|prompt)>/i,
 ];
 
-const AI_TELL_PATTERNS: readonly RegExp[] = [
-	/\bas an? (ai|a\.i\.|artificial intelligence|language model|llm)\b/i,
-	/\bi(?:['’]m| am) an? (ai|a\.i\.|artificial intelligence|language model|llm|bot|chatbot|virtual assistant|automated)/i,
-	/\b(ai|automated|virtual) assistant\b/i,
+export const DISCLOSURE_MODES = ["disclose", "deflect"] as const;
+
+export type DisclosureMode = (typeof DISCLOSURE_MODES)[number];
+
+const SELF_IDENTIFY_PATTERNS: readonly RegExp[] = [
+	/\bi(?:['’]m| am) an? (bot|chatbot|virtual assistant|automated)/i,
+	/\b(automated|virtual) assistant\b/i,
 	/\bchat\s?bot\b/i,
+];
+
+const MODEL_TALK_PATTERNS: readonly RegExp[] = [
+	/\bas an? (ai|a\.i\.|artificial intelligence|language model|llm)\b/i,
+	/\bi(?:['’]m| am) an? (ai|a\.i\.|artificial intelligence|language model|llm)\b/i,
+	/\bai assistant\b/i,
 	/\blanguage model\b/i,
 	/\bmy (training data|knowledge cutoff|programming)\b/i,
 	/\bi (don['’]t|do not|cannot|can['’]t) have (the ability|access|feelings|personal)/i,
@@ -55,10 +64,15 @@ export function detectInjection(text: string): boolean {
 	return INJECTION_PATTERNS.some((pattern) => pattern.test(text));
 }
 
-export function breaksCharacter(message: string): boolean {
+export function breaksCharacter(
+	message: string,
+	disclosure: DisclosureMode,
+): boolean {
 	if (!message) return false;
 	return (
-		AI_TELL_PATTERNS.some((pattern) => pattern.test(message)) ||
+		(disclosure === "deflect" &&
+			SELF_IDENTIFY_PATTERNS.some((pattern) => pattern.test(message))) ||
+		MODEL_TALK_PATTERNS.some((pattern) => pattern.test(message)) ||
 		PROMPT_LEAK_PATTERNS.some((pattern) => pattern.test(message))
 	);
 }
@@ -96,8 +110,9 @@ export type OutboundVerdict =
 export function guardOutbound(input: {
 	message: string;
 	bookingLink: string | null;
+	disclosure: DisclosureMode;
 }): OutboundVerdict {
-	if (breaksCharacter(input.message)) {
+	if (breaksCharacter(input.message, input.disclosure)) {
 		return {
 			kind: "fallback",
 			message: OUTBOUND_GUARD.safeFallback,
@@ -124,7 +139,7 @@ export const outboundSmsInput = z.object({ body: z.string() });
 
 export function attemptedViolations(body: string): string[] {
 	const violations: string[] = [];
-	if (breaksCharacter(body)) violations.push("breaks_character");
+	if (breaksCharacter(body, "disclose")) violations.push("breaks_character");
 	if (Array.from(body).length > OUTBOUND_GUARD.maxChars) {
 		violations.push("over_length");
 	}

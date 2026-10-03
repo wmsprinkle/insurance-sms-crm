@@ -29,11 +29,12 @@ const liveEnv: SmsEnv = {
 	dryRun: false,
 };
 
-function recordingFetcher(
-	status: number,
-	body: unknown,
-): { fetcher: Fetcher; calls: { url: string; init: RequestInit }[] } {
-	const calls: { url: string; init: RequestInit }[] = [];
+type FetchCall = { url: string; init: RequestInit };
+
+type RecordingFetcher = { fetcher: Fetcher; calls: FetchCall[] };
+
+function recordingFetcher(status: number, body: object): RecordingFetcher {
+	const calls: FetchCall[] = [];
 	const fetcher = (async (url: string, init: RequestInit) => {
 		calls.push({ url, init });
 		return new Response(JSON.stringify(body), { status });
@@ -124,13 +125,13 @@ describe("TelnyxClient", () => {
 			fetcher,
 		);
 
-		const error = await client
-			.send({ to: "+15125550123", text: "Hi" })
-			.catch((caught: unknown) => caught);
+		const error = await client.send({ to: "+15125550123", text: "Hi" }).then(
+			() => null,
+			(caught: Error) => caught,
+		);
 
 		expect(error).toBeInstanceOf(TelnyxSendError);
-		expect((error as TelnyxSendError).status).toBe(422);
-		expect((error as TelnyxSendError).code).toBe("40300");
+		expect(error).toMatchObject({ status: 422, code: "40300" });
 	});
 
 	it("rejects a recipient that is not E.164 before anything else", async () => {

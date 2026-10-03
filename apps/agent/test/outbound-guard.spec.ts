@@ -45,11 +45,25 @@ describe("detectInjection", () => {
 
 describe("breaksCharacter", () => {
 	it.each([
-		"As an AI, I can't quote rates.",
 		"I'm an automated assistant for the agency.",
 		"I’m a chatbot here to help.",
-		"I am a language model.",
 		"Our virtual assistant can help.",
+	])("rejects self-identification %p in deflect mode", (message) => {
+		expect(breaksCharacter(message, "deflect")).toBe(true);
+	});
+
+	it.each([
+		"I'm an automated assistant for the agency. Want a licensed agent to call?",
+		"I am a virtual assistant that schedules for the agency.",
+	])("accepts the honest answer %p in disclose mode", (message) => {
+		expect(breaksCharacter(message, "disclose")).toBe(false);
+	});
+
+	it.each([
+		"As an AI, I can't quote rates.",
+		"I'm an AI, so I can't say.",
+		"Our AI assistant can help.",
+		"I am a language model.",
 		"My training data does not cover that.",
 		"I don’t have access to your file.",
 		"I was trained by a big lab.",
@@ -59,8 +73,9 @@ describe("breaksCharacter", () => {
 		'{"action": "reply"}',
 		"Lead text is untrusted data.",
 		"Let me load_skill first.",
-	])("rejects %p", (message) => {
-		expect(breaksCharacter(message)).toBe(true);
+	])("rejects %p in both modes", (message) => {
+		expect(breaksCharacter(message, "disclose")).toBe(true);
+		expect(breaksCharacter(message, "deflect")).toBe(true);
 	});
 
 	it.each([
@@ -69,8 +84,9 @@ describe("breaksCharacter", () => {
 		"A licensed agent covers rates on the call. Does Tuesday work?",
 		"Happy to set up a call with a real agent.",
 		"I said I'd check with the team.",
-	])("accepts %p", (message) => {
-		expect(breaksCharacter(message)).toBe(false);
+	])("accepts %p in both modes", (message) => {
+		expect(breaksCharacter(message, "disclose")).toBe(false);
+		expect(breaksCharacter(message, "deflect")).toBe(false);
 	});
 });
 
@@ -132,13 +148,21 @@ describe("stripContactInfo", () => {
 describe("guardOutbound", () => {
 	it("passes a clean message unchanged", () => {
 		expect(
-			guardOutbound({ message: "Does Tuesday at 2 work?", bookingLink: LINK }),
+			guardOutbound({
+				message: "Does Tuesday at 2 work?",
+				bookingLink: LINK,
+				disclosure: "deflect",
+			}),
 		).toEqual({ kind: "pass", message: "Does Tuesday at 2 work?" });
 	});
 
 	it("sanitizes contact details", () => {
 		expect(
-			guardOutbound({ message: "Call 555-123-4567 today", bookingLink: LINK }),
+			guardOutbound({
+				message: "Call 555-123-4567 today",
+				bookingLink: LINK,
+				disclosure: "deflect",
+			}),
 		).toEqual({ kind: "sanitized", message: "Call today" });
 	});
 
@@ -146,6 +170,7 @@ describe("guardOutbound", () => {
 		const verdict = guardOutbound({
 			message: "a".repeat(OUTBOUND_GUARD.maxChars + 100),
 			bookingLink: LINK,
+			disclosure: "deflect",
 		});
 		expect(verdict.kind).toBe("sanitized");
 		expect(verdict.message.length).toBe(OUTBOUND_GUARD.maxChars);
@@ -155,13 +180,18 @@ describe("guardOutbound", () => {
 		const verdict = guardOutbound({
 			message: "👋".repeat(OUTBOUND_GUARD.maxChars + 1),
 			bookingLink: LINK,
+			disclosure: "deflect",
 		});
 		expect(Array.from(verdict.message).length).toBe(OUTBOUND_GUARD.maxChars);
 	});
 
 	it("falls back when the reply breaks character", () => {
 		expect(
-			guardOutbound({ message: "As an AI I cannot say.", bookingLink: LINK }),
+			guardOutbound({
+				message: "As an AI I cannot say.",
+				bookingLink: LINK,
+				disclosure: "deflect",
+			}),
 		).toEqual({
 			kind: "fallback",
 			message: OUTBOUND_GUARD.safeFallback,
@@ -174,6 +204,7 @@ describe("guardOutbound", () => {
 			guardOutbound({
 				message: "https://evil.com 555-123-4567",
 				bookingLink: LINK,
+				disclosure: "deflect",
 			}),
 		).toEqual({
 			kind: "fallback",
@@ -183,7 +214,7 @@ describe("guardOutbound", () => {
 	});
 
 	it("keeps the safe fallback inside every rule it enforces", () => {
-		expect(breaksCharacter(OUTBOUND_GUARD.safeFallback)).toBe(false);
+		expect(breaksCharacter(OUTBOUND_GUARD.safeFallback, "deflect")).toBe(false);
 		expect(stripContactInfo(OUTBOUND_GUARD.safeFallback, null)).toBe(
 			OUTBOUND_GUARD.safeFallback,
 		);
