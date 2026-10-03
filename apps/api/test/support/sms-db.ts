@@ -60,6 +60,8 @@ type Condition =
 	| { in: readonly Scalar[] }
 	| { not: Scalar }
 	| undefined;
+	| { gt: Date }
+	| { path: readonly string[]; equals: Scalar }
 
 type Where = { [key: string]: Condition | Where[] };
 
@@ -69,6 +71,14 @@ function satisfies(actual: Scalar, expected: Condition): boolean {
 	if (!(expected instanceof Object)) return actual === expected;
 	if ("in" in expected) return expected.in.includes(actual);
 	return actual !== expected.not;
+	if ("gt" in expected) {
+		return actual instanceof Date && actual.getTime() > expected.gt.getTime();
+	}
+	if ("path" in expected) {
+		const [head] = expected.path;
+		const json = actual as unknown as Record<string, Scalar> | null;
+		return head !== undefined && json?.[head] === expected.equals;
+	}
 }
 
 function matches<Row extends object>(row: Row, where: Where = {}): boolean {
@@ -77,6 +87,9 @@ function matches<Row extends object>(row: Row, where: Where = {}): boolean {
 			return expected.some((branch) => matches(row, branch));
 		}
 		if (Array.isArray(expected)) return false;
+		if (key === "AND" && Array.isArray(expected)) {
+			return expected.every((branch) => matches(row, branch));
+		}
 		return satisfies(Reflect.get(row, key) as Scalar, expected);
 	});
 }
@@ -318,6 +331,15 @@ export function fakeDb(seed: Partial<FakeState> = {}) {
 				data,
 			}: {
 				where: Where;
+			findMany: async ({ where }: { where: Where }) =>
+				state.events.filter((row) => matches(row, where)),
+			deleteMany: async ({ where }: { where: Where }) => {
+				const rows = state.events.filter((row) => matches(row, where));
+				for (const row of rows) {
+					state.events.splice(state.events.indexOf(row), 1);
+				}
+				return { count: rows.length };
+			},
 				data: Partial<FakeState["events"][number]>;
 			}) => {
 				const rows = state.events.filter((row) => matches(row, where));

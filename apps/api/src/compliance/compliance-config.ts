@@ -143,6 +143,7 @@ export const COMPLIANCE = {
 	frequency: {
 		day: { windowMs: DAY_MS, max: 3 },
 		week: { windowMs: 7 * DAY_MS, max: 7 },
+		countedPurposes: ["conversation", "first-touch", "handoff"],
 	},
 	optOutConfirmation: {
 		windowMs: 5 * MINUTE_MS,

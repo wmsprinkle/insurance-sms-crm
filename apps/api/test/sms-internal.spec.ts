@@ -141,6 +141,7 @@ describe("SmsInternalService", () => {
 				contactId: "contact-1",
 				text: request.text,
 				purpose: "conversation",
+				receiptId: `${SMS_INTERNAL.idempotency.idPrefix}${request.idempotencyKey}`,
 			},
 		]);
 		expect(state.events).toMatchObject([

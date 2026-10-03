@@ -61,8 +61,9 @@ export function heldAfterBlock(
 
 export function receiptState(
 	types: readonly string[],
-): "sent" | "in-progress" | null {
+): "sent" | "in-progress" | "unknown" | null {
 	if (types.includes(SMS_INTERNAL.idempotency.sent)) return "sent";
+	if (types.includes(SMS_INTERNAL.idempotency.unknown)) return "unknown";
 	if (types.includes(SMS_INTERNAL.idempotency.claimed)) return "in-progress";
 	return null;
 }

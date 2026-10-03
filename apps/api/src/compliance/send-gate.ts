@@ -4,6 +4,7 @@ import { fieldKeyFromLabel } from "@crm/db/fields-shape";
 import { QUALIFICATION_FIELD_LABELS } from "@crm/validation/sms-qualification";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
+import { SMS_INTERNAL } from "../sms/sms-internal";
 import { isUniqueViolation } from "../sms/unique-violation";
 import { COMPLIANCE } from "./compliance-config";
 import { ConsentService } from "./consent.service";
@@ -52,6 +53,7 @@ export type GateRequest = {
 	purpose: SendPurpose;
 	state?: string | null;
 	now?: Date;
+	receiptId?: string;
 };
 
 const NO_FREQUENCY_LIMIT = null;
@@ -158,7 +160,7 @@ export class SendGateService {
 				: Promise.resolve(false),
 			this.suppression.find(request.to),
 			request.purpose === "conversation" && request.contactId
-				? this.frequency(request.contactId, now)
+				? this.frequency(request.contactId, now, request.receiptId)
 				: Promise.resolve(null),
 		]);
 		const withinHours = isWithinSendWindow(now, window);
@@ -184,6 +186,18 @@ export class SendGateService {
 		return decision;
 	}
 
+	async releaseOptOutConfirmation(e164: string): Promise<void> {
+		const suppression = await this.suppression.find(e164);
+		if (!suppression) return;
+
+		await this.db.agentEvent.deleteMany({
+			where: {
+				id: optOutConfirmationKey(e164, suppression.createdAt),
+				sessionId: COMPLIANCE.optOutConfirmation.claimSessionId,
+			},
+		});
+	}
+
 	private async declaredState(
 		contactId: string | null,
 	): Promise<string | null> {
@@ -202,9 +216,13 @@ export class SendGateService {
 		return value?.text ?? null;
 	}
 
-	private async frequency(contactId: string, now: Date): Promise<Date | null> {
+	private async frequency(
+		contactId: string,
+		now: Date,
+		ownReceiptId: string | undefined,
+	): Promise<Date | null> {
 		const { week } = COMPLIANCE.frequency;
-		const [sent, lastInbound] = await Promise.all([
+		const [sent, lastInbound, inFlight] = await Promise.all([
 			this.db.smsMessage.findMany({
 				where: {
 					contactId,
@@ -221,12 +239,52 @@ export class SendGateService {
 				orderBy: { createdAt: "desc" },
 				select: { createdAt: true },
 			}),
+			this.inFlightSends(contactId, now, ownReceiptId),
 		]);
 		return frequencyRetryAt(
-			sent.map((row) => row.createdAt),
+			[...sent.map((row) => row.createdAt), ...inFlight],
 			lastInbound?.createdAt ?? null,
 			now,
 		);
+	}
+
+	private async inFlightSends(
+		contactId: string,
+		now: Date,
+		ownReceiptId: string | undefined,
+	): Promise<Date[]> {
+		const { sessionId, claimed, unknown } = SMS_INTERNAL.idempotency;
+		const { week, countedPurposes } = COMPLIANCE.frequency;
+		const rows = await this.db.agentEvent.findMany({
+			where: {
+				sessionId,
+				contactId,
+				...(ownReceiptId ? { id: { not: ownReceiptId } } : {}),
+				AND: [
+					{
+						OR: [
+							{
+								type: claimed,
+								emittedAt: {
+									gt: new Date(now.getTime() - SMS_INTERNAL.lease.claimMs),
+								},
+							},
+							{
+								type: unknown,
+								emittedAt: { gt: new Date(now.getTime() - week.windowMs) },
+							},
+						],
+					},
+					{
+						OR: countedPurposes.map((purpose) => ({
+							data: { path: ["purpose"], equals: purpose },
+						})),
+					},
+				],
+			},
+			select: { emittedAt: true },
+		});
+		return rows.map((row) => row.emittedAt);
 	}
 
 	private async claimOptOutConfirmation(

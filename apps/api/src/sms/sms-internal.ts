@@ -17,11 +17,14 @@ export const SMS_INTERNAL = {
 		sessionId: "sms:send",
 		claimed: "sms.send.claimed",
 		sent: "sms.send.sent",
+		unknown: "sms.send.unknown",
 		released: "sms.send.released",
 	},
 	errors: {
 		unknownContact: "The contact does not exist or is archived.",
 		wrongNumber: "The number does not belong to the contact.",
+		unknownOutcome:
+			"The send outcome is unknown. Check Telnyx before you send this text again.",
 		inProgress: "A send with this idempotency key is in progress.",
 		noOptOut: "The number has no opt-out to confirm.",
 		keyReused:

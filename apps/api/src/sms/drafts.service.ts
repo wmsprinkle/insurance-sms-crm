@@ -107,6 +107,9 @@ export class SmsDraftsService {
 		if (prior === "in-progress") {
 			return { status: "failed", error: SMS_DRAFTS.errors.inProgress };
 		}
+		if (prior === "unknown") {
+			return { status: "failed", error: SMS_DRAFTS.errors.unknownOutcome };
+		}
 		if (prior === "sent") {
 			await this.db.smsDraft.updateMany({
 				where: { id: draft.id, status: SmsDraftStatus.PENDING },
@@ -174,8 +177,9 @@ export class SmsDraftsService {
 			Prisma.SmsDraftGetPayload<object>,
 			"contactId" | "reason" | "taskId" | "idempotencyKey"
 		>,
-	): Promise<"sent" | "in-progress" | null> {
-		const { idPrefix, sessionId, sent, claimed } = SMS_INTERNAL.idempotency;
+	): Promise<"sent" | "in-progress" | "unknown" | null> {
+		const { idPrefix, sessionId, sent, claimed, unknown } =
+			SMS_INTERNAL.idempotency;
 		if (draft.idempotencyKey) {
 			const receipt = await this.db.agentEvent.findUnique({
 				where: { id: `${idPrefix}${draft.idempotencyKey}` },
@@ -191,7 +195,7 @@ export class SmsDraftsService {
 			where: {
 				sessionId,
 				contactId: draft.contactId,
-				type: { in: [sent, claimed] },
+				type: { in: [sent, claimed, unknown] },
 				AND: [
 					{ data: { path: ["taskId"], equals: draft.taskId } },
 					{

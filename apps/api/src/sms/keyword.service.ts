@@ -237,22 +237,48 @@ export class KeywordService {
 				);
 				return;
 			case "start":
-				await this.suppression.lift(input.from, LIFTED_BY_START, tx);
-				if (input.contactId) {
-					await this.consent.grant(
-						{
-							contactId: input.contactId,
-							e164: input.from,
-							source: ConsentSource.SMS_KEYWORD,
-							capturedAt: now,
-							optInText: input.message.text,
-						},
-						tx,
-					);
-				}
+				await this.start(tx, input, now);
 				return;
 			case "help":
 				return;
+	private async start(
+		tx: Prisma.TransactionClient,
+		input: KeywordMessage,
+		now: Date,
+	): Promise<void> {
+		const lifted = await this.suppression.lift(input.from, LIFTED_BY_START, tx);
+		if (!input.contactId) return;
+
+		const [owner, prior] = await Promise.all([
+			tx.contact.findFirst({
+				where: { id: input.contactId, phone: input.from, archivedAt: null },
+				select: { id: true },
+			}),
+			tx.consentRecord.findFirst({
+				where: { contactId: input.contactId, e164: input.from },
+				select: { id: true },
+			}),
+		]);
+		if (!owner || (!lifted && !prior)) {
+			this.logger.warn({
+				message: "START did not grant consent: no earlier consent or opt-out",
+				contactId: input.contactId,
+			});
+			return;
+		}
+
+		await this.consent.grant(
+			{
+				contactId: input.contactId,
+				e164: input.from,
+				source: ConsentSource.SMS_KEYWORD,
+				capturedAt: now,
+				optInText: input.message.text,
+			},
+			tx,
+		);
+	}
+
 		}
 	}
 

@@ -8,12 +8,23 @@ import {
 import { InjectDatabase } from "../database/database.constants";
 import { TelnyxClient, TelnyxSendError } from "./telnyx.client";
 
+export class SendOutcomeUnknownError extends Error {
+	constructor(
+		readonly reason: string,
+		options?: { cause: unknown },
+	) {
+		super(reason, options);
+		this.name = "SendOutcomeUnknownError";
+	}
+}
+
 export type OutboundSms = {
 	to: string;
 	contactId: string | null;
 	text: string;
 	purpose: SendPurpose;
 	state?: string | null;
+	receiptId?: string;
 };
 
 export type SendOutcome =
@@ -43,6 +54,7 @@ export class SmsSender {
 			contactId: sms.contactId,
 			purpose: sms.purpose,
 			state: sms.state,
+			receiptId: sms.receiptId,
 		});
 		if (!decision.allowed) return { status: "blocked", decision };
 
@@ -63,7 +75,19 @@ export class SmsSender {
 				decision,
 			};
 		} catch (cause) {
-			if (!(cause instanceof TelnyxSendError)) throw cause;
+			if (!(cause instanceof TelnyxSendError)) {
+				this.logger.error(
+					{
+						message: "SMS outcome unknown: Telnyx may have sent the message",
+						contactId: sms.contactId,
+					},
+					cause instanceof Error ? cause.stack : String(cause),
+				);
+				throw new SendOutcomeUnknownError(
+					cause instanceof Error ? cause.message : "Unknown send error.",
+					{ cause },
+				);
+			}
 
 			this.logger.error(
 				{
@@ -79,6 +103,9 @@ export class SmsSender {
 				status: SmsStatus.SENDING_FAILED,
 				errorCode: cause.code,
 			});
+			if (sms.purpose === "opt-out-confirmation") {
+				await this.gate.releaseOptOutConfirmation(sms.to);
+			}
 			return { status: "failed", decision, error: cause.message };
 		}
 	}

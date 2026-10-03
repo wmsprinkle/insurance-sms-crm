@@ -31,6 +31,16 @@ export class TelnyxSendError extends Error {
 	}
 }
 
+export class TelnyxUnknownOutcomeError extends Error {
+	constructor(
+		message: string,
+		readonly status: number | null,
+	) {
+		super(message);
+		this.name = "TelnyxUnknownOutcomeError";
+	}
+}
+
 const sendResponse = z.object({
 	data: z.object({ id: z.string().min(1) }),
 });
@@ -94,20 +104,28 @@ export class TelnyxClient {
 
 		if (!options.slotReserved) await this.limiter.acquire(from);
 
-		const response = await this.fetcher(SMS.telnyx.messagesUrl, {
-			method: "POST",
-			headers: {
-				authorization: `Bearer ${this.env.apiKey}`,
-				"content-type": "application/json",
-			},
-			body: JSON.stringify({
-				from,
-				to: input.to,
-				text: input.text,
-				messaging_profile_id: this.env.messagingProfileId ?? undefined,
-			}),
-			signal: AbortSignal.timeout(SMS.telnyx.timeoutMs),
-		});
+		let response: Response;
+		try {
+			response = await this.fetcher(SMS.telnyx.messagesUrl, {
+				method: "POST",
+				headers: {
+					authorization: `Bearer ${this.env.apiKey}`,
+					"content-type": "application/json",
+				},
+				body: JSON.stringify({
+					from,
+					to: input.to,
+					text: input.text,
+					messaging_profile_id: this.env.messagingProfileId ?? undefined,
+				}),
+				signal: AbortSignal.timeout(SMS.telnyx.timeoutMs),
+			});
+		} catch (cause) {
+			throw new TelnyxUnknownOutcomeError(
+				`Telnyx did not answer: ${cause instanceof Error ? cause.name : "unknown error"}.`,
+				null,
+			);
+		}
 
 		const body: unknown = await response.json().catch(() => null);
 
@@ -122,10 +140,9 @@ export class TelnyxClient {
 
 		const parsed = sendResponse.safeParse(body);
 		if (!parsed.success) {
-			throw new TelnyxSendError(
+			throw new TelnyxUnknownOutcomeError(
 				"Telnyx answered without a message id.",
 				response.status,
-				null,
 			);
 		}
 

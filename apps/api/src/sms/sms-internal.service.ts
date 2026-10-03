@@ -12,7 +12,7 @@ import { optOutConfirmationKey } from "../compliance/send-gate";
 import { InjectDatabase } from "../database/database.constants";
 import { optOutConfirmationText } from "./keywords";
 import { gatePurpose, SMS_INTERNAL, sendResponse } from "./sms-internal";
-import { SmsSender } from "./sms-sender.service";
+import { SendOutcomeUnknownError, SmsSender } from "./sms-sender.service";
 import { isUniqueViolation } from "./unique-violation";
 
 export const SMS_DRY_RUN_SENDER = Symbol("SMS_DRY_RUN_SENDER");
@@ -72,10 +72,24 @@ export class SmsInternalService {
 					contactId: request.contactId,
 					text: request.text,
 					purpose: gatePurpose(request.purpose),
+					receiptId,
 				}),
 			);
 		} catch (cause) {
-			await this.settle(receiptId, request, idempotency.released, null);
+			const unknown = cause instanceof SendOutcomeUnknownError;
+			await this.settle(
+				receiptId,
+				request,
+				unknown ? idempotency.unknown : idempotency.released,
+				null,
+			);
+			if (unknown) {
+				this.logger.error({
+					message: "SMS send outcome unknown: the receipt stays blocked",
+					receiptId,
+					contactId: request.contactId,
+				});
+			}
 			throw cause;
 		}
 
@@ -201,6 +215,9 @@ export class SmsInternalService {
 		receiptId: string,
 		request: SmsSendRequest,
 	): Promise<SmsSendResponse> {
+		if (receipt?.type === idempotency.unknown) {
+			return { status: "failed", error: errors.unknownOutcome };
+		}
 		const receipt = await this.db.agentEvent.findUnique({
 			where: { id: receiptId },
 		});
