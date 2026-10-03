@@ -6,14 +6,15 @@ import type { Metadata } from "next";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { LocalDateTimeHydrator } from "@/components/local-date-time";
 import { ThemeProvider } from "@/components/theme-provider";
+import { PRODUCT } from "@/lib/product";
 import { TRPCReactProvider } from "@/lib/trpc/client";
 
 export const metadata: Metadata = {
 	title: {
-		default: "Insurance SMS CRM",
-		template: "%s · Insurance SMS CRM",
+		default: PRODUCT.name,
+		template: `%s · ${PRODUCT.name}`,
 	},
-	description: "Text leads, answer replies and book calls.",
+	description: PRODUCT.description,
 	icons: {
 		icon: [
 			{ url: "/favicon.svg", type: "image/svg+xml" },

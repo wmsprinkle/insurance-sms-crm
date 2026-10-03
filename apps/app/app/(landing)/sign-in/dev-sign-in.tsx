@@ -7,7 +7,13 @@ import { Spinner } from "@crm/ui/components/spinner";
 import { useState } from "react";
 import { toast } from "sonner";
 
-export function DevSignIn({ email }: { email: string }) {
+export function DevSignIn({
+	email,
+	primary,
+}: {
+	email: string;
+	primary: boolean;
+}) {
 	const [pending, setPending] = useState(false);
 
 	function fail(message?: string) {
@@ -39,7 +45,7 @@ export function DevSignIn({ email }: { email: string }) {
 					handleClick().catch(() => fail());
 				}}
 				type="button"
-				variant="outline"
+				variant={primary ? "default" : "outline"}
 			>
 				{pending ? <Spinner data-icon="inline-start" /> : null}
 				Continue as {email}

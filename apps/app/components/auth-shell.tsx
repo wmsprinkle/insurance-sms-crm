@@ -2,6 +2,7 @@ import Logo from "@crm/ui/components/logo";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { AuthShader } from "@/components/auth-shader";
+import { PRODUCT } from "@/lib/product";
 
 export function AuthShell({ children }: { children: ReactNode }) {
 	return (
@@ -18,25 +19,13 @@ export function AuthShell({ children }: { children: ReactNode }) {
 				<div className="relative flex max-w-lg flex-col gap-8">
 					<div className="flex flex-col gap-4">
 						<p className="font-mono text-xs/4 text-muted-foreground uppercase">
-							CRM
+							{PRODUCT.name}
 						</p>
 						<h1 className="max-w-[14ch] text-5xl/14 font-semibold text-balance">
-							Every customer, one place.
+							{PRODUCT.tagline}
 						</h1>
 					</div>
 				</div>
-
-				<p className="relative font-mono text-xs/4 text-muted-foreground">
-					Made with love by{" "}
-					<a
-						href="https://trycomp.ai"
-						target="_blank"
-						rel="noreferrer"
-						className="underline underline-offset-4 hover:text-foreground"
-					>
-						Comp AI
-					</a>
-				</p>
 			</section>
 
 			<section className="flex min-h-svh flex-col bg-background px-6 py-8 sm:px-10 lg:px-14">

@@ -304,6 +304,12 @@ function NeedsYouRow({ item }: { item: NeedsYouItem }) {
 				<p className="line-clamp-2 text-muted-foreground text-sm">
 					{item.detail}
 				</p>
+				{item.lastReply && item.kind !== "reply" ? (
+					<p className="line-clamp-2 border-l-2 pl-2 text-sm">
+						<span className="sr-only">Their reply: </span>
+						{item.lastReply}
+					</p>
+				) : null}
 			</div>
 			<div className="flex shrink-0 flex-wrap items-center gap-2">
 				{item.draftId ? (

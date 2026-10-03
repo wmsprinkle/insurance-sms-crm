@@ -73,6 +73,7 @@ describe("needsYouItems", () => {
 		expect(items[0]?.draftId).toBe("d1");
 		expect(items[0]?.handoff).toBe(true);
 		expect(items[0]?.unhandledReplies).toBe(2);
+		expect(items[0]?.lastReply).toBe("yes please");
 		expect(items[0]?.at).toBe("2026-10-03T09:00:00.000Z");
 	});
 

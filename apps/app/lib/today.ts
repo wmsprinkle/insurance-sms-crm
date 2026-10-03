@@ -24,6 +24,7 @@ export type NeedsYouItem = {
 	draftId: string | null;
 	handoff: boolean;
 	unhandledReplies: number;
+	lastReply: string | null;
 };
 
 const KIND_PRIORITY = {
@@ -79,6 +80,7 @@ export function needsYouItems({
 			draftId: null,
 			handoff: false,
 			unhandledReplies: 0,
+			lastReply: null,
 		};
 		if (current && KIND_PRIORITY[kind] < KIND_PRIORITY[current.kind]) {
 			next.kind = kind;
@@ -125,7 +127,10 @@ export function needsYouItems({
 			"reply",
 			`${thread.openCount === 1 ? "New reply" : `${thread.openCount} new replies`}: ${preview(thread.lastMessage.preview)}`,
 			thread.lastMessage.createdAt,
-			{ unhandledReplies: thread.openCount },
+			{
+				unhandledReplies: thread.openCount,
+				lastReply: preview(thread.lastMessage.preview),
+			},
 		);
 	}
 

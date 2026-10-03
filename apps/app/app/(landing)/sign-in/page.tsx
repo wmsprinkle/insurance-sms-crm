@@ -94,7 +94,7 @@ async function SignIn({
 			<>
 				<AuthHeading
 					title="No way in yet"
-					description="This CRM has no sign-in method configured, so nobody can get in — including you."
+					description="This app has no sign-in method configured, so nobody can get in — including you."
 				/>
 
 				<p className="text-center text-muted-foreground text-sm/5">
@@ -118,7 +118,12 @@ async function SignIn({
 			{social.map((provider) => (
 				<SocialSignIn key={provider} provider={provider} />
 			))}
-			{devLogin.enabled ? <DevSignIn email={devLogin.email} /> : null}
+			{devLogin.enabled ? (
+				<DevSignIn
+					email={devLogin.email}
+					primary={!showSso && social.length === 0}
+				/>
+			) : null}
 		</>
 	);
 }
