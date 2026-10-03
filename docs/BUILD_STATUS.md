@@ -938,3 +938,20 @@ in the same API files.
   `leads-config.ts`, `apps/api/src/sms/{keyword.service,sms-internal,sms-internal.service,sms-threads*,sms.router,sms-config}.ts`,
   `compliance-config.ts` (audit type), `test/support/sms-db.ts`, regenerated `generated/server.ts`.
 - No Prisma change.
+
+# Final QA (worker-crm-qa2)
+
+Date: 2026-10-03. HEAD at start `11013cc`. Full report: `docs/QA_REPORT.md`. Handoff: `docs/HANDOFF.md`.
+
+| Item | Status |
+|---|---|
+| oxlint anti-slop findings (11) | fixed in `51b2c3d`. No behaviour change. |
+| knip unused exports from SMS code (30) | fixed in `51b2c3d`. Remaining knip findings are upstream. |
+| `procedure-roles.spec` stale key | already green at HEAD. |
+| e2e for security paths | `test/sms-security-paths.integration.spec.ts`, 16 tests, `013e678`. |
+| Docs for settings (business name, licensed states, calendar, frequency cap) | `649c14f`. |
+| 7 port-binding specs | run in process with a `light-my-request` stand-in for `supertest`. 6 tests pass. Preload in `QA_REPORT.md`. |
+
+Results: check-types 13/13, lint 9/9, slop pass, 1,922 tests pass and 1 fails (telemetry two-process, needs a real server). 61 migrations apply with no drift. Secrets scan clean.
+
+Not run: real Postgres, real Telnyx and Google, eve runtime and evals, `next build`, carrier verification, legal review.
