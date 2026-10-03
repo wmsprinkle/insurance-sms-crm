@@ -1,12 +1,5 @@
 "use client";
 
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@crm/ui/components/card";
 import { CardTable } from "@crm/ui/components/card-table";
 import { SimpleTableRow } from "@crm/ui/components/simple-table";
 import { TableCell } from "@crm/ui/components/table";
@@ -27,16 +20,14 @@ export function QuietHours() {
 	if (!table.data) return null;
 
 	return (
-		<Card>
-			<CardHeader>
-				<CardTitle>Allowed sending hours</CardTitle>
-				<CardDescription>
-					Texts go out only inside these windows, in the lead's local time. A
-					lead with an unknown state gets the strictest window of every zone.
-					These rules are built in and need a legal review before launch.
-				</CardDescription>
-			</CardHeader>
-			<CardContent className="overflow-x-auto">
+		<section className="flex flex-col gap-2">
+			<h3 className="font-medium text-sm">Allowed sending hours</h3>
+			<p className="text-muted-foreground text-xs">
+				Texts go out only inside these windows, in the lead's local time. A lead
+				with an unknown state gets the strictest window of every zone. These
+				rules need a legal review before launch.
+			</p>
+			<div className="overflow-x-auto">
 				<CardTable columns={COLUMNS}>
 					{table.data.rows.map((row) => (
 						<SimpleTableRow key={row.scope}>
@@ -52,7 +43,7 @@ export function QuietHours() {
 						</SimpleTableRow>
 					))}
 				</CardTable>
-			</CardContent>
-		</Card>
+			</div>
+		</section>
 	);
 }

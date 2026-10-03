@@ -84,10 +84,9 @@ export function CalendarSettingsForm() {
 	return (
 		<Card>
 			<CardHeader>
-				<CardTitle>Booking</CardTitle>
+				<CardTitle>Calendar</CardTitle>
 				<CardDescription>
-					Whose Google calendar the agent books calls on, and the link it sends
-					when the calendar is unavailable.
+					Where booked calls go, and what happens when the calendar is down.
 				</CardDescription>
 				<CardAction>
 					<Button
@@ -96,7 +95,7 @@ export function CalendarSettingsForm() {
 						disabled={save.isPending || unchanged || linkError !== null}
 					>
 						{save.isPending ? <Spinner data-icon="inline-start" /> : null}
-						Save
+						Save calendar
 					</Button>
 				</CardAction>
 			</CardHeader>

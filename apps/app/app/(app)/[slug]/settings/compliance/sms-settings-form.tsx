@@ -1,9 +1,10 @@
 "use client";
 
+import { Alert, AlertDescription, AlertTitle } from "@crm/ui/components/alert";
+import { Badge } from "@crm/ui/components/badge";
 import { Button } from "@crm/ui/components/button";
 import {
 	Card,
-	CardAction,
 	CardContent,
 	CardDescription,
 	CardHeader,
@@ -18,22 +19,14 @@ import {
 	FieldLabel,
 } from "@crm/ui/components/field";
 import { Input } from "@crm/ui/components/input";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@crm/ui/components/select";
 import { Spinner } from "@crm/ui/components/spinner";
 import { Switch } from "@crm/ui/components/switch";
-import { Textarea } from "@crm/ui/components/textarea";
+import { ToggleGroup, ToggleGroupItem } from "@crm/ui/components/toggle-group";
 import {
-	brandName,
-	firstMessageTemplate,
+	FIRST_MESSAGE_RISK_WARNING,
+	SMS_AMBIGUOUS_MODES,
 	SMS_DISCLOSURE_MODES,
-	SMS_SETTINGS_LIMITS,
-	SMS_TEMPLATE_TOKENS,
+	type SmsAmbiguousMode,
 	type SmsDisclosureMode,
 	type SmsSettings,
 } from "@crm/validation/sms-settings";
@@ -41,44 +34,77 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useId, useState } from "react";
 import { toast } from "sonner";
 import {
-	frequencyCapText,
+	autoSendChoice,
+	brandProblem,
+	firstMessagePreview,
 	parseStatesText,
+	SMS_CHOICES,
+	sameSmsSettings,
+	showFirstMessageWarning,
 	statesProblem,
 	statesText,
 } from "@/lib/sms-settings-fields";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 
-const DISCLOSURE_LABELS = {
-	disclose: "Disclose: say it is an automated assistant",
-	deflect: "Deflect: steer back to the topic without claiming to be human",
-} satisfies Record<SmsDisclosureMode, string>;
-
 function isDisclosureMode(value: string): value is SmsDisclosureMode {
 	return SMS_DISCLOSURE_MODES.some((mode) => mode === value);
 }
 
-function sameSettings(a: SmsSettings, b: SmsSettings): boolean {
+function isAmbiguousMode(value: string): value is SmsAmbiguousMode {
+	return SMS_AMBIGUOUS_MODES.some((mode) => mode === value);
+}
+
+function Choice({
+	label,
+	value,
+	disabled,
+	options,
+	onChange,
+}: {
+	label: string;
+	value: string;
+	disabled: boolean;
+	options: { value: string; label: string; effect: string }[];
+	onChange: (value: string) => void;
+}) {
+	const effect = options.find((option) => option.value === value)?.effect;
+
 	return (
-		a.firstMessageTemplate === b.firstMessageTemplate &&
-		a.disclosureMode === b.disclosureMode &&
-		a.autoSend === b.autoSend &&
-		a.brandName === b.brandName &&
-		a.licensedStates.join() === b.licensedStates.join()
+		<Field>
+			<FieldLabel>{label}</FieldLabel>
+			<ToggleGroup
+				type="single"
+				variant="outline"
+				aria-label={label}
+				value={value}
+				disabled={disabled}
+				className="flex-wrap justify-start"
+				onValueChange={(next) => {
+					if (next) onChange(next);
+				}}
+			>
+				{options.map((option) => (
+					<ToggleGroupItem key={option.value} value={option.value}>
+						{option.label}
+					</ToggleGroupItem>
+				))}
+			</ToggleGroup>
+			<FieldDescription>{effect}</FieldDescription>
+		</Field>
 	);
 }
 
 export function SmsSettingsForm() {
 	const trpc = useTRPC();
 	const cache = useCrmCache();
-	const templateId = useId();
-	const disclosureId = useId();
-	const autoSendId = useId();
 	const brandId = useId();
 	const statesId = useId();
+	const prefixId = useId();
+	const footerId = useId();
 
 	const sms = useQuery(trpc.settings.sms.queryOptions());
-	const limits = useQuery(trpc.settings.complianceLimits.queryOptions());
+	const workspace = useQuery(trpc.workspace.get.queryOptions());
 	const [draft, setDraft] = useState<SmsSettings | null>(null);
 	const [states, setStates] = useState("");
 
@@ -101,66 +127,44 @@ export function SmsSettingsForm() {
 
 	if (!sms.data || !draft) return null;
 
-	const templateCheck = firstMessageTemplate.safeParse(
-		draft.firstMessageTemplate,
-	);
-	const templateError = templateCheck.success
-		? null
-		: (templateCheck.error.issues[0]?.message ?? null);
-	const brandCheck = brandName.safeParse(draft.brandName);
-	const brandError = brandCheck.success
-		? null
-		: (brandCheck.error.issues[0]?.message ?? null);
+	const brandError = brandProblem(draft.brandName);
 	const statesError = statesProblem(states);
 	const next: SmsSettings = {
 		...draft,
 		licensedStates: parseStatesText(states),
 	};
-	const invalid =
-		templateError !== null || brandError !== null || statesError !== null;
-	const unchanged = sameSettings(next, sms.data.settings);
-	const defaults = sms.data.defaults;
+	const invalid = brandError !== null || statesError !== null;
+	const unchanged = sameSmsSettings(next, sms.data.settings);
+	const busy = save.isPending;
 
 	return (
-		<Card>
-			<CardHeader>
-				<CardTitle>Texting</CardTitle>
-				<CardDescription>
-					Keep the first message close to the samples in your toll-free
-					verification. Carriers compare them.
-				</CardDescription>
-				<CardAction>
-					<Button
-						type="submit"
-						form="sms-settings"
-						disabled={save.isPending || unchanged || invalid}
-					>
-						{save.isPending ? <Spinner data-icon="inline-start" /> : null}
-						Save
-					</Button>
-				</CardAction>
-			</CardHeader>
-
-			<CardContent>
-				<form
-					id="sms-settings"
-					onSubmit={(event) => {
-						event.preventDefault();
-						const problem = templateError ?? brandError ?? statesError;
-						if (problem) {
-							toast.error(problem);
-							return;
-						}
-						save.mutate(next);
-					}}
-				>
+		<form
+			className="flex flex-col gap-6"
+			onSubmit={(event) => {
+				event.preventDefault();
+				const problem = brandError ?? statesError;
+				if (problem) {
+					toast.error(problem);
+					return;
+				}
+				save.mutate(next);
+			}}
+		>
+			<Card>
+				<CardHeader>
+					<CardTitle>Your business</CardTitle>
+					<CardDescription>
+						Who the lead hears from, and where you may text.
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
 					<FieldGroup>
 						<Field data-invalid={brandError !== null}>
 							<FieldLabel htmlFor={brandId}>Business name</FieldLabel>
 							<Input
 								id={brandId}
 								value={draft.brandName}
-								disabled={save.isPending}
+								disabled={busy}
 								aria-invalid={brandError !== null}
 								placeholder="Same as your workspace name"
 								onChange={(event) =>
@@ -168,84 +172,11 @@ export function SmsSettingsForm() {
 								}
 							/>
 							<FieldDescription>
-								The name leads see. It opens the first message, the booking
-								confirmation, the first reply of each conversation and the STOP
-								and HELP replies. Leave it empty to use the workspace name.
+								Leads see this name. It must match the business name on your
+								toll-free verification form. Leave it empty to use the workspace
+								name.
 							</FieldDescription>
 							{brandError ? <FieldError>{brandError}</FieldError> : null}
-						</Field>
-
-						<Field data-invalid={templateError !== null}>
-							<FieldLabel htmlFor={templateId}>First message</FieldLabel>
-							<Textarea
-								id={templateId}
-								rows={4}
-								value={draft.firstMessageTemplate}
-								disabled={save.isPending}
-								aria-invalid={templateError !== null}
-								onChange={(event) =>
-									setDraft({
-										...draft,
-										firstMessageTemplate: event.target.value,
-									})
-								}
-							/>
-							<FieldDescription>
-								{SMS_TEMPLATE_TOKENS.firstName} becomes the lead's first name
-								and {SMS_TEMPLATE_TOKENS.agency} your workspace name. Must
-								include "Reply STOP to opt out".{" "}
-								{draft.firstMessageTemplate.length}/
-								{SMS_SETTINGS_LIMITS.firstMessage.maxLength} characters.
-							</FieldDescription>
-							{templateError ? <FieldError>{templateError}</FieldError> : null}
-							<div>
-								<Button
-									type="button"
-									variant="ghost"
-									size="sm"
-									disabled={
-										save.isPending ||
-										draft.firstMessageTemplate === defaults.firstMessageTemplate
-									}
-									onClick={() =>
-										setDraft({
-											...draft,
-											firstMessageTemplate: defaults.firstMessageTemplate,
-										})
-									}
-								>
-									Use the default text
-								</Button>
-							</div>
-						</Field>
-
-						<Field>
-							<FieldLabel htmlFor={disclosureId}>
-								When a lead asks if they are talking to a bot
-							</FieldLabel>
-							<Select
-								value={draft.disclosureMode}
-								disabled={save.isPending}
-								onValueChange={(next) => {
-									if (isDisclosureMode(next)) {
-										setDraft({ ...draft, disclosureMode: next });
-									}
-								}}
-							>
-								<SelectTrigger id={disclosureId} className="w-full">
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									{SMS_DISCLOSURE_MODES.map((mode) => (
-										<SelectItem key={mode} value={mode}>
-											{DISCLOSURE_LABELS[mode]}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-							<FieldDescription>
-								Disclose is the default. Some states require it.
-							</FieldDescription>
 						</Field>
 
 						<Field data-invalid={statesError !== null}>
@@ -253,49 +184,167 @@ export function SmsSettingsForm() {
 							<Input
 								id={statesId}
 								value={states}
-								disabled={save.isPending}
+								disabled={busy}
 								aria-invalid={statesError !== null}
 								placeholder="TX, FL, GA"
 								onChange={(event) => setStates(event.target.value)}
 							/>
+							{statesError === null && next.licensedStates.length > 0 ? (
+								<ul
+									className="flex flex-wrap gap-1"
+									aria-label="Licensed states"
+								>
+									{next.licensedStates.map((code) => (
+										<li key={code}>
+											<Badge variant="token">{code}</Badge>
+										</li>
+									))}
+								</ul>
+							) : null}
 							<FieldDescription>
-								Two-letter codes, separated by commas. A lead in any other state
-								is not qualified. Leave it empty to accept every state.
+								Only text leads in these states. Type two-letter codes separated
+								by commas. Leave it empty to accept every state.
 							</FieldDescription>
 							{statesError ? <FieldError>{statesError}</FieldError> : null}
+						</Field>
+					</FieldGroup>
+				</CardContent>
+			</Card>
+
+			<Card>
+				<CardHeader>
+					<CardTitle>First message</CardTitle>
+					<CardDescription>
+						The one text every new lead gets before they have answered.
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<FieldGroup>
+						<Field>
+							<FieldLabel>What the lead gets</FieldLabel>
+							<p
+								className="rounded-md border bg-muted/40 px-3 py-2 text-sm"
+								data-testid="first-message-preview"
+							>
+								{firstMessagePreview(draft, workspace.data?.name)}
+							</p>
+							<FieldDescription>
+								This is the exact text. The name shown here is an example.
+							</FieldDescription>
 						</Field>
 
 						<Field orientation="horizontal">
 							<FieldContent>
-								<FieldLabel htmlFor={autoSendId}>
-									Send replies automatically
+								<FieldLabel htmlFor={prefixId}>
+									Start with my business name
 								</FieldLabel>
 								<FieldDescription>
-									Off: every reply the agent writes waits as a draft for
-									approval. On: replies go out without review, still inside the
-									allowed hours.
+									Puts your business name before the greeting so the lead knows
+									who is texting.
 								</FieldDescription>
 							</FieldContent>
 							<Switch
-								id={autoSendId}
-								checked={draft.autoSend}
-								disabled={save.isPending}
-								onCheckedChange={(autoSend) => setDraft({ ...draft, autoSend })}
+								id={prefixId}
+								checked={draft.firstMessageBrandPrefix}
+								disabled={busy}
+								onCheckedChange={(firstMessageBrandPrefix) =>
+									setDraft({ ...draft, firstMessageBrandPrefix })
+								}
 							/>
 						</Field>
 
-						{limits.data ? (
-							<Field>
-								<FieldLabel>Frequency cap</FieldLabel>
+						<Field orientation="horizontal">
+							<FieldContent>
+								<FieldLabel htmlFor={footerId}>
+									End with "Reply STOP to opt out."
+								</FieldLabel>
 								<FieldDescription>
-									{frequencyCapText(limits.data.frequency)} This limit is built
-									in and cannot be changed here.
+									Adds opt-out language to the first message.
 								</FieldDescription>
-							</Field>
+							</FieldContent>
+							<Switch
+								id={footerId}
+								checked={draft.firstMessageStopFooter}
+								disabled={busy}
+								onCheckedChange={(firstMessageStopFooter) =>
+									setDraft({ ...draft, firstMessageStopFooter })
+								}
+							/>
+						</Field>
+
+						{showFirstMessageWarning(draft) ? (
+							<Alert variant="destructive">
+								<AlertTitle>Toll-free verification may fail</AlertTitle>
+								<AlertDescription>
+									{FIRST_MESSAGE_RISK_WARNING}
+								</AlertDescription>
+							</Alert>
 						) : null}
 					</FieldGroup>
-				</form>
-			</CardContent>
-		</Card>
+				</CardContent>
+			</Card>
+
+			<Card>
+				<CardHeader>
+					<CardTitle>Replies</CardTitle>
+					<CardDescription>
+						How the assistant handles what leads write back.
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<FieldGroup>
+						<Choice
+							label="Before a reply is sent"
+							value={autoSendChoice(draft.autoSend)}
+							disabled={busy}
+							options={Object.entries(SMS_CHOICES.autoSend).map(
+								([value, option]) => ({ value, ...option }),
+							)}
+							onChange={(value) =>
+								setDraft({ ...draft, autoSend: value === "auto" })
+							}
+						/>
+
+						<Choice
+							label="When a reply is unclear"
+							value={draft.ambiguousMode}
+							disabled={busy}
+							options={Object.entries(SMS_CHOICES.ambiguous).map(
+								([value, option]) => ({ value, ...option }),
+							)}
+							onChange={(value) => {
+								if (isAmbiguousMode(value)) {
+									setDraft({ ...draft, ambiguousMode: value });
+								}
+							}}
+						/>
+
+						<Choice
+							label="When a lead asks if they are talking to a bot"
+							value={draft.disclosureMode}
+							disabled={busy}
+							options={Object.entries(SMS_CHOICES.disclosure).map(
+								([value, option]) => ({ value, ...option }),
+							)}
+							onChange={(value) => {
+								if (isDisclosureMode(value)) {
+									setDraft({ ...draft, disclosureMode: value });
+								}
+							}}
+						/>
+					</FieldGroup>
+				</CardContent>
+			</Card>
+
+			<div className="flex flex-wrap items-center justify-between gap-3">
+				<p className="text-muted-foreground text-xs">
+					Only an owner or an admin can save these settings.
+				</p>
+				<Button type="submit" disabled={busy || unchanged || invalid}>
+					{busy ? <Spinner data-icon="inline-start" /> : null}
+					Save texting settings
+				</Button>
+			</div>
+		</form>
 	);
 }

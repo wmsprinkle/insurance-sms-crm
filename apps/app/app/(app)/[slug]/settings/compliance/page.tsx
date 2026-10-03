@@ -14,7 +14,7 @@ import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { CalendarSettingsForm } from "./calendar-settings-form";
 import { DraftsQueue } from "./drafts-queue";
-import { QuietHours } from "./quiet-hours";
+import { LimitsSection } from "./limits-section";
 import { SmsSettingsForm } from "./sms-settings-form";
 
 export const metadata: Metadata = {
@@ -28,8 +28,8 @@ export default function ComplianceSettingsPage() {
 				<PageShellHeading>
 					<PageShellTitle>Compliance</PageShellTitle>
 					<PageShellDescription>
-						What the agent says first, how it answers "are you a bot", whose
-						calendar it books and when it is allowed to text.
+						What leads get, how replies are handled, where calls are booked and
+						the rules that limit texting.
 					</PageShellDescription>
 				</PageShellHeading>
 			</PageShellHeader>
@@ -63,7 +63,7 @@ async function Compliance() {
 				<SmsSettingsForm />
 				<CalendarSettingsForm />
 				<DraftsQueue />
-				<QuietHours />
+				<LimitsSection />
 			</div>
 		</HydrateClient>
 	);
