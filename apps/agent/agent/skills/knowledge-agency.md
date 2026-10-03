@@ -11,7 +11,9 @@ reviews each lead's situation on a short call and compares options.
 
 ## Licensed states
 
-Not set.
+The task message lists them on a `Licensed states:` line. Use only that line.
+When it says not set, do not name any state and do not promise coverage: a
+licensed agent confirms on the call.
 
 ## What happens on the call
 

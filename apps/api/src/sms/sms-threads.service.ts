@@ -5,6 +5,7 @@ import { paginate } from "../trpc/list-input";
 import { SMS } from "./sms-config";
 import { contactDisplayName, previewOf, threadSearch } from "./sms-threads";
 import type {
+	SmsAgentSessionOutput,
 	SmsMarkHandledOutput,
 	SmsThreadInput,
 	SmsThreadListInput,
@@ -170,6 +171,47 @@ export class SmsThreadsService {
 			truncated,
 			messages,
 		};
+	}
+
+	async agentSessions(input: SmsThreadInput): Promise<SmsAgentSessionOutput> {
+		const { agentSessionPrefix, maxAgentEvents } = SMS.threads;
+		const rows = await this.db.agentEvent.findMany({
+			where: {
+				sessionId: { endsWith: `${agentSessionPrefix}${input.contactId}` },
+			},
+			orderBy: [{ emittedAt: "desc" }, { id: "desc" }],
+			take: maxAgentEvents + 1,
+			select: {
+				id: true,
+				sessionId: true,
+				type: true,
+				data: true,
+				emittedAt: true,
+			},
+		});
+
+		const truncated = rows.length > maxAgentEvents;
+		const bySession = new Map<string, typeof rows>();
+		for (const row of rows.slice(0, maxAgentEvents).reverse()) {
+			bySession.set(row.sessionId, [
+				...(bySession.get(row.sessionId) ?? []),
+				row,
+			]);
+		}
+
+		const sessions = [...bySession.entries()].map(([sessionId, events]) => ({
+			sessionId,
+			startedAt: events[0]?.emittedAt.toISOString() ?? "",
+			lastEventAt: events.at(-1)?.emittedAt.toISOString() ?? "",
+			events: events.map((event) => ({
+				type: event.type,
+				data: event.data,
+				meta: { id: event.id, at: event.emittedAt.toISOString() },
+			})),
+		}));
+		sessions.sort((a, b) => b.lastEventAt.localeCompare(a.lastEventAt));
+
+		return { sessions, truncated };
 	}
 
 	async markHandled(input: SmsThreadInput): Promise<SmsMarkHandledOutput> {

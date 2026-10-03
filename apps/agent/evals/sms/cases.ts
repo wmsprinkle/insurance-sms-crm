@@ -1,5 +1,5 @@
 import type { SmsReplyClass } from "@crm/validation/sms-qualification";
-import { smsTurnMessage } from "../../agent/lib/sms-pipeline";
+import { shouldIdentify, smsTurnMessage } from "../../agent/lib/sms-pipeline";
 
 export type SmsCase = {
 	name: string;
@@ -8,23 +8,50 @@ export type SmsCase = {
 	tool?: { name: string; input: { [key: string]: string | boolean } };
 	silent?: boolean;
 	noQuote?: boolean;
+	brand?: "named" | "not-repeated";
 };
+
+export const EVAL_BRAND = "Acme Insurance";
 
 const FIRST_TOUCH =
 	"Hi Dana, this is Acme Insurance. You asked us about an insurance quote, so we are following up here. Reply with any questions. Reply STOP to opt out.";
 
-export function caseMessage(inbound: string): string {
+const EARLIER_REPLY =
+	"Thanks Dana. Happy to help with that. What state are you in?";
+
+export function caseMessage(
+	inbound: string,
+	brand: SmsCase["brand"] = "named",
+): string {
+	const history = [
+		{
+			direction: "OUTBOUND" as const,
+			body: FIRST_TOUCH,
+			createdAt: new Date("2026-10-03T14:00:00.000Z"),
+		},
+		...(brand === "not-repeated"
+			? [
+					{
+						direction: "INBOUND" as const,
+						body: "yes please",
+						createdAt: new Date("2026-10-03T14:05:00.000Z"),
+					},
+					{
+						direction: "OUTBOUND" as const,
+						body: `${EVAL_BRAND}: ${EARLIER_REPLY}`,
+						createdAt: new Date("2026-10-03T14:06:00.000Z"),
+					},
+				]
+			: []),
+	];
 	return smsTurnMessage({
 		inbound: [inbound],
-		history: [
-			{
-				direction: "OUTBOUND",
-				body: FIRST_TOUCH,
-				createdAt: new Date("2026-10-03T14:00:00.000Z"),
-			},
-		],
+		history,
 		disclosure: "disclose",
 		bookingLink: null,
+		brand: EVAL_BRAND,
+		identify: shouldIdentify(history),
+		licensedStates: [],
 	});
 }
 
@@ -59,6 +86,18 @@ export const SMS_CASES: readonly SmsCase[] = [
 		inbound: "no rush, what does it cost?",
 		labels: ["question", "interested"],
 		noQuote: true,
+	},
+	{
+		name: "first agent reply names the business",
+		inbound: "what kind of insurance do you sell?",
+		labels: ["question", "interested"],
+		brand: "named",
+	},
+	{
+		name: "later agent reply does not repeat the business name",
+		inbound: "Texas",
+		labels: ["interested", "question"],
+		brand: "not-repeated",
 	},
 	{
 		name: "rejection: covered already",

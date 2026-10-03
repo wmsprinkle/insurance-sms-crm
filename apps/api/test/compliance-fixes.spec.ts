@@ -27,7 +27,7 @@ import { optOutIntentOf } from "../src/sms/keywords";
 import { RateLimiter } from "../src/sms/rate-limiter";
 import { readRawBody } from "../src/sms/raw-body";
 import { SmsService } from "../src/sms/sms.service";
-import { SMS_INTERNAL, sendResponse } from "../src/sms/sms-internal";
+import { sendResponse } from "../src/sms/sms-internal";
 import { SmsSender } from "../src/sms/sms-sender.service";
 import { TelnyxClient } from "../src/sms/telnyx.client";
 import type { TelnyxInbound } from "../src/sms/telnyx-event";
@@ -520,8 +520,11 @@ describe("M2: per-recipient frequency cap", () => {
 
 		expect(decision).toMatchObject({ allowed: false, reason: "frequency-cap" });
 		expect(sendResponse({ status: "blocked", decision })).toEqual({
-			status: "failed",
-			error: SMS_INTERNAL.blockedAsFailed["frequency-cap"],
+			status: "blocked",
+			reason: "frequency-cap",
+			retryAt: decision.allowed
+				? null
+				: (decision.retryAt?.toISOString() ?? null),
 		});
 	});
 });
@@ -682,8 +685,10 @@ describe("L4: only US (+1) numbers get conversation texts", () => {
 			allowed: false,
 			reason: "unsupported-number",
 		});
-		expect(sendResponse({ status: "blocked", decision })).toMatchObject({
-			status: "failed",
+		expect(sendResponse({ status: "blocked", decision })).toEqual({
+			status: "blocked",
+			reason: "unsupported-number",
+			retryAt: null,
 		});
 	});
 });

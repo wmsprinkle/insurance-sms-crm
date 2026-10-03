@@ -70,3 +70,23 @@ export const smsMarkHandledOutput = z.object({
 });
 
 export type SmsMarkHandledOutput = z.infer<typeof smsMarkHandledOutput>;
+
+export const smsAgentSessionOutput = z.object({
+	sessions: z.array(
+		z.object({
+			sessionId: z.string(),
+			startedAt: z.string(),
+			lastEventAt: z.string(),
+			events: z.array(
+				z.object({
+					type: z.string(),
+					data: z.unknown(),
+					meta: z.object({ id: z.string(), at: z.string() }),
+				}),
+			),
+		}),
+	),
+	truncated: z.boolean(),
+});
+
+export type SmsAgentSessionOutput = z.infer<typeof smsAgentSessionOutput>;

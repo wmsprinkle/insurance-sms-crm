@@ -28,10 +28,10 @@ import { googleConnectionStatusOutput, setAutoCreateInput, suppressDomainInput, 
 import { purgeSyncedDataOutput, revokeAccessOutput, microsoftConnectionStatusOutput, setOutlookAutoCreateInput } from "../microsoft/microsoft.contracts";
 import { leadImportPreviewInput, leadImportOutput, leadImportCommitInput } from "../leads/leads.contracts";
 import { savedViewListInput, savedViewListOutput, savedViewCreateInput, savedViewOutput, savedViewUpdateArgs, savedViewIdInput, savedViewDeleteOutput } from "../saved-views/saved-views.contracts";
-import { agentModelOutput, modelCatalogOutput, setAgentModelInput, researchKeyOutput, setResearchKeyInput, archiveRetentionOutput, setArchiveRetentionDaysInput, smsSettingsOutput, setSmsSettingsInput, quietHoursOutput } from "../settings/settings.contracts";
+import { agentModelOutput, modelCatalogOutput, setAgentModelInput, researchKeyOutput, setResearchKeyInput, archiveRetentionOutput, setArchiveRetentionDaysInput, smsSettingsOutput, setSmsSettingsInput, calendarSettingsOutput, setCalendarSettingsInput, complianceLimitsOutput, quietHoursOutput } from "../settings/settings.contracts";
 import { slackStatusOutput, slackMatchesOutput, slackChannelsInput, slackChannelsOutput, slackJoinChannelInput, slackJoinChannelOutput, slackRefreshPeopleOutput, slackCreateChannelInput, slackCreateChannelOutput, slackDisconnectOutput } from "../slack/slack.contracts";
 import { smsDraftQueueOutput, smsDraftApproveInput, smsSendOutcome, smsDraftIdInput, smsDraftDiscardOutput, smsHandBackInput, smsHandBackOutput, smsComposeInput } from "../sms/drafts.contracts";
-import { smsThreadListInput, smsThreadListOutput, smsThreadInput, smsThreadOutput, smsMarkHandledOutput } from "../sms/sms-threads.contracts";
+import { smsThreadListInput, smsThreadListOutput, smsThreadInput, smsThreadOutput, smsAgentSessionOutput, smsMarkHandledOutput } from "../sms/sms-threads.contracts";
 import { ssoSignInOptionsOutput, ssoSettingsOutput, ssoProviderListInput, ssoProviderListOutput, registerSsoProviderInput, ssoProviderOutput, deleteSsoProviderInput, deleteSsoProviderOutput } from "../sso/sso.contracts";
 import { trackingSettingsOutput, trackingFlagInput, cookieLifetimeInput, addDomainInput, trackedDomainOutput, removeDomainInput, rotateSiteIdOutput, verifyInput, verifyOutput, sourcesOutput, companyActivityInput, websiteActivityOutput, contactActivityInput } from "../tracking/tracking.contracts";
 import { workspaceOutput, memberListInput, memberListOutput, updateWorkspaceInput, setMemberRoleInput, workspaceMemberOutput } from "../workspace/workspace.contracts";
@@ -654,6 +654,16 @@ const appRouter = t.router({
       .input(setSmsSettingsInput)
       .output(smsSettingsOutput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    calendar: publicProcedure
+      .output(calendarSettingsOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    setCalendar: publicProcedure
+      .input(setCalendarSettingsInput)
+      .output(calendarSettingsOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    complianceLimits: publicProcedure
+      .output(complianceLimitsOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     quietHours: publicProcedure
       .output(quietHoursOutput)
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
@@ -713,6 +723,10 @@ const appRouter = t.router({
     thread: publicProcedure
       .input(smsThreadInput)
       .output(smsThreadOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    agentSessions: publicProcedure
+      .input(smsThreadInput)
+      .output(smsAgentSessionOutput)
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     markHandled: publicProcedure
       .input(smsThreadInput)

@@ -6,10 +6,12 @@ import {
 	SuppressionReason,
 } from "@crm/db/enums";
 import { SETTINGS_ID } from "@crm/db/settings";
+import { WORKSPACE_ID } from "@crm/db/workspace";
 import { parseCalendarSettings } from "@crm/validation/calendar-settings";
 import type { SmsHoldReason } from "@crm/validation/sms-send";
 import {
 	parseSmsSettings,
+	resolveBrand,
 	type SmsSettings,
 } from "@crm/validation/sms-settings";
 import { SMS_AGENT } from "./sms-config";
@@ -45,6 +47,7 @@ export type OptOutReason = "opt_out" | "wrong_number";
 export interface SmsStore {
 	contact(contactId: string): Promise<SmsContact | null>;
 	settings(): Promise<SmsSettings>;
+	brand(): Promise<string>;
 	bookingLink(): Promise<string | null>;
 	activeHandoff(contactId: string): Promise<{ reason: string } | null>;
 	openHandoff(contactId: string, reason: string): Promise<boolean>;
@@ -97,6 +100,20 @@ export const prismaSmsStore: SmsStore = {
 			select: { sms: true },
 		});
 		return parseSmsSettings(row?.sms);
+	},
+
+	async brand() {
+		const [row, workspace] = await Promise.all([
+			db.appSetting.findUnique({
+				where: { id: SETTINGS_ID },
+				select: { sms: true },
+			}),
+			db.organization.findUnique({
+				where: { id: WORKSPACE_ID },
+				select: { name: true },
+			}),
+		]);
+		return resolveBrand(parseSmsSettings(row?.sms).brandName, workspace?.name);
 	},
 
 	async bookingLink() {

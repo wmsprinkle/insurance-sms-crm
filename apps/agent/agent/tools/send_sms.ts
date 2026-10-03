@@ -32,6 +32,7 @@ export default defineTool({
 				oncePerKey: true,
 				bookingLink: sms.bookingLink,
 				disclosure: sms.disclosure,
+				identify: sms.identify,
 			},
 			{
 				store: prismaSmsStore,

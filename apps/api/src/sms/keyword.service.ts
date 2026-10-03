@@ -7,7 +7,6 @@ import {
 	SmsStatus,
 	SuppressionReason,
 } from "@crm/db";
-import { WORKSPACE_ID } from "@crm/db/workspace";
 import { Injectable, Logger } from "@nestjs/common";
 import { ConsentService } from "../compliance/consent.service";
 import { SuppressionService } from "../compliance/suppression.service";
@@ -18,6 +17,7 @@ import {
 	optOutConfirmationText,
 	type SmsKeyword,
 } from "./keywords";
+import { readBrand } from "./sms-brand";
 import { SMS } from "./sms-config";
 import { SmsSender } from "./sms-sender.service";
 import type { TelnyxInbound } from "./telnyx-event";
@@ -131,16 +131,13 @@ export class KeywordService {
 
 	private async confirmOptOut(input: OptOutMessage): Promise<void> {
 		try {
-			const workspace = await this.db.organization.findUnique({
-				where: { id: WORKSPACE_ID },
-				select: { name: true },
-			});
+			const brand = await readBrand(this.db);
 			const outcome = await this.sender.send({
 				to: input.from,
 				contactId: input.contactId,
 				text: optOutConfirmationText(
 					SUPPRESSION_BY_INTENT[input.intent],
-					workspace?.name ?? null,
+					brand,
 				),
 				purpose: "opt-out-confirmation",
 			});
@@ -284,14 +281,11 @@ export class KeywordService {
 
 	private async reply(input: KeywordMessage): Promise<void> {
 		try {
-			const workspace = await this.db.organization.findUnique({
-				where: { id: WORKSPACE_ID },
-				select: { name: true },
-			});
+			const brand = await readBrand(this.db);
 			const outcome = await this.sender.send({
 				to: input.from,
 				contactId: input.contactId,
-				text: keywordReply(input.keyword, workspace?.name ?? null),
+				text: keywordReply(input.keyword, brand),
 				purpose: "keyword-reply",
 			});
 			if (outcome.status !== "sent") {

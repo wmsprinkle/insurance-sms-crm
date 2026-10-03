@@ -1,3 +1,4 @@
+import { GOOGLE_PROVIDER_ID } from "@crm/auth/scopes";
 import type { Db } from "@crm/db";
 import {
 	DEFAULT_AGENT_MODEL,
@@ -11,6 +12,10 @@ import {
 	writeContextDevKey,
 } from "@crm/db/settings";
 import {
+	type CalendarSettings,
+	parseCalendarSettings,
+} from "@crm/validation/calendar-settings";
+import {
 	DEFAULT_SMS_SETTINGS,
 	parseSmsSettings,
 	type SmsSettings,
@@ -18,12 +23,15 @@ import {
 import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import { ResearchKeyService } from "../agent/research-key.service";
 import { BackfillService } from "../backfill/backfill.service";
+import { COMPLIANCE } from "../compliance/compliance-config";
 import { InjectDatabase } from "../database/database.constants";
 import { ModelCatalogService } from "./model-catalog.service";
 import { quietHoursTable } from "./quiet-hours-table";
 import type {
 	AgentModelSettings,
 	ArchiveRetentionSettings,
+	CalendarSettingsResult,
+	ComplianceLimitsResult,
 	ModelCatalogResult,
 	QuietHoursResult,
 	ResearchKeySettings,
@@ -177,9 +185,89 @@ export class SettingsService {
 			message: "SMS settings changed",
 			disclosureMode: settings.disclosureMode,
 			autoSend: settings.autoSend,
+			brandName: settings.brandName,
+			licensedStates: settings.licensedStates,
 		});
 
 		return this.sms();
+	}
+
+	async calendar(): Promise<CalendarSettingsResult> {
+		const [row, accounts] = await Promise.all([
+			this.db.appSetting.findUnique({
+				where: { id: SETTINGS_ID },
+				select: { calendar: true },
+			}),
+			this.db.account.findMany({
+				where: { providerId: GOOGLE_PROVIDER_ID },
+				orderBy: { createdAt: "asc" },
+				select: {
+					userId: true,
+					user: { select: { name: true, email: true } },
+				},
+			}),
+		]);
+		const settings = parseCalendarSettings(row?.calendar);
+		const people = [
+			...new Map(
+				accounts.map((account) => [
+					account.userId,
+					{
+						userId: account.userId,
+						name: account.user.name,
+						email: account.user.email,
+					},
+				]),
+			).values(),
+		];
+
+		return {
+			settings,
+			accounts: people,
+			effectiveOwnerUserId: settings.ownerUserId ?? people[0]?.userId ?? null,
+		};
+	}
+
+	async setCalendar(
+		settings: CalendarSettings,
+	): Promise<CalendarSettingsResult> {
+		if (settings.ownerUserId) {
+			const connected = await this.db.account.findFirst({
+				where: {
+					providerId: GOOGLE_PROVIDER_ID,
+					userId: settings.ownerUserId,
+				},
+				select: { id: true },
+			});
+			if (!connected) {
+				throw new BadRequestException(
+					"That person has not connected a Google account.",
+				);
+			}
+		}
+
+		await this.db.appSetting.upsert({
+			where: { id: SETTINGS_ID },
+			create: { id: SETTINGS_ID, calendar: settings },
+			update: { calendar: settings },
+		});
+
+		this.logger.log({
+			message: "Calendar settings changed",
+			ownerUserId: settings.ownerUserId,
+			hasFallbackLink: settings.fallbackBookingLink !== null,
+		});
+
+		return this.calendar();
+	}
+
+	complianceLimits(): ComplianceLimitsResult {
+		return {
+			frequency: {
+				perDay: COMPLIANCE.frequency.day.max,
+				perWeek: COMPLIANCE.frequency.week.max,
+			},
+		};
 	}
 
 	quietHours(): QuietHoursResult {

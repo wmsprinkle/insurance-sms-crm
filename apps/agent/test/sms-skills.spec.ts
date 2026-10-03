@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-
 import {
 	DISCLOSURE_MODES,
 	stripContactInfo,
 } from "@crm/validation/outbound-guard";
+import { smsTurnMessage } from "../agent/lib/sms-pipeline";
 
 const SKILLS_DIR = join(import.meta.dir, "../agent/skills");
 const KNOWLEDGE_MAX_CHARS = 9000;
@@ -47,9 +47,9 @@ describe("sms skills", () => {
 		},
 	);
 
-	it("sms-conduct keeps every numbered rule from 1 to 13", () => {
+	it("sms-conduct keeps every numbered rule from 1 to 14", () => {
 		const text = skill("sms-conduct");
-		for (let rule = 1; rule <= 13; rule += 1) {
+		for (let rule = 1; rule <= 14; rule += 1) {
 			expect(text).toMatch(new RegExp(`^\\s*${rule}\\. `, "m"));
 		}
 	});
@@ -61,6 +61,24 @@ describe("sms skills", () => {
 			expect(text).toContain(`**${mode}**`);
 		}
 		expect(text).toContain("never claim to be human");
+	});
+
+	it("sms-conduct rule 14 uses the lines the turn message carries", () => {
+		const text = skill("sms-conduct");
+		const turn = smsTurnMessage({
+			inbound: ["hi"],
+			history: [],
+			disclosure: "disclose",
+			bookingLink: null,
+			brand: "Acme",
+			identify: true,
+			licensedStates: [],
+		});
+		expect(text).toContain("`Business name: <name>`");
+		expect(text).toContain("`Identify the business: yes`");
+		expect(text).toContain("`Identify the business: no`");
+		expect(turn).toContain("Business name: Acme");
+		expect(turn).toContain("Identify the business: yes.");
 	});
 
 	it("qualification lists exactly the classify values", () => {

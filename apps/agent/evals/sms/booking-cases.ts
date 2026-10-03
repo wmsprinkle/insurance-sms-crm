@@ -44,6 +44,9 @@ export function bookingMessage(row: BookingCase): string {
 		})),
 		disclosure: "disclose",
 		bookingLink: null,
+		brand: "Acme Insurance",
+		identify: false,
+		licensedStates: [],
 	});
 }
 

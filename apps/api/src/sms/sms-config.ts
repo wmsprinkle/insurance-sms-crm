@@ -23,6 +23,8 @@ export const SMS = {
 	threads: {
 		previewLength: 160,
 		maxMessages: 200,
+		agentSessionPrefix: "sms:",
+		maxAgentEvents: 2000,
 	},
 	pausedTaskKinds: ["sms-reply", "first-touch", "sms-follow-up"],
 	keywords: {

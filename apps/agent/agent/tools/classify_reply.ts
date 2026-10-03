@@ -60,7 +60,7 @@ export default defineTool({
 		if (label === "qualified") {
 			const verdict = judgeQualification(
 				await readQualification(sms.contactId),
-				SMS_AGENT.licensedStates,
+				(await prismaSmsStore.settings()).licensedStates,
 			);
 			if (verdict.status === "incomplete") {
 				return {

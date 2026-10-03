@@ -15,11 +15,14 @@ import { restMeta } from "../trpc/openapi";
 import {
 	agentModelOutput,
 	archiveRetentionOutput,
+	calendarSettingsOutput,
+	complianceLimitsOutput,
 	modelCatalogOutput,
 	quietHoursOutput,
 	researchKeyOutput,
 	setAgentModelInput,
 	setArchiveRetentionDaysInput,
+	setCalendarSettingsInput,
 	setResearchKeyInput,
 	setSmsSettingsInput,
 	smsSettingsOutput,
@@ -121,8 +124,44 @@ export class SettingsRouter {
 			autoSend: input.autoSend,
 			disclosureMode: input.disclosureMode,
 			firstMessageTemplate: input.firstMessageTemplate,
+			brandName: input.brandName,
+			licensedStates: input.licensedStates,
 		});
 		return result;
+	}
+
+	@Query({
+		output: calendarSettingsOutput,
+		meta: restMeta("GET", "/settings/calendar", ["Settings"]),
+	})
+	async calendar() {
+		return this.settings.calendar();
+	}
+
+	@Mutation({
+		input: setCalendarSettingsInput,
+		output: calendarSettingsOutput,
+		meta: restMeta("PATCH", "/settings/calendar", ["Settings"]),
+	})
+	async setCalendar(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof setCalendarSettingsInput>,
+	) {
+		await this.admin.require(ctx.user.id, "complianceSettings");
+		const result = await this.settings.setCalendar(input);
+		await this.admin.record(ctx.user.id, "calendarSettingsChanged", {
+			ownerUserId: input.ownerUserId,
+			fallbackBookingLink: input.fallbackBookingLink,
+		});
+		return result;
+	}
+
+	@Query({
+		output: complianceLimitsOutput,
+		meta: restMeta("GET", "/settings/compliance-limits", ["Settings"]),
+	})
+	complianceLimits() {
+		return this.settings.complianceLimits();
 	}
 
 	@Query({

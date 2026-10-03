@@ -6,7 +6,6 @@ import {
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { focusOn } from "../lib/focus";
-import { SMS_AGENT } from "../lib/sms-config";
 import {
 	readQualification,
 	writeQualification,
@@ -30,7 +29,8 @@ export default defineTool({
 
 		const { written, refused } = await writeQualification(sms.contactId, facts);
 		const known = await readQualification(sms.contactId);
-		const verdict = judgeQualification(known, SMS_AGENT.licensedStates, {
+		const { licensedStates } = await prismaSmsStore.settings();
+		const verdict = judgeQualification(known, licensedStates, {
 			underAge,
 		});
 

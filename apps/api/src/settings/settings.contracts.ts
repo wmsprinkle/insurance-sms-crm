@@ -2,6 +2,7 @@ import {
 	MAX_ARCHIVE_RETENTION_DAYS,
 	MIN_ARCHIVE_RETENTION_DAYS,
 } from "@crm/db/settings";
+import { calendarSettings } from "@crm/validation/calendar-settings";
 import { smsSettings } from "@crm/validation/sms-settings";
 import { z } from "zod";
 
@@ -106,3 +107,30 @@ export const quietHoursOutput = z.object({
 });
 
 export type QuietHoursResult = z.infer<typeof quietHoursOutput>;
+
+export const calendarSettingsOutput = z.object({
+	settings: calendarSettings,
+	accounts: z.array(
+		z.object({
+			userId: z.string(),
+			name: z.string(),
+			email: z.string(),
+		}),
+	),
+	effectiveOwnerUserId: z.string().nullable(),
+});
+
+export type CalendarSettingsResult = z.infer<typeof calendarSettingsOutput>;
+
+export const setCalendarSettingsInput = calendarSettings;
+
+export type SetCalendarSettingsInput = z.infer<typeof setCalendarSettingsInput>;
+
+export const complianceLimitsOutput = z.object({
+	frequency: z.object({
+		perDay: z.number().int(),
+		perWeek: z.number().int(),
+	}),
+});
+
+export type ComplianceLimitsResult = z.infer<typeof complianceLimitsOutput>;

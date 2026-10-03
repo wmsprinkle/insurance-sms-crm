@@ -71,6 +71,23 @@ describe("judgeAttempt", () => {
 		).toBe("refused");
 	});
 
+	it("refuses an unsupported number and holds a frequency cap as failed", () => {
+		expect(
+			judgeAttempt({
+				status: "blocked",
+				reason: "unsupported-number",
+				retryAt: null,
+			}),
+		).toMatchObject({ kind: "refused" });
+		expect(
+			judgeAttempt({
+				status: "blocked",
+				reason: "frequency-cap",
+				retryAt: "2026-10-04T15:00:00.000Z",
+			}),
+		).toMatchObject({ kind: "hold", reason: "send-failed", retryAt: null });
+	});
+
 	it("holds a provider failure and a missing send path", () => {
 		expect(judgeAttempt({ status: "failed", error: "boom" })).toMatchObject({
 			kind: "hold",
@@ -123,6 +140,59 @@ describe("deliver", () => {
 			idempotencyKey: "send_sms:call-1",
 			dryRun: true,
 		});
+	});
+
+	it("names the business when the reply must identify it", async () => {
+		const fake = fakeSms({ autoSend: true, brandName: "Acme Life" });
+		const send = recordingPath(SENT);
+
+		await deliver(
+			{ ...REQUEST, identify: true },
+			{ store: fake.store, sendPath: send.path, dryRun: true },
+		);
+
+		expect(send.calls[0]?.text).toBe(`Acme Life: ${REQUEST.text}`);
+	});
+
+	it("does not name the business twice", async () => {
+		const fake = fakeSms({ autoSend: true, brandName: "Acme Life" });
+		const send = recordingPath(SENT);
+		const text = "Acme Life here. Which state do you live in?";
+
+		await deliver(
+			{ ...REQUEST, text, identify: true },
+			{ store: fake.store, sendPath: send.path, dryRun: true },
+		);
+
+		expect(send.calls[0]?.text).toBe(text);
+	});
+
+	it("leaves a later reply alone", async () => {
+		const fake = fakeSms({ autoSend: true, brandName: "Acme Life" });
+		const send = recordingPath(SENT);
+
+		await deliver(REQUEST, {
+			store: fake.store,
+			sendPath: send.path,
+			dryRun: true,
+		});
+
+		expect(send.calls[0]?.text).toBe(REQUEST.text);
+	});
+
+	it("puts the name in the draft too", async () => {
+		const fake = fakeSms({ brandName: "Acme Life" });
+
+		await deliver(
+			{ ...REQUEST, identify: true },
+			{
+				store: fake.store,
+				sendPath: recordingPath(SENT).path,
+				dryRun: true,
+			},
+		);
+
+		expect(fake.drafts[0]?.body).toStartWith("Acme Life: ");
 	});
 
 	it("guards the text before it leaves", async () => {

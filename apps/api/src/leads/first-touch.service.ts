@@ -1,7 +1,6 @@
 import type { Prisma, RecordSource } from "@crm/db";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
 import { SETTINGS_ID } from "@crm/db/settings";
-import { WORKSPACE_ID } from "@crm/db/workspace";
 import {
 	FIRST_TOUCH_TASK_KIND,
 	type FirstTouchTaskPayload,
@@ -14,6 +13,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConsentService } from "../compliance/consent.service";
 import { nextSendWindow, sendWindowFor } from "../compliance/quiet-hours";
 import { SuppressionService } from "../compliance/suppression.service";
+import { readBrand } from "../sms/sms-brand";
 import { type FirstTouchPlan, planFirstTouch } from "./first-touch";
 import { LEADS } from "./leads-config";
 
@@ -102,20 +102,17 @@ export class FirstTouchService {
 		tx: Prisma.TransactionClient,
 		firstName: string | null,
 	): Promise<string> {
-		const [settings, workspace] = await Promise.all([
+		const [settings, brand] = await Promise.all([
 			tx.appSetting.findUnique({
 				where: { id: SETTINGS_ID },
 				select: { sms: true },
 			}),
-			tx.organization.findUnique({
-				where: { id: WORKSPACE_ID },
-				select: { name: true },
-			}),
+			readBrand(tx),
 		]);
 		const { firstMessageTemplate } = parseSmsSettings(settings?.sms ?? null);
 		return renderFirstMessage(firstMessageTemplate, {
 			firstName,
-			agency: workspace?.name?.trim() || LEADS.firstTouch.agencyFallback,
+			agency: brand,
 		});
 	}
 }

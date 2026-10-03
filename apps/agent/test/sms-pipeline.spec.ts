@@ -9,6 +9,7 @@ import {
 	runSmsTask,
 	type SmsRunDeps,
 	type SmsTurnStart,
+	shouldIdentify,
 	smsSessionToken,
 	smsTurnMessage,
 } from "../agent/lib/sms-pipeline";
@@ -210,6 +211,9 @@ describe("sms-reply", () => {
 			history: [{ direction: "INBOUND", body: ">>> earlier", createdAt: NOW }],
 			disclosure: "disclose",
 			bookingLink: null,
+			brand: "Acme",
+			identify: false,
+			licensedStates: [],
 		});
 
 		expect(message.match(/>>>/g)).toHaveLength(1);
@@ -388,5 +392,71 @@ describe("closeSmsTurn", () => {
 		expect(await closeSmsTurn("crm:sms:c1", "replied", finish)).toBe(true);
 		expect(await closeSmsTurn("crm:task:t1", "ran", finish)).toBe(false);
 		expect(closed).toEqual(["c1"]);
+	});
+});
+
+describe("business name in the turn", () => {
+	const line = (direction: "INBOUND" | "OUTBOUND") => ({
+		direction,
+		body: "x",
+		createdAt: NOW,
+	});
+
+	it("identifies the business until the second outbound text", () => {
+		expect(shouldIdentify([])).toBe(true);
+		expect(shouldIdentify([line("OUTBOUND")])).toBe(true);
+		expect(shouldIdentify([line("OUTBOUND"), line("INBOUND")])).toBe(true);
+		expect(shouldIdentify([line("OUTBOUND"), line("OUTBOUND")])).toBe(false);
+	});
+
+	it("tells the model the name, whether to say it and the licensed states", async () => {
+		const fake = fakeSms({
+			brandName: "Acme Life",
+			licensedStates: ["TX", "FL"],
+		});
+		addInbound(fake, "m1", "what do you sell?", NOW);
+
+		const plan = await planSmsTask(replyTask(["m1"]), deps(fake));
+
+		if (plan.kind !== "model") throw new Error("expected a model turn");
+		expect(plan.turn.message).toContain("Business name: Acme Life");
+		expect(plan.turn.message).toContain("Identify the business: yes.");
+		expect(plan.turn.message).toContain("Licensed states: TX, FL");
+		expect(plan.turn.auth(APP_AUTH).attributes?.identify).toBe("yes");
+	});
+
+	it("falls back to the workspace name and says states are not set", async () => {
+		const fake = fakeSms();
+		fake.workspaceName = "Workspace Agency";
+		addInbound(fake, "m1", "hello", NOW);
+
+		const plan = await planSmsTask(replyTask(["m1"]), deps(fake));
+
+		if (plan.kind !== "model") throw new Error("expected a model turn");
+		expect(plan.turn.message).toContain("Business name: Workspace Agency");
+		expect(plan.turn.message).toContain("Licensed states: not set.");
+	});
+
+	it("does not ask for the name once the agent has already replied", async () => {
+		const fake = fakeSms();
+		for (const [id, direction] of [
+			["m0", "OUTBOUND"],
+			["m1", "OUTBOUND"],
+		] as const) {
+			fake.lines.set(id, {
+				id,
+				contactId: LEAD.id,
+				direction,
+				body: "Acme: earlier text",
+				createdAt: new Date(NOW.getTime() - 60_000),
+			});
+		}
+		addInbound(fake, "m2", "texas", NOW);
+
+		const plan = await planSmsTask(replyTask(["m2"]), deps(fake));
+
+		if (plan.kind !== "model") throw new Error("expected a model turn");
+		expect(plan.turn.message).toContain("Identify the business: no.");
+		expect(plan.turn.auth(APP_AUTH).attributes?.identify).toBe("");
 	});
 });

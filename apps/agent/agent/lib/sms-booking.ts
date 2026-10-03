@@ -188,10 +188,14 @@ export type BookInput = {
 	emailDeclined?: boolean;
 };
 
-export function confirmationText(when: string, invited: boolean): string {
+export function confirmationText(
+	when: string,
+	invited: boolean,
+	brand: string,
+): string {
 	return invited
-		? `You are booked for ${when}. A calendar invite with a video link is on its way to your email. Reply here if you need to change it.`
-		: `You are booked for ${when}. A licensed agent will call you at this number then. Reply here if you need to change it.`;
+		? `${brand}: You are booked for ${when}. A calendar invite with a video link is on its way to your email. Reply here if you need to change it.`
+		: `${brand}: You are booked for ${when}. A licensed agent will call you at this number then. Reply here if you need to change it.`;
 }
 
 export async function bookMeeting(
@@ -292,10 +296,11 @@ export async function bookMeeting(
 	const deal = await deps.booking.moveDeal(contactId, DealStage.DEMO_BOOKED);
 
 	const when = slotLabel(start, attempt.timeZone);
+	const brand = await deps.delivery.store.brand();
 	const confirmation = await deliver(
 		{
 			contactId,
-			text: confirmationText(when, attendee !== null),
+			text: confirmationText(when, attendee !== null, brand),
 			purpose: "conversation",
 			taskId: deps.taskId,
 			idempotencyKey: `book_meeting:${eventId}`,

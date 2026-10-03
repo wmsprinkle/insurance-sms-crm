@@ -1,7 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
+import { judgeQualification } from "@crm/validation/sms-qualification";
 import type { RecordField } from "../agent/lib/fields";
-import { SMS_AGENT } from "../agent/lib/sms-config";
+import { smsTurnMessage } from "../agent/lib/sms-pipeline";
 import {
 	factsFromFields,
 	fieldKeyFor,
@@ -67,14 +68,40 @@ describe("qualification fields", () => {
 });
 
 describe("licensed states", () => {
-	it("match the knowledge-agency skill", () => {
-		const text = readFileSync(
-			new URL("../agent/skills/knowledge-agency.md", import.meta.url),
-			"utf8",
+	const text = readFileSync(
+		new URL("../agent/skills/knowledge-agency.md", import.meta.url),
+		"utf8",
+	);
+	const section = text.split("## Licensed states")[1]?.split("##")[0] ?? "";
+
+	it("are not hard coded in the knowledge-agency skill", () => {
+		expect(section.match(/\b[A-Z]{2}\b/g) ?? []).toEqual([]);
+	});
+
+	it("tell the agent to read the Licensed states line of the task", () => {
+		expect(section).toContain("`Licensed states:`");
+		const turn = smsTurnMessage({
+			inbound: ["hi"],
+			history: [],
+			disclosure: "disclose",
+			bookingLink: null,
+			brand: "Acme",
+			identify: true,
+			licensedStates: ["TX"],
+		});
+		expect(turn).toContain("Licensed states: TX");
+	});
+
+	it("disqualify a lead outside the configured states", () => {
+		expect(judgeQualification({ state: "NY" }, ["TX", "FL"])).toMatchObject({
+			status: "disqualified",
+		});
+		expect(judgeQualification({ state: "TX" }, ["TX", "FL"]).status).not.toBe(
+			"disqualified",
 		);
-		const section = text.split("## Licensed states")[1]?.split("##")[0] ?? "";
-		const listed = section.match(/\b[A-Z]{2}\b/g) ?? [];
-		expect(listed).toEqual([...SMS_AGENT.licensedStates]);
+		expect(judgeQualification({ state: "NY" }, []).status).not.toBe(
+			"disqualified",
+		);
 	});
 });
 
@@ -99,6 +126,7 @@ describe("smsSessionOf", () => {
 			taskId: "t1",
 			bookingLink: null,
 			disclosure: "deflect",
+			identify: false,
 		});
 	});
 

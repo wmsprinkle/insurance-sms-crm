@@ -1,10 +1,9 @@
 import { timingSafeEqual } from "node:crypto";
 import {
-	SMS_BLOCK_REASONS,
 	type SmsSendPurpose,
 	type SmsSendResponse,
 } from "@crm/validation/sms-send";
-import type { BlockReason, SendPurpose } from "../compliance/send-gate";
+import type { SendPurpose } from "../compliance/send-gate";
 import type { SendOutcome } from "./sms-sender.service";
 
 const KILOBYTE = 1024;
@@ -30,11 +29,6 @@ export const SMS_INTERNAL = {
 		keyReused:
 			"This idempotency key already sent a different message or went to another contact.",
 	},
-	blockedAsFailed: {
-		"frequency-cap":
-			"The lead already got the most texts allowed in this period.",
-		"unsupported-number": "Only US (+1) numbers can be texted.",
-	},
 	blockedAs: { "no-opt-out-to-confirm": "suppressed" },
 	lease: { claimMs: 5 * MINUTE_MS },
 } as const;
@@ -59,14 +53,6 @@ export function gatePurpose(purpose: SmsSendPurpose): SendPurpose {
 		: "conversation";
 }
 
-type ContractBlockReason = (typeof SMS_BLOCK_REASONS)[number];
-
-function isContractBlockReason(
-	reason: BlockReason,
-): reason is ContractBlockReason {
-	return (SMS_BLOCK_REASONS as readonly string[]).includes(reason);
-}
-
 export function sendResponse(outcome: SendOutcome): SmsSendResponse {
 	if (outcome.status === "sent") {
 		return {
@@ -88,9 +74,6 @@ export function sendResponse(outcome: SendOutcome): SmsSendResponse {
 			reason: SMS_INTERNAL.blockedAs[reason],
 			retryAt: null,
 		};
-	}
-	if (!isContractBlockReason(reason)) {
-		return { status: "failed", error: SMS_INTERNAL.blockedAsFailed[reason] };
 	}
 	return {
 		status: "blocked",

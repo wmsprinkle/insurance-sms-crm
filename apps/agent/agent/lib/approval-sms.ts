@@ -1,5 +1,6 @@
 import {
 	SMS_HOLD_REASON_LABELS,
+	type SmsBlockReason,
 	type SmsHoldReason,
 	type SmsSendPurpose,
 } from "@crm/validation/sms-send";
@@ -18,6 +19,16 @@ export function holdBeforeSend(
 	if (FIXED_TEXT_PURPOSES.has(purpose)) return null;
 	return settings.autoSend ? null : "approval-mode";
 }
+
+const BLOCKED_TEXT = {
+	suppressed: "This number is suppressed. Send nothing more.",
+	"no-consent": "This contact has no active SMS consent. Send nothing more.",
+	"quiet-hours": "The send gate blocked it for quiet hours.",
+	"frequency-cap":
+		"The lead already got the most texts allowed in this period.",
+	"unsupported-number":
+		"Only US (+1) numbers can be texted. Send nothing more.",
+} as const satisfies Record<SmsBlockReason, string>;
 
 export type AttemptVerdict =
 	| { kind: "sent"; telnyxId: string; dryRun: boolean }
@@ -46,13 +57,15 @@ export function judgeAttempt(attempt: SendAttempt): AttemptVerdict {
 					detail: "The send gate blocked it for quiet hours.",
 				};
 			}
-			return {
-				kind: "refused",
-				reason:
-					attempt.reason === "suppressed"
-						? "This number is suppressed. Send nothing more."
-						: "This contact has no active SMS consent. Send nothing more.",
-			};
+			if (attempt.reason === "frequency-cap") {
+				return {
+					kind: "hold",
+					reason: "send-failed",
+					retryAt: null,
+					detail: BLOCKED_TEXT["frequency-cap"],
+				};
+			}
+			return { kind: "refused", reason: BLOCKED_TEXT[attempt.reason] };
 		case "failed":
 			return {
 				kind: "hold",

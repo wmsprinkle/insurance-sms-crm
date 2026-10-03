@@ -25,7 +25,6 @@ export const LEADS = {
 		reason: "First touch for a new lead",
 		priority: 50,
 		budget: 4,
-		agencyFallback: "Our team",
 	},
 } as const;
 

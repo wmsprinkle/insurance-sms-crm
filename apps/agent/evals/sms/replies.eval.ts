@@ -2,6 +2,7 @@ import { defineEval } from "eve/evals";
 import { satisfies } from "eve/evals/expect";
 import {
 	caseMessage,
+	EVAL_BRAND,
 	labelPattern,
 	NO_PRICE_PATTERN,
 	PRICE_PATTERN,
@@ -24,7 +25,7 @@ export default SMS_CASES.map((row) =>
 				return;
 			}
 
-			await t.send(caseMessage(row.inbound));
+			await t.send(caseMessage(row.inbound, row.brand));
 			t.succeeded();
 			t.calledTool("classify_reply", {
 				input: { label: labelPattern(row.labels) },
@@ -35,6 +36,18 @@ export default SMS_CASES.map((row) =>
 			}
 			if (row.silent) {
 				t.notCalledTool("send_sms");
+			}
+			if (row.brand) {
+				const named = new RegExp(EVAL_BRAND, "i");
+				t.check(
+					t.reply ?? "",
+					satisfies<string>(
+						(value) => named.test(value) === (row.brand === "named"),
+						row.brand === "named"
+							? "names the business"
+							: "does not repeat the business name",
+					),
+				);
 			}
 			if (row.noQuote) {
 				t.calledTool("send_sms", {

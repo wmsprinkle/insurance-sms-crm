@@ -12,6 +12,7 @@ export const SMS_ATTRIBUTES = {
 	taskId: "taskId",
 	bookingLink: "bookingLink",
 	disclosure: "disclosure",
+	identify: "identify",
 } as const;
 
 export type SmsSession = {
@@ -20,7 +21,10 @@ export type SmsSession = {
 	taskKind: string;
 	bookingLink: string | null;
 	disclosure: DisclosureMode | undefined;
+	identify: boolean;
 };
+
+export const IDENTIFY_ON = "yes";
 
 const SMS_KINDS = new Set<string>(Object.values(SMS_AGENT.taskKinds));
 
@@ -41,6 +45,7 @@ export function smsSessionOf(ctx: SessionContext): SmsSession | null {
 		disclosure: disclosure.parse(
 			attribute(ctx, SMS_ATTRIBUTES.disclosure) ?? undefined,
 		),
+		identify: attribute(ctx, SMS_ATTRIBUTES.identify) === IDENTIFY_ON,
 	};
 }
 

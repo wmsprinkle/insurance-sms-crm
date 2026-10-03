@@ -88,7 +88,10 @@ export const SMS_AGENT = {
 		tokenPrefix: "sms:",
 		deferMs: 30 * SECOND_MS,
 	},
-	licensedStates: [] as readonly string[],
+	identify: {
+		maxEarlierOutbound: 1,
+		separator: ": ",
+	},
 	booking: {
 		durationMs: 30 * MINUTE_MS,
 		horizonMs: 14 * 24 * HOUR_MS,

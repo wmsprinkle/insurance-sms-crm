@@ -289,6 +289,7 @@ describe("bookMeeting", () => {
 			idempotencyKey: `book_meeting:${call.eventId}`,
 		});
 		expect(h.sends[0]?.text).toContain("calendar invite");
+		expect(h.sends[0]?.text).toStartWith("Our team: ");
 	});
 
 	it("uses the email already on the contact", async () => {
@@ -374,9 +375,21 @@ describe("bookMeeting", () => {
 
 describe("confirmationText", () => {
 	it("keeps the confirmation free of contact details the guard strips", () => {
-		const text = confirmationText(slotLabel(new Date(START), ZONE), true);
+		const text = confirmationText(
+			slotLabel(new Date(START), ZONE),
+			true,
+			"Acme Insurance",
+		);
 		expect(text).not.toMatch(/@|https?:/);
 		expect(text.length).toBeLessThanOrEqual(480);
+	});
+
+	it("starts with the business name in both forms", () => {
+		for (const invited of [true, false]) {
+			expect(
+				confirmationText(slotLabel(new Date(START), ZONE), invited, "Acme"),
+			).toStartWith("Acme: You are booked for ");
+		}
 	});
 });
 

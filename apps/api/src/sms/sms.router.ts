@@ -4,6 +4,7 @@ import type { z } from "zod";
 import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import { restMeta } from "../trpc/openapi";
 import {
+	smsAgentSessionOutput,
 	smsMarkHandledOutput,
 	smsThreadInput,
 	smsThreadListInput,
@@ -35,6 +36,15 @@ export class SmsRouter {
 	})
 	async thread(@Input() input: z.infer<typeof smsThreadInput>) {
 		return this.threads.thread(input);
+	}
+
+	@Query({
+		input: smsThreadInput,
+		output: smsAgentSessionOutput,
+		meta: restMeta("GET", "/sms/threads/{contactId}/agent-sessions", ["SMS"]),
+	})
+	async agentSessions(@Input() input: z.infer<typeof smsThreadInput>) {
+		return this.threads.agentSessions(input);
 	}
 
 	@Mutation({

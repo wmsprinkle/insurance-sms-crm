@@ -1,6 +1,9 @@
 import type { SmsSendRequest } from "@crm/validation/sms-send";
 import type { SmsSettings } from "@crm/validation/sms-settings";
-import { DEFAULT_SMS_SETTINGS } from "@crm/validation/sms-settings";
+import {
+	DEFAULT_SMS_SETTINGS,
+	resolveBrand,
+} from "@crm/validation/sms-settings";
 import type { SendAttempt, SendPath } from "../../agent/lib/sms-outbound";
 import type {
 	DraftInput,
@@ -14,6 +17,7 @@ export type FakeSms = {
 	contacts: Map<string, SmsContact>;
 	settings: SmsSettings;
 	bookingLink: string | null;
+	workspaceName: string | null;
 	handoffs: Map<string, { reason: string; resolved: boolean }>;
 	drafts: (DraftInput & { id: string })[];
 	lines: Map<string, SmsLine & { id: string; contactId: string }>;
@@ -35,6 +39,7 @@ export function fakeSms(overrides: Partial<SmsSettings> = {}): FakeSms {
 		contacts: new Map([[LEAD.id, LEAD]]),
 		settings: { ...DEFAULT_SMS_SETTINGS, ...overrides },
 		bookingLink: null,
+		workspaceName: null,
 		handoffs: new Map(),
 		drafts: [],
 		lines: new Map(),
@@ -52,6 +57,8 @@ export function fakeSms(overrides: Partial<SmsSettings> = {}): FakeSms {
 	const store: SmsStore = {
 		contact: async (id) => fake.contacts.get(id) ?? null,
 		settings: async () => fake.settings,
+		brand: async () =>
+			resolveBrand(fake.settings.brandName, fake.workspaceName),
 		bookingLink: async () => fake.bookingLink,
 		activeHandoff: async (id) => {
 			const handoff = fake.handoffs.get(id);

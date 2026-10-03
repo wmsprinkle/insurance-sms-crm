@@ -28,7 +28,11 @@ export const SMS_BLOCK_REASONS = [
 	"suppressed",
 	"no-consent",
 	"quiet-hours",
+	"frequency-cap",
+	"unsupported-number",
 ] as const;
+
+export type SmsBlockReason = (typeof SMS_BLOCK_REASONS)[number];
 
 export const smsSendResponse = z.discriminatedUnion("status", [
 	z.object({

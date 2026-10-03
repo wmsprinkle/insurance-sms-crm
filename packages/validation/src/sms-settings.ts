@@ -11,7 +11,11 @@ export const SMS_TEMPLATE_TOKENS = {
 
 export const SMS_SETTINGS_LIMITS = {
 	firstMessage: { minLength: 20, maxLength: 320 },
+	brandName: { maxLength: 80 },
+	licensedStates: { maxCount: 60 },
 } as const;
+
+export const SMS_BRAND_FALLBACK = "Our team";
 
 export const DEFAULT_FIRST_MESSAGE_TEMPLATE =
 	"Hi {firstName}, this is {agency}. You asked us about an insurance quote, so we are following up here. Reply with any questions. Reply STOP to opt out.";
@@ -20,6 +24,8 @@ export const DEFAULT_SMS_SETTINGS = {
 	firstMessageTemplate: DEFAULT_FIRST_MESSAGE_TEMPLATE,
 	disclosureMode: "disclose",
 	autoSend: false,
+	brandName: "",
+	licensedStates: [] as string[],
 } as const satisfies SmsSettings;
 
 export const firstMessageTemplate = z
@@ -38,10 +44,41 @@ export const firstMessageTemplate = z
 		"The first message must tell the lead to reply STOP to opt out.",
 	);
 
+export const brandName = z
+	.string()
+	.trim()
+	.max(
+		SMS_SETTINGS_LIMITS.brandName.maxLength,
+		`The business name cannot be longer than ${SMS_SETTINGS_LIMITS.brandName.maxLength} characters.`,
+	)
+	.refine(
+		(value) => !/[@/\\<>]|https?:|www\./i.test(value),
+		"The business name cannot hold a link or an email address.",
+	);
+
+export const licensedStates = z
+	.array(
+		z
+			.string()
+			.trim()
+			.toUpperCase()
+			.regex(/^[A-Z]{2}$/, "A state is a two-letter US code."),
+	)
+	.max(
+		SMS_SETTINGS_LIMITS.licensedStates.maxCount,
+		`List at most ${SMS_SETTINGS_LIMITS.licensedStates.maxCount} states.`,
+	)
+	.refine(
+		(states) => new Set(states).size === states.length,
+		"A state appears twice.",
+	);
+
 export const smsSettings = z.object({
 	firstMessageTemplate,
 	disclosureMode: z.enum(SMS_DISCLOSURE_MODES),
 	autoSend: z.boolean(),
+	brandName,
+	licensedStates,
 });
 
 export type SmsSettings = z.infer<typeof smsSettings>;
@@ -61,6 +98,13 @@ export function parseSmsSettings(value: unknown): SmsSettings {
 		);
 	}
 	return { ...DEFAULT_SMS_SETTINGS, ...parsed.data };
+}
+
+export function resolveBrand(
+	brandName: string,
+	workspaceName: string | null | undefined,
+): string {
+	return brandName.trim() || workspaceName?.trim() || SMS_BRAND_FALLBACK;
 }
 
 export function renderFirstMessage(

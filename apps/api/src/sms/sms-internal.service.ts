@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
 import { type Db, SmsDirection } from "@crm/db";
-import { WORKSPACE_ID } from "@crm/db/workspace";
 import {
 	type SmsSendRequest,
 	type SmsSendResponse,
@@ -11,6 +10,7 @@ import { z } from "zod";
 import { optOutConfirmationKey } from "../compliance/send-gate";
 import { InjectDatabase } from "../database/database.constants";
 import { optOutConfirmationText } from "./keywords";
+import { readBrand } from "./sms-brand";
 import { gatePurpose, SMS_INTERNAL, sendResponse } from "./sms-internal";
 import { SendOutcomeUnknownError, SmsSender } from "./sms-sender.service";
 import { isUniqueViolation } from "./unique-violation";
@@ -117,21 +117,18 @@ export class SmsInternalService {
 	private async optOutConfirmation(
 		request: SmsSendRequest,
 	): Promise<SmsSendRequest | null> {
-		const [suppression, workspace] = await Promise.all([
+		const [suppression, brand] = await Promise.all([
 			this.db.phoneSuppression.findUnique({
 				where: { e164: request.to },
 				select: { reason: true, createdAt: true },
 			}),
-			this.db.organization.findUnique({
-				where: { id: WORKSPACE_ID },
-				select: { name: true },
-			}),
+			readBrand(this.db),
 		]);
 		if (!suppression) return null;
 
 		return {
 			...request,
-			text: optOutConfirmationText(suppression.reason, workspace?.name ?? null),
+			text: optOutConfirmationText(suppression.reason, brand),
 			idempotencyKey: optOutConfirmationKey(request.to, suppression.createdAt),
 		};
 	}

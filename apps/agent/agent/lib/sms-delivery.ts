@@ -5,6 +5,7 @@ import {
 } from "@crm/validation/outbound-guard";
 import type { SmsHoldReason, SmsSendPurpose } from "@crm/validation/sms-send";
 import { explainHold, holdBeforeSend, judgeAttempt } from "./approval-sms";
+import { withBrand } from "./sms-brand";
 import { SMS_AGENT } from "./sms-config";
 import type { SendPath } from "./sms-outbound";
 import type { SmsStore } from "./sms-store";
@@ -17,6 +18,7 @@ export type DeliveryRequest = {
 	idempotencyKey: string;
 	bookingLink: string | null;
 	disclosure?: DisclosureMode;
+	identify?: boolean;
 	quietHours?: "draft" | "defer";
 	oncePerKey?: boolean;
 };
@@ -82,8 +84,11 @@ export async function deliver(
 	}
 
 	const settings = await deps.store.settings();
+	const text = request.identify
+		? withBrand(request.text, await deps.store.brand())
+		: request.text;
 	const verdict = guardOutbound({
-		message: request.text,
+		message: text,
 		bookingLink: request.bookingLink,
 		disclosure: request.disclosure ?? settings.disclosureMode,
 	});
