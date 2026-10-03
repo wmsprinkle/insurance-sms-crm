@@ -107,6 +107,8 @@ export const PROCEDURE_ROLES = {
 	"smsDrafts.handBack": "member",
 	"smsDrafts.compose": "member",
 	"sms.markHandled": "member",
+	"sms.simulateInbound": "admin",
+	"sms.sendTestFirstMessage": "admin",
 	"sso.register": "admin",
 	"sso.remove": "admin",
 	"tracking.setFlag": "admin",

@@ -10,6 +10,7 @@ import { SmsDraftsRouter } from "./drafts.router";
 import { SmsDraftsService } from "./drafts.service";
 import { KeywordService } from "./keyword.service";
 import { RateLimiter } from "./rate-limiter";
+import { SmsSimulateService } from "./simulate.service";
 import { SmsRouter } from "./sms.router";
 import { SmsService } from "./sms.service";
 import { SMS } from "./sms-config";
@@ -43,6 +44,7 @@ function telnyxClient(forceDryRun: boolean): TelnyxClient {
 		SmsSender,
 		KeywordService,
 		SmsThreadsService,
+		SmsSimulateService,
 		SmsRouter,
 		SmsInternalService,
 		SmsDraftsService,

@@ -4,6 +4,13 @@ import type { z } from "zod";
 import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import { restMeta } from "../trpc/openapi";
 import {
+	smsSendTestFirstMessageInput,
+	smsSendTestFirstMessageOutput,
+	smsSimulateInboundInput,
+	smsSimulateInboundOutput,
+} from "./simulate.contracts";
+import { SmsSimulateService } from "./simulate.service";
+import {
 	smsAgentSessionOutput,
 	smsMarkHandledOutput,
 	smsThreadInput,
@@ -18,6 +25,7 @@ import { SmsThreadsService } from "./sms-threads.service";
 export class SmsRouter {
 	constructor(
 		@Inject(SmsThreadsService) private readonly threads: SmsThreadsService,
+		@Inject(SmsSimulateService) private readonly simulate: SmsSimulateService,
 	) {}
 
 	@Query({
@@ -54,5 +62,31 @@ export class SmsRouter {
 	})
 	async markHandled(@Input() input: z.infer<typeof smsThreadInput>) {
 		return this.threads.markHandled(input);
+	}
+
+	@Mutation({
+		input: smsSimulateInboundInput,
+		output: smsSimulateInboundOutput,
+		meta: restMeta("POST", "/sms/threads/{contactId}/simulate-inbound", [
+			"SMS",
+		]),
+	})
+	async simulateInbound(
+		@Input() input: z.infer<typeof smsSimulateInboundInput>,
+	) {
+		return this.simulate.simulateInbound(input);
+	}
+
+	@Mutation({
+		input: smsSendTestFirstMessageInput,
+		output: smsSendTestFirstMessageOutput,
+		meta: restMeta("POST", "/sms/threads/{contactId}/test-first-message", [
+			"SMS",
+		]),
+	})
+	async sendTestFirstMessage(
+		@Input() input: z.infer<typeof smsSendTestFirstMessageInput>,
+	) {
+		return this.simulate.sendTestFirstMessage(input);
 	}
 }

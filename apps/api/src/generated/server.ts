@@ -32,7 +32,9 @@ import { agentModelOutput, modelCatalogOutput, setAgentModelInput, researchKeyOu
 import { slackStatusOutput, slackMatchesOutput, slackChannelsInput, slackChannelsOutput, slackJoinChannelInput, slackJoinChannelOutput, slackRefreshPeopleOutput, slackCreateChannelInput, slackCreateChannelOutput, slackDisconnectOutput } from "../slack/slack.contracts";
 import { smsDraftQueueOutput, smsDraftApproveInput, smsSendOutcome, smsDraftIdInput, smsDraftDiscardOutput, smsHandBackInput, smsHandBackOutput, smsComposeInput } from "../sms/drafts.contracts";
 import { smsThreadListInput, smsThreadListOutput, smsThreadInput, smsThreadOutput, smsAgentSessionOutput, smsMarkHandledOutput } from "../sms/sms-threads.contracts";
+import { smsSimulateInboundInput, smsSimulateInboundOutput, smsSendTestFirstMessageInput, smsSendTestFirstMessageOutput } from "../sms/simulate.contracts";
 import { ssoSignInOptionsOutput, ssoSettingsOutput, ssoProviderListInput, ssoProviderListOutput, registerSsoProviderInput, ssoProviderOutput, deleteSsoProviderInput, deleteSsoProviderOutput } from "../sso/sso.contracts";
+import { todaySummaryOutput, todayMeetingsOutput, todayLeadsInput, todayLeadsOutput, todayLeadInput, todayLeadOutput } from "../today/today.contracts";
 import { trackingSettingsOutput, trackingFlagInput, cookieLifetimeInput, addDomainInput, trackedDomainOutput, removeDomainInput, rotateSiteIdOutput, verifyInput, verifyOutput, sourcesOutput, companyActivityInput, websiteActivityOutput, contactActivityInput } from "../tracking/tracking.contracts";
 import { workspaceOutput, memberListInput, memberListOutput, updateWorkspaceInput, setMemberRoleInput, workspaceMemberOutput } from "../workspace/workspace.contracts";
 import type { UsersRouter } from "../users/users.router";
@@ -731,6 +733,14 @@ const appRouter = t.router({
     markHandled: publicProcedure
       .input(smsThreadInput)
       .output(smsMarkHandledOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    simulateInbound: publicProcedure
+      .input(smsSimulateInboundInput)
+      .output(smsSimulateInboundOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    sendTestFirstMessage: publicProcedure
+      .input(smsSendTestFirstMessageInput)
+      .output(smsSendTestFirstMessageOutput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   sso: t.router({
@@ -752,6 +762,22 @@ const appRouter = t.router({
       .input(deleteSsoProviderInput)
       .output(deleteSsoProviderOutput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  today: t.router({
+    summary: publicProcedure
+      .output(todaySummaryOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    meetings: publicProcedure
+      .output(todayMeetingsOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    leads: publicProcedure
+      .input(todayLeadsInput)
+      .output(todayLeadsOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    lead: publicProcedure
+      .input(todayLeadInput)
+      .output(todayLeadOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   tracking: t.router({
     settings: publicProcedure
