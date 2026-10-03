@@ -37,16 +37,48 @@ export type OptOutIntent = "opt_out" | "wrong_number";
 
 const PHRASE_INTENTS: readonly OptOutIntent[] = ["wrong_number", "opt_out"];
 
+const HOMOGLYPH_PATTERN = new RegExp(
+	`[${Object.keys(SMS.optOutPhrases.homoglyphs).join("")}]`,
+	"g",
+);
+
 function normalisePhrase(text: string): string {
-	return text
+	const folded = text
+		.normalize("NFKC")
 		.toLowerCase()
+		.replace(
+			HOMOGLYPH_PATTERN,
+			(char) => SMS.optOutPhrases.homoglyphs[char] ?? char,
+		)
+		.normalize("NFD")
+		.replace(/\p{M}+/gu, "")
+		.replace(/[\u200b-\u200f\u2060\ufeff\u00ad]/g, "")
 		.replace(/[\u2018\u2019\u02bc]/g, "'")
 		.replace(/[^a-z0-9'#]+/g, " ")
 		.trim();
+	const joined = folded.replace(/\b(?:[a-z] ){2,}[a-z]\b/g, (run) =>
+		run.replace(/ /g, ""),
+	);
+	const squeezed = joined.replace(/([a-z])\1{2,}/g, "$1");
+	return squeezed
+		.split(" ")
+		.map((word) => SMS.optOutPhrases.slang[word] ?? word)
+		.join(" ");
 }
 
 function containsPhrase(haystack: string, phrase: string): boolean {
 	return ` ${haystack} `.includes(` ${phrase} `);
+}
+
+function hasStopWord(normalised: string): boolean {
+	if (normalised.length > SMS.optOutPhrases.shortMessageMaxChars) return false;
+
+	let rest = normalised;
+	for (const benign of SMS.optOutPhrases.benignStop) {
+		rest = rest.replace(new RegExp(benign, "g"), " ");
+	}
+	const stopWords: readonly string[] = SMS.optOutPhrases.stopWords;
+	return rest.split(" ").some((word) => stopWords.includes(word));
 }
 
 export function optOutIntentOf(text: string): OptOutIntent | null {
@@ -60,9 +92,7 @@ export function optOutIntentOf(text: string): OptOutIntent | null {
 	);
 	if (intent) return intent;
 
-	const [first] = normalised.split(" ");
-	const leading: readonly string[] = SMS.optOutPhrases.leadingStopWords;
-	return first && leading.includes(first.toUpperCase()) ? "opt_out" : null;
+	return hasStopWord(normalised) ? "opt_out" : null;
 }
 
 export function optOutConfirmationText(
