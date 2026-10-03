@@ -30,6 +30,7 @@ import { leadImportPreviewInput, leadImportOutput, leadImportCommitInput } from 
 import { savedViewListInput, savedViewListOutput, savedViewCreateInput, savedViewOutput, savedViewUpdateArgs, savedViewIdInput, savedViewDeleteOutput } from "../saved-views/saved-views.contracts";
 import { agentModelOutput, modelCatalogOutput, setAgentModelInput, researchKeyOutput, setResearchKeyInput, archiveRetentionOutput, setArchiveRetentionDaysInput, smsSettingsOutput, setSmsSettingsInput, quietHoursOutput } from "../settings/settings.contracts";
 import { slackStatusOutput, slackMatchesOutput, slackChannelsInput, slackChannelsOutput, slackJoinChannelInput, slackJoinChannelOutput, slackRefreshPeopleOutput, slackCreateChannelInput, slackCreateChannelOutput, slackDisconnectOutput } from "../slack/slack.contracts";
+import { smsDraftQueueOutput, smsDraftApproveInput, smsSendOutcome, smsDraftIdInput, smsDraftDiscardOutput, smsHandBackInput, smsHandBackOutput, smsComposeInput } from "../sms/drafts.contracts";
 import { smsThreadListInput, smsThreadListOutput, smsThreadInput, smsThreadOutput, smsMarkHandledOutput } from "../sms/sms-threads.contracts";
 import { ssoSignInOptionsOutput, ssoSettingsOutput, ssoProviderListInput, ssoProviderListOutput, registerSsoProviderInput, ssoProviderOutput, deleteSsoProviderInput, deleteSsoProviderOutput } from "../sso/sso.contracts";
 import { trackingSettingsOutput, trackingFlagInput, cookieLifetimeInput, addDomainInput, trackedDomainOutput, removeDomainInput, rotateSiteIdOutput, verifyInput, verifyOutput, sourcesOutput, companyActivityInput, websiteActivityOutput, contactActivityInput } from "../tracking/tracking.contracts";
@@ -681,6 +682,27 @@ const appRouter = t.router({
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     disconnect: publicProcedure
       .output(slackDisconnectOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  smsDrafts: t.router({
+    queue: publicProcedure
+      .output(smsDraftQueueOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    approve: publicProcedure
+      .input(smsDraftApproveInput)
+      .output(smsSendOutcome)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    discard: publicProcedure
+      .input(smsDraftIdInput)
+      .output(smsDraftDiscardOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    handBack: publicProcedure
+      .input(smsHandBackInput)
+      .output(smsHandBackOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    compose: publicProcedure
+      .input(smsComposeInput)
+      .output(smsSendOutcome)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   sms: t.router({

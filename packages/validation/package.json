@@ -17,6 +17,7 @@
 		"./field-backfill": "./src/field-backfill.ts",
 		"./field-templates": "./src/field-templates.ts",
 		"./first-touch-task": "./src/first-touch-task.ts",
+		"./outbound-guard": "./src/outbound-guard.ts",
 		"./phone": "./src/phone.ts",
 		"./saved-view": "./src/saved-view.ts",
 		"./sms-qualification": "./src/sms-qualification.ts",

@@ -6,6 +6,8 @@ import { ComplianceModule } from "../compliance/compliance.module";
 import { SendGateService } from "../compliance/send-gate";
 import { DATABASE } from "../database/database.constants";
 import { TrpcModule } from "../trpc/trpc.module";
+import { SmsDraftsRouter } from "./drafts.router";
+import { SmsDraftsService } from "./drafts.service";
 import { KeywordService } from "./keyword.service";
 import { RateLimiter } from "./rate-limiter";
 import { SmsRouter } from "./sms.router";
@@ -43,6 +45,8 @@ function telnyxClient(forceDryRun: boolean): TelnyxClient {
 		SmsThreadsService,
 		SmsRouter,
 		SmsInternalService,
+		SmsDraftsService,
+		SmsDraftsRouter,
 		{
 			provide: TelnyxClient,
 			useFactory: () => telnyxClient(false),
