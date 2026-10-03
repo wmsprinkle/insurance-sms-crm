@@ -1,4 +1,4 @@
-import { devLoginFromEnvironment } from "@crm/auth/dev-login";
+import { devLoginFromEnvironment, isLoopbackUrl } from "@crm/auth/dev-login";
 import { plainToInstance, Type } from "class-transformer";
 import {
 	IsEnum,
@@ -163,6 +163,92 @@ export class EnvironmentVariables {
 
 export type RawEnvironment = Record<string, string | undefined>;
 
+const SECRET_MIN_LENGTH = 32;
+
+const PLACEHOLDER_SECRET =
+	/^(changeme|change-me|secret|password|dummy|test|example|xxx+)/i;
+
+function isHttps(value: string | undefined): boolean {
+	if (!value) return false;
+	try {
+		return new URL(value).protocol === "https:";
+	} catch {
+		return false;
+	}
+}
+
+function isLoopback(value: string): boolean {
+	try {
+		return isLoopbackUrl(value);
+	} catch {
+		return false;
+	}
+}
+
+export function productionProblems(config: RawEnvironment): string[] {
+	if (config.NODE_ENV !== "production") return [];
+
+	const problems: string[] = [];
+	const has = (key: string) => (config[key] ?? "").length > 0;
+
+	if (
+		!(has("GOOGLE_CLIENT_ID") && has("GOOGLE_CLIENT_SECRET")) &&
+		!(has("MICROSOFT_CLIENT_ID") && has("MICROSOFT_CLIENT_SECRET"))
+	) {
+		problems.push(
+			"Production needs OAuth sign-in: set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET (or the MICROSOFT pair). See docs/OAUTH_SETUP.md.",
+		);
+	}
+
+	if (PLACEHOLDER_SECRET.test(config.BETTER_AUTH_SECRET ?? "")) {
+		problems.push("BETTER_AUTH_SECRET looks like a placeholder.");
+	}
+
+	const urls: Array<[string, string | undefined]> = [
+		["API_URL", config.API_URL ?? config.BETTER_AUTH_URL],
+		...(config.APP_URL ?? "")
+			.split(",")
+			.map((url): [string, string] => ["APP_URL", url.trim()])
+			.filter(([, url]) => url.length > 0),
+	];
+	if (!has("API_URL") && !has("BETTER_AUTH_URL")) {
+		problems.push("API_URL must be set to the public https URL of the API.");
+	}
+	if (!has("APP_URL")) {
+		problems.push("APP_URL must be set to the public https URL of the app.");
+	}
+	for (const [key, url] of urls) {
+		if (url && !isHttps(url)) problems.push(`${key} must be an https URL.`);
+		else if (url && isLoopback(url)) {
+			problems.push(`${key} must not be localhost in production.`);
+		}
+		if (url?.includes("*"))
+			problems.push(`${key} must not contain a wildcard.`);
+	}
+
+	if (has("AGENT_URL")) {
+		const secret = config.AGENT_BRIDGE_SECRET ?? "";
+		if (secret.length < SECRET_MIN_LENGTH) {
+			problems.push(
+				`AGENT_BRIDGE_SECRET must be at least ${SECRET_MIN_LENGTH} characters when AGENT_URL is set.`,
+			);
+		}
+	}
+
+	if (config.DRY_RUN === "false") {
+		if (!has("TELNYX_PUBLIC_KEY")) {
+			problems.push(
+				"DRY_RUN=false needs TELNYX_PUBLIC_KEY. Without it the webhook cannot verify Telnyx.",
+			);
+		}
+		if (!has("TELNYX_API_KEY")) {
+			problems.push("DRY_RUN=false needs TELNYX_API_KEY.");
+		}
+	}
+
+	return problems;
+}
+
 export function validateEnv(config: RawEnvironment): EnvironmentVariables {
 	const validated = plainToInstance(EnvironmentVariables, config, {
 		enableImplicitConversion: true,
@@ -185,6 +271,13 @@ export function validateEnv(config: RawEnvironment): EnvironmentVariables {
 	}
 
 	devLoginFromEnvironment(config);
+
+	const unsafe = productionProblems(config);
+	if (unsafe.length > 0) {
+		throw new Error(
+			`Refusing to start in production:\n  - ${unsafe.join("\n  - ")}`,
+		);
+	}
 
 	return validated;
 }
