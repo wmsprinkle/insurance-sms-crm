@@ -117,6 +117,25 @@ Then:
 Inbound texts cannot be simulated from the UI. To test the reply path locally you need
 a signed Telnyx webhook (section 4) or the unit tests in `apps/api/test/sms-*.spec.ts`.
 
+### Local sign-in without OAuth
+
+For a look at the app on your own machine, skip Google and Microsoft. Set in `.env`:
+
+```sh
+ALLOWED_SIGN_IN="you@gmail.com"   # a full address; the first one is used
+DEV_LOGIN="true"
+```
+
+Restart. The sign-in page shows **Continue as you@gmail.com** with the label
+"Local development only". The button creates that user if missing and signs you in.
+The first user becomes owner, as with OAuth. `ALLOWED_SIGN_IN` still applies.
+
+It is off unless `DEV_LOGIN` is exactly `true`. With `DEV_LOGIN="true"`, the API and the
+app refuse to boot if `NODE_ENV` is `production`, if `API_URL` or `APP_URL` is not
+`localhost` or `127.0.0.1`, or if `ALLOWED_SIGN_IN` has no full address. The route is not
+registered when it is off. Never set `DEV_LOGIN` on a server. The session has no Google or
+Microsoft account behind it, so Gmail, Calendar and booking need a real OAuth connection.
+
 ## 4. Connect Telnyx
 
 Do this only after the toll-free number is verified. Unverified toll-free numbers cannot

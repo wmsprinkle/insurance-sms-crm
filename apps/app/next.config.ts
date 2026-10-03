@@ -1,7 +1,10 @@
+import { devLoginFromEnvironment } from "@crm/auth/dev-login";
 import { loadRootEnv } from "@crm/env";
 import type { NextConfig } from "next";
 
 loadRootEnv();
+
+devLoginFromEnvironment(process.env);
 
 const apiUrl =
 	process.env.API_URL ??

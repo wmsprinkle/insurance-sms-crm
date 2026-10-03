@@ -1,5 +1,6 @@
 import "@crm/env/load";
 import { featureEnabled } from "@crm/env/features";
+import { devLoginFromEnvironment } from "./dev-login";
 
 const DEFAULT_API_URL = "http://localhost:3001";
 const DEFAULT_APP_URL = "http://localhost:3000";
@@ -60,6 +61,8 @@ const appUrls = (optional("APP_URL") ?? DEFAULT_APP_URL)
 
 const appUrl = appUrls[0] ?? DEFAULT_APP_URL;
 
+const devLogin = devLoginFromEnvironment(process.env);
+
 export const env = {
 	apiUrl,
 	appUrl,
@@ -68,6 +71,7 @@ export const env = {
 	slack: slackCredentials(),
 	cookieDomain: optional("AUTH_COOKIE_DOMAIN"),
 	trustedOrigins: [...new Set([...appUrls, apiUrl])],
+	devLogin,
 	isProduction: process.env.NODE_ENV === "production",
 } as const;
 

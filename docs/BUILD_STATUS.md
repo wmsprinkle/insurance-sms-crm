@@ -955,3 +955,18 @@ Date: 2026-10-03. HEAD at start `11013cc`. Full report: `docs/QA_REPORT.md`. Han
 Results: check-types 13/13, lint 9/9, slop pass, 1,922 tests pass and 1 fails (telemetry two-process, needs a real server). 61 migrations apply with no drift. Secrets scan clean.
 
 Not run: real Postgres, real Telnyx and Google, eve runtime and evals, `next build`, carrier verification, legal review.
+
+# Local dev sign-in (worker-crm-devlogin)
+
+Date: 2026-10-03. Docs: `SMS_SETUP.md` → "Local sign-in without OAuth".
+
+| Item | Status |
+|---|---|
+| `DEV_LOGIN="true"` adds a "Continue as <first ALLOWED_SIGN_IN address>" button | `packages/auth/src/dev-login.ts` (pure rules), `dev-login-plugin.ts` (route `POST /api/auth/dev-login`), `apps/app/app/(landing)/sign-in/dev-sign-in.tsx` |
+| Fails closed | Plugin is registered only when `resolveDevLogin` returns enabled. Route does not exist otherwise. |
+| Boot refusal | `DEV_LOGIN=true` with `NODE_ENV=production`, a non-loopback `API_URL`/`APP_URL`, or no full address in `ALLOWED_SIGN_IN` throws in `@crm/auth` env, API `validateEnv` and `next.config.ts`. |
+| Route guard | The handler also rejects a non-loopback request host or `Origin`. |
+| Allow-list | User is created through Better Auth's adapter, so the `user.create.before` allow-list hook, session hooks and first-user-owner logic run as for OAuth. |
+| Tests | `packages/auth/test/dev-login.spec.ts` (10), `apps/api/src/config/env.validation.spec.ts` (5). |
+
+Not run: the route against a real Postgres and a browser. No Google/Microsoft `account` row is created, so Gmail, Calendar and booking need real OAuth. `next.config.ts` (outside the listed scope) got a one-line boot guard.

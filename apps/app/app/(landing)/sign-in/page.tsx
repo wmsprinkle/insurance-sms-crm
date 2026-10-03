@@ -1,3 +1,4 @@
+import { devLoginFromEnvironment } from "@crm/auth/dev-login";
 import type { MailboxProviderId } from "@crm/auth/scopes";
 import type { Metadata } from "next";
 import { redirect, unstable_rethrow } from "next/navigation";
@@ -5,6 +6,7 @@ import { Suspense } from "react";
 import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { getSession } from "@/lib/session";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+import { DevSignIn } from "./dev-sign-in";
 import { SocialSignIn } from "./social-sign-in";
 import { type SsoProvider, SsoSignIn } from "./sso-sign-in";
 
@@ -74,6 +76,8 @@ async function SignIn({
 	if (options?.google ?? true) configured.push("google");
 	if (options?.microsoft ?? false) configured.push("microsoft");
 
+	const devLogin = devLoginFromEnvironment(process.env);
+
 	const providers = options?.providers ?? [];
 
 	const insisted = configured.find((provider) => provider === method);
@@ -85,7 +89,7 @@ async function SignIn({
 				? configured
 				: [];
 
-	if (!showSso && social.length === 0) {
+	if (!showSso && social.length === 0 && !devLogin.enabled) {
 		return (
 			<>
 				<AuthHeading
@@ -114,6 +118,7 @@ async function SignIn({
 			{social.map((provider) => (
 				<SocialSignIn key={provider} provider={provider} />
 			))}
+			{devLogin.enabled ? <DevSignIn email={devLogin.email} /> : null}
 		</>
 	);
 }

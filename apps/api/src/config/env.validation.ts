@@ -1,3 +1,4 @@
+import { devLoginFromEnvironment } from "@crm/auth/dev-login";
 import { plainToInstance, Type } from "class-transformer";
 import {
 	IsEnum,
@@ -47,6 +48,10 @@ export class EnvironmentVariables {
 			'ALLOWED_SIGN_IN is required — it is the only thing deciding who can sign in. Set it to your email domain, e.g. ALLOWED_SIGN_IN="acme.com", or to a single address for a one-person install.',
 	})
 	ALLOWED_SIGN_IN!: string;
+
+	@IsOptional()
+	@IsString()
+	DEV_LOGIN?: string;
 
 	@IsOptional()
 	@IsString()
@@ -178,6 +183,8 @@ export function validateEnv(config: RawEnvironment): EnvironmentVariables {
 			`Invalid environment configuration:\n  - ${details}\n\nSee .env.example at the root of the repo.`,
 		);
 	}
+
+	devLoginFromEnvironment(config);
 
 	return validated;
 }
