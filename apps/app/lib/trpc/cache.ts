@@ -328,8 +328,12 @@ export function useCrmCache(): CrmCache {
 
 		sms: (options) =>
 			run(
-				[trpc.sms.thread.pathKey()],
-				[trpc.sms.threadList.pathKey()],
+				[trpc.sms.thread.pathKey(), trpc.today.lead.pathKey()],
+				[
+					trpc.sms.threadList.pathKey(),
+					trpc.today.summary.pathKey(),
+					trpc.today.leads.pathKey(),
+				],
 				options,
 			),
 

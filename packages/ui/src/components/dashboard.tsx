@@ -1,11 +1,17 @@
 import { cn } from "@crm/ui/lib/utils";
 import type * as React from "react";
 
+const STAT_COLUMNS = {
+	4: "@2xl/stats:grid-cols-4",
+	5: "@2xl/stats:grid-cols-5",
+} as const;
+
 function StatGroup({
 	className,
 	children,
+	columns = 4,
 	...props
-}: React.ComponentProps<"div">) {
+}: React.ComponentProps<"div"> & { columns?: keyof typeof STAT_COLUMNS }) {
 	return (
 		<div
 			data-slot="stat-group"
@@ -14,7 +20,8 @@ function StatGroup({
 		>
 			<div
 				className={cn(
-					"grid grid-cols-2 @2xl/stats:grid-cols-4",
+					"grid grid-cols-2 [&>*:last-child:nth-child(odd)]:col-span-2 @2xl/stats:[&>*:last-child:nth-child(odd)]:col-span-1",
+					STAT_COLUMNS[columns],
 					"[&:nth-child(2n)]:border-l [&:nth-child(n+3)]:border-t",
 					"@2xl/stats:[&>*]:border-t-0 @2xl/stats:[&>*]:border-l @2xl/stats:[&>*:first-child]:border-l-0",
 				)}

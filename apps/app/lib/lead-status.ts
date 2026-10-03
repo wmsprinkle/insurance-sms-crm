@@ -51,6 +51,11 @@ const META = {
 		tone: "error",
 		help: "The lead asked for no more texts. Nothing is sent.",
 	},
+	abusive: {
+		label: "Abusive",
+		tone: "error",
+		help: "The lead sent an abusive reply. Nothing more is sent.",
+	},
 } as const satisfies Record<LeadStatus, LeadStatusMeta>;
 
 export const LEAD_STATUS_ORDER = [
@@ -62,6 +67,7 @@ export const LEAD_STATUS_ORDER = [
 	"booked",
 	"not_interested",
 	"opted_out",
+	"abusive",
 ] as const satisfies readonly LeadStatus[];
 
 export function leadStatusMeta(status: LeadStatus): LeadStatusMeta {

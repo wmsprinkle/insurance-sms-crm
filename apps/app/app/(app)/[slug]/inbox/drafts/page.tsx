@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { InboxTabs } from "@/components/crm/inbox-tabs";
 import { SmsDraftsQueue } from "@/components/crm/sms-drafts-queue";
-import { SmsNavLink } from "@/components/crm/sms-nav-link";
 import {
 	PageShell,
 	PageShellActions,
@@ -17,7 +17,7 @@ import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 
 export const metadata: Metadata = {
-	title: "SMS drafts",
+	title: "Inbox drafts",
 };
 
 export default function SmsDraftsPage() {
@@ -25,14 +25,14 @@ export default function SmsDraftsPage() {
 		<PageShell>
 			<PageShellHeader>
 				<PageShellHeading>
-					<PageShellTitle>SMS drafts</PageShellTitle>
+					<PageShellTitle>Inbox</PageShellTitle>
 					<PageShellDescription>
 						Texts the agent held for a person, and conversations a person owns.
 						Every approved text still passes the send gate.
 					</PageShellDescription>
 				</PageShellHeading>
 				<PageShellActions>
-					<SmsNavLink path="/inbox" label="Inbox" />
+					<InboxTabs active="drafts" />
 				</PageShellActions>
 			</PageShellHeader>
 
