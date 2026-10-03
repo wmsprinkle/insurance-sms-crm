@@ -2,6 +2,7 @@ import { readSmsEnv } from "@crm/env/sms";
 import { Logger, Module } from "@nestjs/common";
 import { AgentModule } from "../agent/agent.module";
 import { ComplianceModule } from "../compliance/compliance.module";
+import { KeywordService } from "./keyword.service";
 import { RateLimiter } from "./rate-limiter";
 import { SmsService } from "./sms.service";
 import { SMS } from "./sms-config";
@@ -19,6 +20,7 @@ import {
 	providers: [
 		SmsService,
 		SmsSender,
+		KeywordService,
 		{
 			provide: TelnyxClient,
 			useFactory: () => {

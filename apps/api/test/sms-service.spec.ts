@@ -2,7 +2,14 @@ import { describe, expect, it } from "bun:test";
 import type { Db } from "@crm/db";
 import { SmsStatus } from "@crm/db/enums";
 import type { AgentTriggerService } from "../src/agent/agent-trigger.service";
+import { ConsentService } from "../src/compliance/consent.service";
+import { SendGateService } from "../src/compliance/send-gate";
+import { SuppressionService } from "../src/compliance/suppression.service";
+import { KeywordService } from "../src/sms/keyword.service";
+import { RateLimiter } from "../src/sms/rate-limiter";
 import { SmsService } from "../src/sms/sms.service";
+import { SmsSender } from "../src/sms/sms-sender.service";
+import { TelnyxClient } from "../src/sms/telnyx.client";
 import type { TelnyxInbound } from "../src/sms/telnyx-event";
 import { fakeDb } from "./support/sms-db";
 
@@ -24,12 +31,30 @@ function service(seed: Parameters<typeof fakeDb>[0] = {}) {
 	const { state, db } = fakeDb({ contacts: [CONTACT], ...seed });
 	let drained = 0;
 	const agents = { drainQueues: () => (drained += 1) };
+	const client = db as unknown as Db;
+	const consent = new ConsentService(client);
+	const suppression = new SuppressionService(client);
+	const telnyx = new TelnyxClient(
+		{
+			apiKey: null,
+			publicKey: null,
+			messagingProfileId: null,
+			fromNumber: "+18005550100",
+			messagesPerSecond: null,
+			dryRun: true,
+		},
+		new RateLimiter(10, 10, { now: () => 0, sleep: async () => undefined }),
+	);
+	const gate = new SendGateService(client, consent, suppression);
+	const sender = new SmsSender(client, gate, telnyx);
 	return {
 		state,
+		gate,
 		drained: () => drained,
 		sms: new SmsService(
-			db as unknown as Db,
+			client,
 			agents as unknown as AgentTriggerService,
+			new KeywordService(client, consent, suppression, sender),
 		),
 	};
 }
@@ -143,5 +168,126 @@ describe("SmsService.updateStatus", () => {
 			"unchanged",
 		);
 		expect(state.sms[0]?.status).toBe(SmsStatus.DELIVERED);
+	});
+});
+
+describe("SmsService.receive keywords", () => {
+	const consented = () => ({
+		consents: [
+			{ id: "c1", contactId: "contact-1", source: "WEB_FORM", revokedAt: null },
+		],
+	});
+
+	it("STOP suppresses the number, revokes consent, pauses tasks and confirms", async () => {
+		const { sms, state, drained } = service({
+			...consented(),
+			workspaceName: "Acme Insurance",
+			tasks: [
+				{
+					id: "t1",
+					contactId: "contact-1",
+					kind: "first-touch",
+					reason: "New lead",
+					payload: null,
+					startedAt: null,
+					finishedAt: null,
+					outcome: null,
+				},
+			],
+		});
+
+		expect(await sms.receive(inbound({ text: " stop. " }))).toBe(
+			"keyword-stop",
+		);
+
+		expect(state.suppressions).toEqual([
+			{ e164: "+15125550123", reason: "STOP_KEYWORD" },
+		]);
+		expect(state.consents[0]?.revokedAt).toBeInstanceOf(Date);
+		expect(state.tasks[0]).toMatchObject({ outcome: "opted-out" });
+		expect(state.tasks.some((task) => task.kind === "sms-reply")).toBe(false);
+		expect(drained()).toBe(0);
+		expect(state.sms.map((row) => row.direction)).toEqual([
+			"INBOUND",
+			"OUTBOUND",
+		]);
+		expect(state.sms[1]?.body).toStartWith(
+			"Acme Insurance: You are unsubscribed",
+		);
+		expect(state.events).toMatchObject([
+			{ type: "sms.send.allowed", data: { reason: "keyword-reply" } },
+		]);
+	});
+
+	it("blocks ordinary sends after STOP", async () => {
+		const { sms, gate } = service(consented());
+		await sms.receive(inbound({ text: "UNSUBSCRIBE" }));
+
+		await expect(
+			gate.check({
+				to: "+15125550123",
+				contactId: "contact-1",
+				purpose: "conversation",
+				now: new Date("2026-10-05T17:00:00Z"),
+			}),
+		).resolves.toMatchObject({ allowed: false, reason: "suppressed" });
+	});
+
+	it("does not re-run STOP for a Telnyx retry", async () => {
+		const { sms, state } = service(consented());
+
+		await sms.receive(inbound({ text: "STOP" }));
+		expect(await sms.receive(inbound({ text: "STOP" }))).toBe("duplicate");
+
+		expect(
+			state.sms.filter((row) => row.direction === "OUTBOUND"),
+		).toHaveLength(1);
+	});
+
+	it("STOP from an unknown number still suppresses it", async () => {
+		const { sms, state } = service({ contacts: [] });
+
+		expect(
+			await sms.receive(inbound({ from: "+13055550199", text: "quit" })),
+		).toBe("keyword-stop");
+
+		expect(state.suppressions).toEqual([
+			{ e164: "+13055550199", reason: "STOP_KEYWORD" },
+		]);
+		expect(state.sms).toHaveLength(0);
+	});
+
+	it("START lifts a STOP suppression and records SMS consent", async () => {
+		const { sms, state } = service({
+			suppressions: [{ e164: "+15125550123", reason: "STOP_KEYWORD" }],
+		});
+
+		expect(await sms.receive(inbound({ text: "Start" }))).toBe("keyword-start");
+
+		expect(state.suppressions).toHaveLength(0);
+		expect(state.consents).toMatchObject([
+			{ contactId: "contact-1", source: "SMS_KEYWORD", revokedAt: null },
+		]);
+	});
+
+	it("START does not lift a suppression a rep set by hand", async () => {
+		const { sms, state } = service({
+			suppressions: [{ e164: "+15125550123", reason: "MANUAL" }],
+		});
+
+		await sms.receive(inbound({ text: "UNSTOP" }));
+
+		expect(state.suppressions).toHaveLength(1);
+	});
+
+	it("HELP replies without changing consent or suppression", async () => {
+		const { sms, state } = service(consented());
+
+		expect(await sms.receive(inbound({ text: "help" }))).toBe("keyword-help");
+
+		expect(state.suppressions).toHaveLength(0);
+		expect(state.consents[0]?.revokedAt).toBeNull();
+		expect(state.sms[1]?.body).toContain("Reply STOP to unsubscribe");
+		expect(state.tasks).toHaveLength(0);
 	});
 });

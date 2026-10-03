@@ -21,4 +21,29 @@ export const SMS = {
 		budget: 4,
 	},
 	pausedTaskKinds: ["sms-reply", "first-touch", "sms-follow-up"],
+	keywords: {
+		stop: [
+			"STOP",
+			"STOPALL",
+			"STOP ALL",
+			"UNSUBSCRIBE",
+			"CANCEL",
+			"END",
+			"QUIT",
+			"OPTOUT",
+			"OPT-OUT",
+			"OPT OUT",
+			"REVOKE",
+		],
+		start: ["START", "UNSTOP"],
+		help: ["HELP", "INFO"],
+	},
+	keywordReplies: {
+		brandFallback: "Our team",
+		stop: "{brand}: You are unsubscribed and will get no more messages. Reply START to resubscribe.",
+		start:
+			"{brand}: You are resubscribed. Msg & data rates may apply. Reply HELP for help, STOP to unsubscribe.",
+		help: "{brand}: Reply to this message and a licensed agent will follow up. Msg & data rates may apply. Reply STOP to unsubscribe.",
+	},
+	optedOutOutcome: "opted-out",
 } as const;

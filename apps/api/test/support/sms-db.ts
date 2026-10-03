@@ -28,6 +28,7 @@ export type FakeContact = {
 };
 
 export type FakeState = {
+	workspaceName: string | null;
 	contacts: FakeContact[];
 	sms: FakeSms[];
 	tasks: FakeTask[];
@@ -83,6 +84,7 @@ function duplicate(): Prisma.PrismaClientKnownRequestError {
 
 export function fakeDb(seed: Partial<FakeState> = {}) {
 	const state: FakeState = {
+		workspaceName: null,
 		contacts: [],
 		sms: [],
 		tasks: [],
@@ -94,6 +96,10 @@ export function fakeDb(seed: Partial<FakeState> = {}) {
 
 	const client = {
 		$queryRaw: async () => [],
+		organization: {
+			findUnique: async () =>
+				state.workspaceName === null ? null : { name: state.workspaceName },
+		},
 		contact: {
 			findFirst: async ({ where }: { where: Where }) =>
 				state.contacts.find((row) => matches(row, where)) ?? null,

@@ -1,4 +1,4 @@
-import { type Db, Prisma, SmsDirection, SmsStatus } from "@crm/db";
+import { type Db, type Prisma, SmsDirection, SmsStatus } from "@crm/db";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
 import { toE164 } from "@crm/validation/phone";
 import {
@@ -8,27 +8,24 @@ import {
 import { Injectable, Logger } from "@nestjs/common";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { InjectDatabase } from "../database/database.constants";
+import { type KeywordOutcome, KeywordService } from "./keyword.service";
+import { keywordOf } from "./keywords";
 import { SMS } from "./sms-config";
 import {
 	statusesBelow,
 	type TelnyxInbound,
 	type TelnyxStatusUpdate,
 } from "./telnyx-event";
+import { isUniqueViolation } from "./unique-violation";
 
 export type InboundOutcome =
+	| KeywordOutcome
 	| "stored"
 	| "duplicate"
 	| "unknown-sender"
 	| "invalid-sender";
 
 export type StatusOutcome = "updated" | "unchanged";
-
-export function isUniqueViolation(cause: unknown): boolean {
-	return (
-		cause instanceof Prisma.PrismaClientKnownRequestError &&
-		cause.code === "P2002"
-	);
-}
 
 @Injectable()
 export class SmsService {
@@ -37,6 +34,7 @@ export class SmsService {
 	constructor(
 		@InjectDatabase() private readonly db: Db,
 		private readonly agents: AgentTriggerService,
+		private readonly keywords: KeywordService,
 	) {}
 
 	async receive(message: TelnyxInbound): Promise<InboundOutcome> {
@@ -50,6 +48,17 @@ export class SmsService {
 		}
 
 		const contact = await this.contactFor(from);
+
+		const keyword = keywordOf(message.text);
+		if (keyword) {
+			return this.keywords.handle({
+				keyword,
+				from,
+				contactId: contact?.id ?? null,
+				message,
+			});
+		}
+
 		if (!contact) {
 			this.logger.warn({
 				message: "Inbound SMS from a number no contact has",
