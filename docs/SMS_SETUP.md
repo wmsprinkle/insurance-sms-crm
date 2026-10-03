@@ -48,7 +48,9 @@ over the file.
 | `AGENT_PORT` | No | Port of a self-hosted agent (default 2000). |
 | `AGENT_BRIDGE_SECRET` | **Yes for SMS** | See section 6. |
 | `PORT` | No | API port (default 3001). |
-| `AI_GATEWAY_API_KEY` | Yes off Vercel | Model access. See section 8. |
+| `AI_GATEWAY_API_KEY` | Yes off Vercel, unless `ANTHROPIC_API_KEY` is set | Model access. See section 8. |
+| `ANTHROPIC_API_KEY` | No | Calls Claude direct. Replaces the Gateway. See section 8. |
+| `ANTHROPIC_WORKSPACE_ID` | No | Header `anthropic-workspace-id`, for a key not scoped to a workspace. |
 | `PERPLEXITY_API_KEY`, `GITHUB_TOKEN` | No | Upstream research tools. Off unless `FEATURE_ENRICHMENT="true"`. |
 | `BLOB_READ_WRITE_TOKEN` | No | Vercel Blob for logos and photos. |
 | `REDIS_URL`, `CACHE_TTL_MS` | No | Shared cache. Without it each instance caches in memory. |
@@ -74,7 +76,7 @@ over the file.
 The API declares its variables in `apps/api/src/config/env.validation.ts`. The agent
 reads `API_URL`, `AGENT_BRIDGE_SECRET` and `DRY_RUN` directly. Turbo runs with strict
 env: `apps/agent/turbo.json` passes `AGENT_BRIDGE_SECRET`, `AI_GATEWAY_API_KEY`,
-`API_URL`, `BLOB_READ_WRITE_TOKEN`, `DATABASE_URL`, `DRY_RUN`, `GITHUB_TOKEN` and
+`ANTHROPIC_API_KEY`, `ANTHROPIC_WORKSPACE_ID`, `API_URL`, `BLOB_READ_WRITE_TOKEN`, `DATABASE_URL`, `DRY_RUN`, `GITHUB_TOKEN` and
 `PERPLEXITY_API_KEY` to the agent's `dev` tasks. A variable missing from that list does
 not reach the agent under `bun run dev`.
 
@@ -255,9 +257,18 @@ Body (JSON, at most 32 KiB):
 `rejected` with reasons, 400 bad JSON, 401 bad signature or timestamp, 413 too large,
 503 secrets not set.
 
-## 8. Model access (Vercel AI Gateway)
+## 8. Model access (Anthropic or Vercel AI Gateway)
 
-The agent reaches its model through the Vercel AI Gateway. There is no provider SDK.
+The agent reaches its model through the Vercel AI Gateway, or direct to Anthropic.
+
+- Set `ANTHROPIC_API_KEY` to call Claude direct through `@ai-sdk/anthropic`. The Gateway is
+  not used while it is set. Every agent model call, SMS replies included, goes direct.
+- Set `ANTHROPIC_WORKSPACE_ID` only for a key that is not scoped to a workspace. It is sent
+  as the `anthropic-workspace-id` header. Unset, the header is omitted.
+- The default direct model is `claude-haiku-4-5-20251001`. A model setting that starts with
+  `anthropic/` maps to the native id (`anthropic/claude-sonnet-4.5` runs `claude-sonnet-4-5`).
+  Any other id runs the default.
+- Without `ANTHROPIC_API_KEY` the Gateway path below is unchanged.
 
 - On Vercel, OIDC handles authentication. Set nothing.
 - Elsewhere, set `AI_GATEWAY_API_KEY` (https://vercel.com/docs/ai-gateway).

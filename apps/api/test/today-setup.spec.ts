@@ -44,6 +44,7 @@ describe("modelKeySet", () => {
 		expect(modelKeySet({ AI_GATEWAY_API_KEY: "  " })).toBe(false);
 		expect(modelKeySet({ AI_GATEWAY_API_KEY: "secret" })).toBe(true);
 		expect(modelKeySet({ VERCEL_OIDC_TOKEN: "token" })).toBe(true);
+		expect(modelKeySet({ ANTHROPIC_API_KEY: "secret" })).toBe(true);
 	});
 });
 

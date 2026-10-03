@@ -279,7 +279,7 @@ export function getStartedItems(state: GetStartedState): GetStartedItem[] {
 		telnyxItem(state),
 		{
 			id: "model",
-			title: "Model key set (AI Gateway)",
+			title: "Model key set (Anthropic or AI Gateway)",
 			detail: state.modelKeySet
 				? "The assistant can answer replies."
 				: "No key. The assistant cannot answer replies.",

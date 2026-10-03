@@ -5,7 +5,11 @@ type Source = Record<string, string | undefined>;
 export const SETUP = {
 	defaultApiUrl: "http://localhost:3001",
 	webhookPath: "/webhooks/telnyx",
-	modelKeyVariables: ["AI_GATEWAY_API_KEY", "VERCEL_OIDC_TOKEN"],
+	modelKeyVariables: [
+		"AI_GATEWAY_API_KEY",
+		"VERCEL_OIDC_TOKEN",
+		"ANTHROPIC_API_KEY",
+	],
 	visibleDigits: 4,
 	hiddenMask: "***",
 } as const;
