@@ -31,6 +31,8 @@ import { settle } from "../lib/enrichment";
 import { finishRun, runResultOf } from "../lib/run-runtime";
 import { attribute } from "../lib/session-purpose";
 import { createSlackChannel } from "../lib/slack-membership";
+import { closeSmsTurn, smsSessionToken } from "../lib/sms-pipeline";
+import { finishSmsTurns } from "../lib/sms-runtime";
 import { reconcileStaleTasks } from "../lib/stale-tasks";
 import { completeTask, taskSubject } from "../lib/tasks";
 
@@ -56,8 +58,14 @@ const receiveTarget = z
 		builderSubmissionId: z.string().nullable().catch(null),
 		runId: z.string().nullable().catch(null),
 		taskId: z.string().nullable().catch(null),
+		smsContactId: z.string().nullable().catch(null),
 	})
-	.catch({ builderSubmissionId: null, runId: null, taskId: null });
+	.catch({
+		builderSubmissionId: null,
+		runId: null,
+		taskId: null,
+		smsContactId: null,
+	});
 
 function authorised(request: Request): boolean {
 	const secret = process.env.AGENT_BRIDGE_SECRET?.trim();
@@ -139,10 +147,12 @@ export default defineChannel({
 			waitUntil(
 				(async () => {
 					await reconcileStaleTasks();
-					await drainAll((task) =>
-						send(brief(task), {
-							auth: taskAuth(task),
-							continuationToken: taskToken(task.id),
+					await drainAll((task, sms) =>
+						send(sms?.message ?? brief(task), {
+							auth: sms ? sms.auth(taskAuth(task)) : taskAuth(task),
+							continuationToken: sms
+								? smsSessionToken(sms.contactId)
+								: taskToken(task.id),
 						}),
 					);
 					await drainAgentRuns(send);
@@ -266,6 +276,10 @@ export default defineChannel({
 
 		async "session.waiting"(_data, channel) {
 			if (await closeTask(channel.continuationToken, "ran")) return;
+			if (
+				await closeSmsTurn(channel.continuationToken, "replied", finishSmsTurns)
+			)
+				return;
 
 			const conversationId = builderIdFromToken(channel.continuationToken);
 			if (!conversationId) return;
@@ -279,6 +293,10 @@ export default defineChannel({
 		},
 
 		async "turn.failed"(data, channel) {
+			if (
+				await closeSmsTurn(channel.continuationToken, "failed", finishSmsTurns)
+			)
+				return;
 			const taskId = taskFromToken(channel.continuationToken);
 			const reason =
 				eveTurnFailure.parse(data).message ?? "The agent turn failed.";
@@ -308,6 +326,10 @@ export default defineChannel({
 
 		async "session.completed"(_data, channel) {
 			if (await closeTask(channel.continuationToken, "ran")) return;
+			if (
+				await closeSmsTurn(channel.continuationToken, "replied", finishSmsTurns)
+			)
+				return;
 
 			const conversationId = builderIdFromToken(channel.continuationToken);
 			if (conversationId) {
@@ -344,6 +366,10 @@ export default defineChannel({
 		},
 
 		async "turn.cancelled"(_data, channel) {
+			if (
+				await closeSmsTurn(channel.continuationToken, "stopped", finishSmsTurns)
+			)
+				return;
 			if (
 				await closeTask(
 					channel.continuationToken,
@@ -412,9 +438,11 @@ export default defineChannel({
 
 		return send(input.message, {
 			auth: input.auth,
-			continuationToken: target.taskId
-				? taskToken(target.taskId)
-				: `crm:adhoc:${crypto.randomUUID()}`,
+			continuationToken: target.smsContactId
+				? smsSessionToken(target.smsContactId)
+				: target.taskId
+					? taskToken(target.taskId)
+					: `crm:adhoc:${crypto.randomUUID()}`,
 		});
 	},
 });

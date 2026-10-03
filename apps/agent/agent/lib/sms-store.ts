@@ -55,6 +55,9 @@ export interface SmsStore {
 		keepTaskId: string | null,
 	): Promise<number>;
 	setDealStage(contactId: string, stage: DealStage): Promise<number>;
+	turnInFlight(contactId: string, exceptTaskId: string): Promise<boolean>;
+	deferTask(taskId: string, delayMs: number): Promise<void>;
+	finishStartedTurns(contactId: string, outcome: string): Promise<number>;
 }
 
 const SMS_TASK_KINDS = Object.values(SMS_AGENT.taskKinds);
@@ -192,6 +195,44 @@ export const prismaSmsStore: SmsStore = {
 				stageChangedAt: now,
 				closedAt: isClosedStage(stage) ? now : null,
 			},
+		});
+		return count;
+	},
+
+	async turnInFlight(contactId, exceptTaskId) {
+		const running = await db.agentTask.count({
+			where: {
+				contactId,
+				kind: SMS_AGENT.taskKinds.reply,
+				finishedAt: null,
+				sessionId: { not: null },
+				id: { not: exceptTaskId },
+			},
+		});
+		return running > 0;
+	},
+
+	async deferTask(taskId, delayMs) {
+		await db.agentTask.updateMany({
+			where: { id: taskId, finishedAt: null },
+			data: {
+				dueAt: new Date(Date.now() + delayMs),
+				leasedUntil: null,
+				startedAt: null,
+				attempts: { decrement: 1 },
+			},
+		});
+	},
+
+	async finishStartedTurns(contactId, outcome) {
+		const { count } = await db.agentTask.updateMany({
+			where: {
+				contactId,
+				kind: SMS_AGENT.taskKinds.reply,
+				finishedAt: null,
+				sessionId: { not: null },
+			},
+			data: { finishedAt: new Date(), outcome },
 		});
 		return count;
 	},

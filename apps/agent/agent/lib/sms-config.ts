@@ -21,6 +21,7 @@ export const SMS_AGENT = {
 	},
 	session: {
 		tokenPrefix: "sms:",
+		deferMs: 30 * SECOND_MS,
 	},
 	licensedStates: [] as readonly string[],
 	messages: {

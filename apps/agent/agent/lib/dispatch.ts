@@ -10,6 +10,8 @@ import { collapsing, runLimited } from "./pool";
 import { runPortrait } from "./portrait";
 import { runSlackChannelJoin } from "./slack-join-task";
 import { runSlackPeopleMatch } from "./slack-people";
+import { isSmsTask, type SmsTurnStart } from "./sms-pipeline";
+import { runLiveSmsTask } from "./sms-runtime";
 import { staleTaskSweep } from "./stale-tasks";
 import {
 	claimDue,
@@ -132,7 +134,7 @@ async function handleDirect(task: LeasedTask): Promise<void> {
 }
 
 export async function runResearchLane(
-	start: (task: LeasedTask) => Promise<{ id: string }>,
+	start: (task: LeasedTask, sms?: SmsTurnStart) => Promise<{ id: string }>,
 	signal?: AbortSignal,
 ): Promise<number> {
 	if (signal?.aborted) return 0;
@@ -150,6 +152,10 @@ export async function runResearchLane(
 		tasks.map(async (task) => {
 			if (signal?.aborted) return;
 			started += 1;
+			if (isSmsTask(task.kind)) {
+				await runLiveSmsTask(task, (turn) => start(task, turn));
+				return;
+			}
 			await beginResearch(task, start);
 		}),
 	);
@@ -315,7 +321,9 @@ export function dispatchHealth() {
 }
 
 export const drainAll = collapsing(
-	async (start: (task: LeasedTask) => Promise<{ id: string }>) => {
+	async (
+		start: (task: LeasedTask, sms?: SmsTurnStart) => Promise<{ id: string }>,
+	) => {
 		if (unsettledSweeps.size >= DISPATCH.sweep.maxAbandoned) {
 			lastSweepError =
 				"An abandoned dispatch sweep is still in flight, so this sweep did not start.";

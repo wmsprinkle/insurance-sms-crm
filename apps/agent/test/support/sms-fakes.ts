@@ -19,6 +19,9 @@ export type FakeSms = {
 	optOuts: { contactId: string; phone: string; reason: string }[];
 	finished: { contactId: string; outcome: string; keep: string | null }[];
 	stages: { contactId: string; stage: string }[];
+	inFlight: boolean;
+	deferred: { taskId: string; delayMs: number }[];
+	closedTurns: { contactId: string; outcome: string }[];
 };
 
 export const LEAD = { id: "c1", firstName: "Dana", phone: "+15125550100" };
@@ -33,6 +36,9 @@ export function fakeSms(overrides: Partial<SmsSettings> = {}): FakeSms {
 		optOuts: [],
 		finished: [],
 		stages: [],
+		inFlight: false,
+		deferred: [],
+		closedTurns: [],
 	};
 
 	const store: SmsStore = {
@@ -80,6 +86,14 @@ export function fakeSms(overrides: Partial<SmsSettings> = {}): FakeSms {
 		},
 		setDealStage: async (contactId, stage) => {
 			fake.stages.push({ contactId, stage });
+			return 1;
+		},
+		turnInFlight: async () => fake.inFlight,
+		deferTask: async (taskId, delayMs) => {
+			fake.deferred.push({ taskId, delayMs });
+		},
+		finishStartedTurns: async (contactId, outcome) => {
+			fake.closedTurns.push({ contactId, outcome });
 			return 1;
 		},
 	};

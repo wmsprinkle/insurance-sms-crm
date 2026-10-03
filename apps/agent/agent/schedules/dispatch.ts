@@ -18,11 +18,13 @@ export default defineSchedule({
 
 				(async () => {
 					await reconcileStaleTasks();
-					await drainAll((task) =>
+					await drainAll((task, sms) =>
 						receive(crm, {
-							message: brief(task),
-							target: { taskId: task.id },
-							auth: taskAuth(task, appAuth),
+							message: sms?.message ?? brief(task),
+							target: { taskId: task.id, smsContactId: sms?.contactId ?? null },
+							auth: sms
+								? sms.auth(taskAuth(task, appAuth))
+								: taskAuth(task, appAuth),
 						}),
 					);
 					await queueDueAgentRuns();
