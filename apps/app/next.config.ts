@@ -36,6 +36,7 @@ const nextConfig: NextConfig = {
 	serverExternalPackages: ["@prisma/client", "@prisma/adapter-pg", "pg"],
 
 	images: {
+		formats: ["image/webp"],
 		remotePatterns: [
 			{ protocol: "https", hostname: "**.blob.vercel-storage.com" },
 		],
