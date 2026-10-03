@@ -95,3 +95,54 @@ Date: 2026-10-03. bun 1.3.12.
 - `classify_reply` enum and qualification field values belong in `packages/validation` (not in
   P3a scope); they must match `qualification.md`, which `test/sms-skills.spec.ts` checks.
 - Task 20: the disclosure-mode setting. Default is `disclose`.
+
+# Build status — P4a (tasks 16–17, Google calendar booking)
+
+Date: 2026-10-03. Built by worker-crm-p4a-calendar against bun 1.3.12.
+
+## Task 16 — scopes and re-consent (`packages/auth/src/scopes.ts`)
+
+- New `CALENDAR_EVENTS_SCOPE` (`calendar.events`), `CALENDAR_FREEBUSY_SCOPE` (`calendar.freebusy`),
+  `BOOKING_SCOPES`, `READ_SYNC_SCOPES` (Gmail + `calendar.readonly`).
+- `SYNC_SCOPES` = read scopes + booking scopes. Sign-in (`auth.ts`), `/grant-access` and the
+  Connections "Connect Google" button all request `SYNC_SCOPES`, so every new grant includes booking.
+- `SYNC_SCOPES_FOR.google` (used by `hasSyncScopes` and the mailbox wall) stays on the read scopes.
+  An account granted before the upgrade keeps syncing and is not walled.
+- Re-consent helpers: `missingBookingScopes(scope)`, `hasBookingScopes(scope)`,
+  `needsBookingGrant(accounts)`. They are exported from `@crm/auth/scopes` only (the `@crm/auth`
+  barrel was out of scope). Re-consent itself is the upstream `linkSocial` call with `SYNC_SCOPES`.
+
+## Task 17 — `apps/api/src/google/calendar-write.*`
+
+- `calendar-write.client.ts` — `CalendarWriteClient(tokens, fetcher)`:
+  `freeBusy`, `availableSlots`, `insertEvent`, `bookSlot` (re-queries free/busy right before
+  insert; returns `slot-taken` and does not insert on overlap). Insert uses
+  `sendUpdates=all&conferenceDataVersion=1` with a `hangoutsMeet` create request; optional
+  client `eventId` makes retries return `duplicate` (HTTP 409). Token via `MailboxTokenService`
+  (`grantedScopes` → `needs-reconsent` before any Google call; `accessTokenFor(userId, "calendar")`
+  refreshes). All HTTP goes through the injected `CalendarFetch`.
+- `calendar-write.slots.ts` — pure, timezone-aware (Intl only, DST-safe) `generateSlots` returns
+  2–3 options, one per business day first, then fills from the earliest free slots.
+- `calendar-write.config.ts` — `CALENDAR_WRITE` (business hours Mon–Fri 09:00–17:00, 30 min slots,
+  2 h lead, 7 day horizon, timeouts, backoff).
+- `calendar-write.contracts.ts` — zod schemas for the free/busy and event responses and the booking
+  input; result union `CalendarWriteResult`.
+- `calendar-write.module.ts` — `CalendarWriteModule` provides `CALENDAR_FETCH` and the client.
+  **Not imported into `AppModule`/`GoogleModule` yet** (out of scope). Task 18 imports it.
+
+## Commands and results
+
+| Command | Result |
+|---|---|
+| `bun test test/booking-scopes.spec.ts test/mailbox-grant.spec.ts` (auth) | pass, 26 |
+| `bun test calendar-write-slots/client, mailbox-scopes, mailbox-api-client` (api) | pass, 55 |
+| `bun run check-types` (auth) | pass |
+| `bun run check-types` (api) | no errors in calendar-write files; errors in other temps' uncommitted `src/leads/*` |
+| `bun run lint` (auth) | pass (1 pre-existing barrel warning) |
+| `biome check` on calendar-write files (api) | pass; package lint fails only on other temps' uncommitted files |
+
+## Not done here
+
+- UI prompt for re-consent (`needsBookingGrant` in `apps/app/lib/session.ts` or the Connections page),
+  and the Connections copy that still says "Read-only Gmail and Calendar".
+- Agent tools `propose_slots` / `book_meeting` (task 18), `CalendarEvent` row, Deal stage move.
