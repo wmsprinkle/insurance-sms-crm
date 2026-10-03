@@ -16,6 +16,7 @@ import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { contactsSearchParams } from "./contacts-search-params";
 import { ContactsTable } from "./contacts-table";
 import { CreateContactSheet } from "./create-contact-sheet";
+import { ImportLeadsButton } from "./import-leads-button";
 
 export const metadata: Metadata = {
 	title: "Contacts",
@@ -32,6 +33,7 @@ export default function ContactsPage({
 					<PageShellDescription>Everyone in the pipeline.</PageShellDescription>
 				</PageShellHeading>
 				<PageShellActions>
+					<ImportLeadsButton />
 					<CreateContactSheet />
 				</PageShellActions>
 			</PageShellHeader>

@@ -1,0 +1,65 @@
+import type { Metadata } from "next";
+import { Suspense } from "react";
+import {
+	PageShell,
+	PageShellContent,
+	PageShellDescription,
+	PageShellHeader,
+	PageShellHeading,
+	PageShellLoading,
+	PageShellTitle,
+} from "@/components/page-shell";
+import { requireSession } from "@/lib/session";
+import { HydrateClient } from "@/lib/trpc/hydrate";
+import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+import { DraftsQueue } from "./drafts-queue";
+import { QuietHours } from "./quiet-hours";
+import { SmsSettingsForm } from "./sms-settings-form";
+
+export const metadata: Metadata = {
+	title: "Compliance",
+};
+
+export default function ComplianceSettingsPage() {
+	return (
+		<PageShell>
+			<PageShellHeader>
+				<PageShellHeading>
+					<PageShellTitle>Compliance</PageShellTitle>
+					<PageShellDescription>
+						What the agent says first, how it answers "are you a bot", and when
+						it is allowed to text.
+					</PageShellDescription>
+				</PageShellHeading>
+			</PageShellHeader>
+
+			<PageShellContent>
+				<Suspense fallback={<PageShellLoading />}>
+					<Compliance />
+				</Suspense>
+			</PageShellContent>
+		</PageShell>
+	);
+}
+
+async function Compliance() {
+	await requireSession();
+
+	const trpc = getServerTrpc();
+	const queryClient = getServerQueryClient();
+
+	await Promise.all([
+		queryClient.prefetchQuery(trpc.settings.sms.queryOptions()),
+		queryClient.prefetchQuery(trpc.settings.quietHours.queryOptions()),
+	]);
+
+	return (
+		<HydrateClient>
+			<div className="flex max-w-4xl flex-col gap-6">
+				<SmsSettingsForm />
+				<DraftsQueue />
+				<QuietHours />
+			</div>
+		</HydrateClient>
+	);
+}

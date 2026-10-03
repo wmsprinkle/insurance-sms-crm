@@ -1,3 +1,4 @@
+import { needsBookingGrant } from "@crm/auth/scopes";
 import GoogleLogo from "@crm/ui/components/brand-logos/google";
 import MicrosoftLogo from "@crm/ui/components/brand-logos/microsoft";
 import SlackLogo from "@crm/ui/components/brand-logos/slack";
@@ -6,9 +7,10 @@ import { Spinner } from "@crm/ui/components/spinner";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { requireSession } from "@/lib/session";
+import { requireSession, signInAccounts } from "@/lib/session";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { AddConnectionDialog } from "./add-connection-dialog";
+import { BookingGrantPrompt } from "./booking-grant-prompt";
 
 export const metadata: Metadata = { title: "Connections" };
 
@@ -26,8 +28,13 @@ async function ConnectionsSettingsPageContent({
 	params,
 	searchParams,
 }: PageProps<"/[slug]/settings/connections">) {
-	await requireSession();
-	const [{ slug }, query] = await Promise.all([params, searchParams]);
+	const session = await requireSession();
+	const [{ slug }, query, accounts] = await Promise.all([
+		params,
+		searchParams,
+		signInAccounts(session.user.id),
+	]);
+	const bookingGrantNeeded = needsBookingGrant(accounts);
 	const queryClient = getServerQueryClient();
 	const trpc = getServerTrpc();
 	const [google, microsoft, slack] = await Promise.all([
@@ -42,7 +49,9 @@ async function ConnectionsSettingsPageContent({
 						name: "Google Workspace",
 						status: "Connected",
 						bringsIn: "Emails, meetings and the people on them",
-						sends: "Nothing yet",
+						sends: bookingGrantNeeded
+							? "Nothing until you grant calendar booking"
+							: "Calendar invites for meetings booked with leads",
 						href: `/${slug}/settings/connections/google`,
 						logo: GoogleLogo,
 					},
@@ -96,6 +105,7 @@ async function ConnectionsSettingsPageContent({
 							</Link>
 						</Button>
 					</header>
+					{bookingGrantNeeded ? <BookingGrantPrompt slug={slug} /> : null}
 					<div className="flex flex-col gap-3">
 						{rows.map((row) => (
 							<ConnectionCard key={row.name} {...row} />

@@ -169,8 +169,9 @@ function ConnectGoogle({
 					</div>
 				</CardTitle>
 				<CardDescription>
-					Read-only Gmail and Calendar. Only conversations with companies in the
-					CRM are stored.
+					Reads Gmail and Calendar, and books meetings with leads on your
+					calendar with an invite. Only conversations with companies in the CRM
+					are stored.
 				</CardDescription>
 
 				<CardAction>
