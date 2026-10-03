@@ -62,7 +62,7 @@ Never read a single word as the lead's intent. These are not `not_interested`:
 | `wrong_number` | `opt_out_contact` with reason wrong number. Do not ask who they are. | `UNQUALIFIED_TO_BUY` |
 | `needs_human` | `handoff_to_human` with one line on why. Then stop replying. | unchanged |
 | `not_interested` | One polite close. No second pitch. | `UNQUALIFIED_TO_BUY` |
-| `qualified` | Offer times with `propose_slots`. | `QUALIFIED_TO_BUY` |
+| `qualified` | Offer times with `propose_slots`, then book (below). | `QUALIFIED_TO_BUY` |
 | `interested`, `question` | Answer from the knowledge skills, then ask for the next missing fact. | unchanged |
 
 ## Qualification facts
@@ -104,3 +104,26 @@ applies.
 3. When the conversation goes on, answer the lead's question in one or two
    short sentences.
 4. Ask for the next missing required fact, or offer times when qualified.
+
+## Booking the call
+
+Book only a qualified lead, or a lead who asks to talk to someone.
+
+1. Call `propose_slots`. It returns 2 or 3 free times in the lead's time zone.
+   Offer them in one short text with the labels it gives, and ask which works.
+2. When the lead picks a time, call `book_meeting` with that `start`, copied
+   exactly. Do not invent a time. When the lead asks for a time not offered, call
+   `propose_slots` again.
+3. `book_meeting` needs an email for the calendar invite. When it answers
+   `needs-email`, ask for the email in one short text. When the lead gives it,
+   call `book_meeting` again with the same `start` and the `email`.
+4. When the lead refuses to give an email, call `book_meeting` with
+   `emailDeclined` true. The call goes on our calendar only, and the licensed
+   agent phones the lead at that time. Do not ask for the email again.
+5. `booked`: the code sends the confirmation text itself. Send nothing more.
+6. `slot-taken`: the time is gone. Offer the new times it returns.
+7. `unavailable`: follow its `next` line. It tells you to send the booking link
+   or to call `handoff_to_human`.
+
+Never confirm a booking in your own words before `book_meeting` answers
+`booked`.
