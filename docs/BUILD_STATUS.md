@@ -558,3 +558,74 @@ Date: 2026-10-03. bun 1.3.12. Commits 48d4eb8 (API + guard), c230ee1 (UI).
 - `apps/agent/agent/hooks/outbound-guard.ts` still has its own copy of the guard. Switch it to
   `@crm/validation/outbound-guard` so the two cannot drift.
 - No icon-rail entry for the drafts page (shared navigation was out of scope).
+
+# Build status — P4b task 18 booking + P3b fixes (worker-crm-p4b-booking)
+
+Date: 2026-10-03. bun 1.3.12. Plan: `../RESEARCH.md` §2.7, §4 P4.
+
+## Bridge (`apps/api/src/google/calendar-internal.*`)
+
+- `POST /internal/calendar/book`, contract `@crm/validation/calendar-book`. Same guard as the SMS bridge:
+  no `AGENT_BRIDGE_SECRET` → 503, wrong bearer → 401 before the body is read, bad body → 400, > 32 KiB → 413.
+- `action: "availableSlots"` `{contactId, phone, state}` → `slots` `{ownerUserId, timeZone, slots[]}`.
+  `action: "book"` `{…lead, start, end, summary, description, attendee | null, requestId, eventId}` →
+  `booked` `{ownerUserId, timeZone, organizerEmail, eventId, iCalUID, htmlLink, meetUrl, duplicate}` |
+  `slot-taken` `{timeZone, slots[]}` (fresh offers) | `unavailable` `{reason, detail, retryable}`.
+- Lead time zone: `sendWindowFor({ e164, state }).timezones[0]` (declared state, else area code, else the
+  compliance "unknown" zone). Business hours (`CALENDAR_WRITE.businessHours`) apply in the lead's zone;
+  `book` refuses a time outside them (`invalid-input`). `bookSlot` rechecks free/busy before the insert.
+- Calendar owner: `AppSetting.calendar.ownerUserId`, else the user of the oldest Google `Account` row.
+  Round-robin across reps is NOT built: the extension point is `CalendarInternalService.ownerUserId()`.
+- Wired as a controller in `CalendarWriteModule` (already in `AppModule`); `CALENDAR_CLOCK` provider for tests.
+
+## Settings (additive schema change)
+
+- `AppSetting.calendar Json?`, migration `20261003160000_calendar_settings`. Shape and parser:
+  `@crm/validation/calendar-settings` (`ownerUserId`, `fallbackBookingLink` http(s) URL, both nullable).
+  No UI edits it yet.
+
+## Agent
+
+- `lib/sms-deal.ts` `ensureLeadDeal(contactId, stage)`: in one transaction with an advisory lock
+  `sms-deal:<contactId>`. No open deal and stage `QUALIFIED_TO_BUY`/`DEMO_BOOKED` → creates a Deal linked by
+  `DealContact` (role `lead`), owner = contact owner → calendar owner → first Google user → first user,
+  company = contact company or a new "<name> (household)" company linked to the contact; emits
+  `deal.created`. Open deals move forward only (`SMS_AGENT.deals.progress`; a booked deal never drops back
+  to qualified) or to a closed stage; each move writes a `STAGE_CHANGE` activity and emits
+  `deal.stage.changed` (+ `deal.closed`) as `agent-event` tasks, same payload as the API.
+  `prismaSmsStore.setDealStage` now calls it, so `record_qualification` and `classify_reply` create deals.
+- `propose_slots()` → 2–3 slots labelled in the lead's zone ("Tue, Oct 6 at 10:00 AM CDT"). Sends nothing.
+- `book_meeting({ start, email?, emailDeclined? })`: no email and not declined → `needs-email`; a new email
+  is saved on the contact when it has none; declined → event on the owner's calendar only (no attendee).
+  Event id = sha256(contactId|start) hex, so a retry hits Google's 409 and counts as booked. On `booked`:
+  `CalendarEvent` + `CalendarAttendee` + `MEETING` activity upserted, deal → `DEMO_BOOKED`, confirmation SMS
+  through `deliver()` (guard, gate, approval) with idempotency key `book_meeting:<eventId>`.
+- Calendar unavailable → the tool's `next` says: send `calendar.fallbackBookingLink`, or `handoff_to_human`.
+- `planSmsTask` puts the fallback link in the turn message and the `bookingLink` session attribute (so the
+  guard keeps it). `apps/agent/turbo.json` passes `API_URL` and `DRY_RUN`.
+- Skills: `qualification.md` "Booking the call"; `sms-conduct.md` rule 6 (link only when the calendar is
+  unavailable). Evals: `evals/sms/booking.eval.ts` (4 cases). `apps/app/lib/agent-transcript.ts` verbs
+  for the two tools (approved by god).
+
+## Commands and results
+
+| Command | Result |
+|---|---|
+| `bun run check-types` (root) | pass, 13/13 |
+| `bun run lint` (root) | pass, 9/9 |
+| `bun run lint:slop` (root) | pass |
+| `bun test` apps/agent `sms-*`, `drain`, `outbound-guard` | pass, 187 |
+| `bun test` apps/api `calendar-*`, `sms-*`, `compliance-*` | pass, 164 |
+| `bun test` packages/validation | pass, 54 |
+| `bun test test/agent-transcript.spec.ts` (apps/app) | pass, 45 |
+| `prisma validate`, `prisma generate` | pass |
+
+## Not run / not done
+
+- No Postgres: `ensureLeadDeal`, `prismaBookingStore` and the owner query are tested through fakes only.
+  `prisma migrate deploy` of `20261003160000_calendar_settings` not run.
+- `eve eval` not run (spends credits). Outside an SMS session the tools answer "not an SMS session", so the
+  evals assert the calls and inputs, not the booking.
+- No real Google call. Duplicate (409) bookings return no Meet link (no `events.get`).
+- The confirmation SMS obeys approval mode: with auto-send off it becomes a draft after the event exists.
+- No settings UI for `calendar.ownerUserId` / `calendar.fallbackBookingLink`.
