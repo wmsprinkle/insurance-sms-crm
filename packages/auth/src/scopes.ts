@@ -14,13 +14,23 @@ export const IDENTITY_SCOPES = ["openid", "email", "profile"] as const;
 export const GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.readonly";
 export const CALENDAR_SCOPE =
 	"https://www.googleapis.com/auth/calendar.readonly";
+export const CALENDAR_EVENTS_SCOPE =
+	"https://www.googleapis.com/auth/calendar.events";
+export const CALENDAR_FREEBUSY_SCOPE =
+	"https://www.googleapis.com/auth/calendar.freebusy";
 export const OUTLOOK_MAIL_SCOPE = "Mail.Read";
 
-export const SYNC_SCOPES = [GMAIL_SCOPE, CALENDAR_SCOPE] as const;
+export const READ_SYNC_SCOPES = [GMAIL_SCOPE, CALENDAR_SCOPE] as const;
+export const BOOKING_SCOPES = [
+	CALENDAR_EVENTS_SCOPE,
+	CALENDAR_FREEBUSY_SCOPE,
+] as const;
+
+export const SYNC_SCOPES = [...READ_SYNC_SCOPES, ...BOOKING_SCOPES] as const;
 export const MICROSOFT_SYNC_SCOPES = [OUTLOOK_MAIL_SCOPE] as const;
 
 export const SYNC_SCOPES_FOR = {
-	[GOOGLE_PROVIDER_ID]: SYNC_SCOPES,
+	[GOOGLE_PROVIDER_ID]: READ_SYNC_SCOPES,
 	[MICROSOFT_PROVIDER_ID]: MICROSOFT_SYNC_SCOPES,
 } satisfies Record<MailboxProviderId, readonly string[]>;
 
@@ -42,6 +52,17 @@ export function hasSyncScopes(
 
 	const granted = parseScopes(scope);
 	return SYNC_SCOPES_FOR[providerId].every((needed) => granted.has(needed));
+}
+
+export function missingBookingScopes(
+	scope: string | null | undefined,
+): string[] {
+	const granted = parseScopes(scope);
+	return BOOKING_SCOPES.filter((needed) => !granted.has(needed));
+}
+
+export function hasBookingScopes(scope: string | null | undefined): boolean {
+	return missingBookingScopes(scope).length === 0;
 }
 
 export type SignInAccount = {
@@ -92,6 +113,20 @@ export function mailboxGrantsNeeded(
 
 export function needsMailboxGrant(accounts: readonly SignInAccount[]): boolean {
 	return mailboxGrantsNeeded(accounts).length > 0;
+}
+
+export function needsBookingGrant(accounts: readonly SignInAccount[]): boolean {
+	const google = accounts.filter(
+		(account) => account.providerId === GOOGLE_PROVIDER_ID,
+	);
+
+	return (
+		google.length > 0 &&
+		google.some((account) =>
+			hasSyncScopes(GOOGLE_PROVIDER_ID, account.scope),
+		) &&
+		!google.some((account) => hasBookingScopes(account.scope))
+	);
 }
 
 export function parseScopes(scope: string | null | undefined): Set<string> {
