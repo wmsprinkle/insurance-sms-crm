@@ -2,6 +2,7 @@ import { type Db, Prisma as PrismaNamespace, type RecordSource } from "@crm/db";
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { InjectDatabase } from "../database/database.constants";
+import { FirstTouchService } from "./first-touch.service";
 import {
 	type CheckedRow,
 	candidateEmails,
@@ -21,6 +22,7 @@ export class LeadWriterService {
 	constructor(
 		@InjectDatabase() private readonly db: Db,
 		@Inject(AgentTriggerService) private readonly agent: AgentTriggerService,
+		@Inject(FirstTouchService) private readonly firstTouch: FirstTouchService,
 	) {}
 
 	async triage(rows: CheckedRow[]): Promise<LeadTriage> {
@@ -130,6 +132,12 @@ export class LeadWriterService {
 					email: created.email,
 					companyId: created.companyId,
 				},
+			});
+			await this.firstTouch.enqueue(tx, {
+				contactId: created.id,
+				phone: lead.phone,
+				firstName: created.firstName,
+				origin,
 			});
 			return created.id;
 		});

@@ -14,9 +14,12 @@
 		"./eve-tool": "./src/eve-tool.ts",
 		"./field-backfill": "./src/field-backfill.ts",
 		"./field-templates": "./src/field-templates.ts",
+		"./first-touch-task": "./src/first-touch-task.ts",
 		"./phone": "./src/phone.ts",
 		"./saved-view": "./src/saved-view.ts",
+		"./sms-qualification": "./src/sms-qualification.ts",
 		"./sms-reply-task": "./src/sms-reply-task.ts",
+		"./sms-send": "./src/sms-send.ts",
 		"./sms-settings": "./src/sms-settings.ts"
 	},
 	"scripts": {

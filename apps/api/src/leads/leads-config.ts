@@ -21,6 +21,12 @@ export const LEADS = {
 		maxLength: 500,
 		maxOptInTextLength: 2_000,
 	},
+	firstTouch: {
+		reason: "First touch for a new lead",
+		priority: 50,
+		budget: 4,
+		agencyFallback: "Our team",
+	},
 } as const;
 
 export const LEAD_INGEST_HEADERS = {
