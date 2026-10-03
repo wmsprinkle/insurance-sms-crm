@@ -150,13 +150,16 @@ async function domainlessCompany(status: EnrichmentStatus) {
 
 describe("a brand task on a company with no domain", () => {
 	let key: string | null;
+	const enrichment = process.env.FEATURE_ENRICHMENT;
 
 	beforeAll(async () => {
 		key = await readContextDevKey(db);
+		process.env.FEATURE_ENRICHMENT = "true";
 	});
 
 	afterAll(async () => {
 		await writeContextDevKey(db, key ?? "");
+		process.env.FEATURE_ENRICHMENT = enrichment ?? "";
 	});
 
 	it("marks the company skipped, because no sweep will find it again", async () => {
