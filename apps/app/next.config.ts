@@ -1,6 +1,7 @@
 import { devLoginFromEnvironment } from "@crm/auth/dev-login";
 import { loadRootEnv } from "@crm/env";
 import type { NextConfig } from "next";
+import { securityHeaders } from "./lib/security-headers";
 
 loadRootEnv();
 
@@ -27,6 +28,8 @@ const nextConfig: NextConfig = {
 	env: {
 		NEXT_PUBLIC_API_URL: apiUrl,
 	},
+
+	headers: async () => securityHeaders(process.env.NODE_ENV === "production"),
 
 	transpilePackages: ["@crm/auth", "@crm/db", "@crm/telemetry", "@crm/ui"],
 
