@@ -42,6 +42,7 @@ function harness(input: {
 	lead?: Partial<BookingLead> | null;
 	answers?: CalendarAttempt[];
 	bookingLink?: string | null;
+	typed?: string[];
 }) {
 	const sms = fakeSms({ autoSend: true });
 	const path = recordingPath(SENT);
@@ -70,6 +71,8 @@ function harness(input: {
 				emails.push(email);
 				return true;
 			},
+			leadTyped: async (_id, text) =>
+				(input.typed ?? ["dana@example.com"]).includes(text),
 			recordMeeting: async (meeting) => {
 				meetings.push(meeting);
 			},
@@ -203,6 +206,49 @@ describe("bookMeeting", () => {
 		);
 
 		expect(result.status).toBe("refused");
+	});
+
+	it("refuses to invite an email the lead never typed and is not on record", async () => {
+		const h = harness({ answers: [BOOKED], typed: [] });
+
+		const result = await bookMeeting(
+			LEAD.id,
+			{ start: START, email: "boss@thirdparty.example" },
+			h.deps,
+		);
+
+		expect(result.status).toBe("needs-email");
+		expect(h.calls).toHaveLength(0);
+		expect(h.emails).toHaveLength(0);
+	});
+
+	it("invites the email already on the record without a typed copy", async () => {
+		const h = harness({
+			answers: [BOOKED],
+			typed: [],
+			lead: { email: "dana@example.com" },
+		});
+
+		const result = await bookMeeting(
+			LEAD.id,
+			{ start: START, email: "dana@example.com" },
+			h.deps,
+		);
+
+		expect(result.status).toBe("booked");
+		expect(bookCall(h.calls).attendee?.email).toBe("dana@example.com");
+	});
+
+	it("keeps the lead's phone out of the calendar event", async () => {
+		const h = harness({ answers: [BOOKED] });
+
+		await bookMeeting(
+			LEAD.id,
+			{ start: START, email: "dana@example.com" },
+			h.deps,
+		);
+
+		expect(bookCall(h.calls).description).not.toContain(LEAD.phone);
 	});
 
 	it("books with the invite, records it, moves the deal and confirms by SMS", async () => {

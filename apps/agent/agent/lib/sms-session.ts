@@ -1,5 +1,8 @@
+import {
+	DISCLOSURE_MODES,
+	type DisclosureMode,
+} from "@crm/validation/outbound-guard";
 import { z } from "zod";
-import { DISCLOSURE_MODES, type DisclosureMode } from "../hooks/outbound-guard";
 import { attribute } from "./session-purpose";
 import { SMS_AGENT } from "./sms-config";
 

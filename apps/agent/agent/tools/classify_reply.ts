@@ -9,13 +9,15 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { focusOn } from "../lib/focus";
 import { SMS_AGENT } from "../lib/sms-config";
+import { optOutLead } from "../lib/sms-opt-out";
+import { apiSendPath, dryRunFrom } from "../lib/sms-outbound";
 import { readQualification } from "../lib/sms-qualification";
 import { smsSessionOf } from "../lib/sms-session";
 import { prismaSmsStore } from "../lib/sms-store";
 
 export default defineTool({
 	description:
-		"Classify the lead's latest SMS before you reply. Pick exactly one value; when two fit, take the one listed first in the qualification skill. opt_out beats everything. The result says what to do next.",
+		"Classify the lead's latest SMS before you reply. Pick exactly one value; when two fit, take the one listed first in the qualification skill. opt_out beats everything. opt_out and wrong_number opt the lead out at once and send the one confirmation. The result says what to do next.",
 	inputSchema: z.object({
 		label: smsReplyClass.describe(
 			"opt_out | wrong_number | needs_human | not_interested | qualified | interested | question",
@@ -32,6 +34,28 @@ export default defineTool({
 			return { label, next: SMS_NEXT_ACTION[label], recorded: false as const };
 		}
 		focusOn({ contactId: sms.contactId });
+
+		if (label === "opt_out" || label === "wrong_number") {
+			const outcome = await optOutLead(
+				{
+					contactId: sms.contactId,
+					reason: label,
+					taskId: sms.taskId,
+					disclosure: sms.disclosure,
+				},
+				{
+					store: prismaSmsStore,
+					sendPath: apiSendPath(),
+					dryRun: dryRunFrom(),
+				},
+			);
+			return {
+				label,
+				next: outcome.ok ? SMS_AGENT.next.optedOut : outcome.reason,
+				outcome,
+				recorded: outcome.ok,
+			};
+		}
 
 		if (label === "qualified") {
 			const verdict = judgeQualification(

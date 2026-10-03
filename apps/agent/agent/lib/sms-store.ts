@@ -1,5 +1,10 @@
 import { db } from "@crm/db";
-import { type DealStage, SmsDirection, SuppressionReason } from "@crm/db/enums";
+import {
+	type DealStage,
+	SmsDirection,
+	SmsDraftStatus,
+	SuppressionReason,
+} from "@crm/db/enums";
 import { SETTINGS_ID } from "@crm/db/settings";
 import { parseCalendarSettings } from "@crm/validation/calendar-settings";
 import type { SmsHoldReason } from "@crm/validation/sms-send";
@@ -28,7 +33,12 @@ export type DraftInput = {
 	reason: SmsHoldReason;
 	retryAt: Date | null;
 	taskId: string | null;
+	idempotencyKey: string | null;
 };
+
+export type SendBlock = "suppressed" | "no-consent";
+
+export type OptOutResult = { created: boolean; suppressedAt: Date };
 
 export type OptOutReason = "opt_out" | "wrong_number";
 
@@ -39,6 +49,8 @@ export interface SmsStore {
 	activeHandoff(contactId: string): Promise<{ reason: string } | null>;
 	openHandoff(contactId: string, reason: string): Promise<boolean>;
 	saveDraft(draft: DraftInput): Promise<{ id: string }>;
+	sendBlock(contactId: string, phone: string): Promise<SendBlock | null>;
+	replyRecorded(idempotencyKey: string): Promise<boolean>;
 	inboundCounts(
 		contactId: string,
 		since: Date,
@@ -50,7 +62,7 @@ export interface SmsStore {
 		phone: string;
 		reason: OptOutReason;
 		keepTaskId: string | null;
-	}): Promise<void>;
+	}): Promise<OptOutResult>;
 	finishSmsTasks(
 		contactId: string,
 		outcome: string,
@@ -121,6 +133,31 @@ export const prismaSmsStore: SmsStore = {
 		return db.smsDraft.create({ data: draft, select: { id: true } });
 	},
 
+	async sendBlock(contactId, phone) {
+		const [suppressed, consents] = await Promise.all([
+			db.phoneSuppression.findUnique({
+				where: { e164: phone },
+				select: { e164: true },
+			}),
+			db.consentRecord.count({
+				where: { contactId, e164: phone, revokedAt: null },
+			}),
+		]);
+		if (suppressed) return "suppressed";
+		return consents > 0 ? null : "no-consent";
+	},
+
+	async replyRecorded(idempotencyKey) {
+		const [drafts, receipt] = await Promise.all([
+			db.smsDraft.count({ where: { idempotencyKey } }),
+			db.agentEvent.findUnique({
+				where: { id: `${SMS_AGENT.receipts.sendPrefix}${idempotencyKey}` },
+				select: { id: true },
+			}),
+		]);
+		return drafts > 0 || receipt !== null;
+	},
+
 	async inboundCounts(contactId, since) {
 		const [recent, total] = await Promise.all([
 			db.smsMessage.count({
@@ -157,17 +194,22 @@ export const prismaSmsStore: SmsStore = {
 
 	async optOut({ contactId, phone, reason, keepTaskId }) {
 		const now = new Date();
-		await db.$transaction([
-			db.phoneSuppression.upsert({
+		return db.$transaction(async (tx) => {
+			const existing = await tx.phoneSuppression.findUnique({
 				where: { e164: phone },
-				create: { e164: phone, reason: SUPPRESSION_FOR[reason] },
-				update: {},
-			}),
-			db.consentRecord.updateMany({
+				select: { createdAt: true },
+			});
+			const suppression =
+				existing ??
+				(await tx.phoneSuppression.create({
+					data: { e164: phone, reason: SUPPRESSION_FOR[reason] },
+					select: { createdAt: true },
+				}));
+			await tx.consentRecord.updateMany({
 				where: { contactId, revokedAt: null },
 				data: { revokedAt: now },
-			}),
-			db.agentTask.updateMany({
+			});
+			await tx.agentTask.updateMany({
 				where: {
 					contactId,
 					kind: { in: SMS_TASK_KINDS },
@@ -175,8 +217,16 @@ export const prismaSmsStore: SmsStore = {
 					id: keepTaskId ? { not: keepTaskId } : undefined,
 				},
 				data: { finishedAt: now, outcome: SMS_AGENT.outcomes.optedOut },
-			}),
-		]);
+			});
+			await tx.smsDraft.updateMany({
+				where: { contactId, status: SmsDraftStatus.PENDING },
+				data: { status: SmsDraftStatus.DISCARDED, decidedAt: now },
+			});
+			return {
+				created: existing === null,
+				suppressedAt: suppression.createdAt,
+			};
+		});
 	},
 
 	async finishSmsTasks(contactId, outcome, keepTaskId) {

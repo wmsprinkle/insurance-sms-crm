@@ -4,6 +4,7 @@ import { focusOn, setBudget } from "../lib/focus";
 import { sessionPreamble } from "../lib/preamble";
 import { RESEARCH_INSTRUCTIONS } from "../lib/research-instructions";
 import { attribute, purposeOf } from "../lib/session-purpose";
+import { SMS_AGENT } from "../lib/sms-config";
 
 const attributeText = z.string().trim().min(1).nullable().catch(null);
 
@@ -26,6 +27,15 @@ export default defineDynamic({
 				return defineInstructions({
 					markdown: `This is one background run of a deployed team agent. Call agent_runner exactly once and pass the run id from your user message. Do not call research tools or perform work yourself. Relay the specialist's structured factual completion summary. Never claim an external action that the specialist did not log.`,
 				});
+			}
+
+			if (purpose === "sms") {
+				focusOn({
+					contactId: attribute(ctx, "contactId"),
+					sessionId: ctx.session.id,
+					taskKind: attribute(ctx, "taskKind"),
+				});
+				return defineInstructions({ markdown: SMS_AGENT.instructions });
 			}
 
 			const attributes = ctx.session.auth.current?.attributes ?? {};

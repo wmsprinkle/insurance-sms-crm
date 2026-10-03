@@ -1,6 +1,7 @@
 import { z } from "zod";
+import { SMS_AGENT } from "./sms-config";
 
-export type SessionPurpose = "builder" | "team-agent" | "research";
+export type SessionPurpose = "builder" | "team-agent" | "sms" | "research";
 
 type SessionAttributes = Readonly<Record<string, string | readonly string[]>>;
 
@@ -19,9 +20,13 @@ type PurposeContext = {
 
 const attributeText = z.string().trim().min(1).nullable().catch(null);
 
+const SMS_TASK_KINDS = new Set<string>(Object.values(SMS_AGENT.taskKinds));
+
 export function purposeOf(ctx: PurposeContext): SessionPurpose {
 	const purpose = attribute(ctx, "purpose");
 	if (purpose === "builder" || purpose === "team-agent") return purpose;
+	const kind = attribute(ctx, "taskKind");
+	if (kind && SMS_TASK_KINDS.has(kind)) return "sms";
 	return "research";
 }
 

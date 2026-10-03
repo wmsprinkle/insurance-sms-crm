@@ -10,7 +10,8 @@ import { SMS_AGENT } from "./sms-config";
 
 export type SendAttempt =
 	| SmsSendResponse
-	| { status: "unavailable"; reason: string };
+	| { status: "unavailable"; reason: string }
+	| { status: "unknown"; reason: string };
 
 export type SendPath = (request: SmsSendRequest) => Promise<SendAttempt>;
 
@@ -22,6 +23,13 @@ export function dryRunFrom(env: Env = process.env): boolean {
 
 function reasonOf(cause: unknown): string {
 	return cause instanceof Error ? cause.message : String(cause);
+}
+
+function isTimeout(cause: unknown): boolean {
+	return (
+		cause instanceof Error &&
+		(cause.name === "TimeoutError" || cause.name === "AbortError")
+	);
 }
 
 export function apiSendPath(
@@ -50,6 +58,12 @@ export function apiSendPath(
 				signal: AbortSignal.timeout(SMS_AGENT.bridge.timeoutMs),
 			});
 		} catch (cause) {
+			if (isTimeout(cause)) {
+				return {
+					status: "unknown",
+					reason: `The API did not answer within ${SMS_AGENT.bridge.timeoutMs / 1000} s. It may still send the text under the same key.`,
+				};
+			}
 			return {
 				status: "unavailable",
 				reason: `The API did not answer: ${reasonOf(cause)}`,

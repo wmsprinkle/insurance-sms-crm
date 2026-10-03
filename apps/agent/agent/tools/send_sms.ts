@@ -1,6 +1,7 @@
 import { defineTool } from "eve/tools";
 import { OUTBOUND_GUARD, outboundSmsInput } from "../hooks/outbound-guard";
 import { focusOn } from "../lib/focus";
+import { SMS_AGENT } from "../lib/sms-config";
 import { deliver } from "../lib/sms-delivery";
 import { apiSendPath, dryRunFrom } from "../lib/sms-outbound";
 import { NOT_AN_SMS_SESSION, smsSessionOf } from "../lib/sms-session";
@@ -22,7 +23,8 @@ export default defineTool({
 				text: body,
 				purpose: "conversation",
 				taskId: sms.taskId,
-				idempotencyKey: `send_sms:${ctx.callId}`,
+				idempotencyKey: `${SMS_AGENT.keys.reply}${sms.taskId ?? ctx.callId}`,
+				oncePerKey: true,
 				bookingLink: sms.bookingLink,
 				disclosure: sms.disclosure,
 			},

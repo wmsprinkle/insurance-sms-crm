@@ -1,12 +1,14 @@
 import { describe, expect, it } from "bun:test";
 
 import {
-	attemptedViolations,
 	breaksCharacter,
 	detectInjection,
 	guardOutbound,
-	OUTBOUND_GUARD,
 	stripContactInfo,
+} from "@crm/validation/outbound-guard";
+import {
+	attemptedViolations,
+	OUTBOUND_GUARD,
 } from "../agent/hooks/outbound-guard";
 
 const LINK = "https://cal.example.com/book";

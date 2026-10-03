@@ -1,6 +1,7 @@
 import { parseFirstTouchTaskPayload } from "@crm/validation/first-touch-task";
+import { detectInjection } from "@crm/validation/outbound-guard";
 import { parseSmsReplyTaskPayload } from "@crm/validation/sms-reply-task";
-import { detectInjection, OUTBOUND_GUARD } from "../hooks/outbound-guard";
+import { OUTBOUND_GUARD } from "../hooks/outbound-guard";
 import type { AppAuth } from "./app-auth";
 import { SMS_AGENT } from "./sms-config";
 import { type DeliveryDeps, deliver } from "./sms-delivery";
@@ -47,12 +48,18 @@ function clip(text: string, max: number): string {
 	return chars.length > max ? `${chars.slice(0, max).join("")}…` : text;
 }
 
+const FENCE_RE = /<{3,}|>{3,}/g;
+
+export function unfence(text: string): string {
+	return text.replace(FENCE_RE, "");
+}
+
 function threadLines(lines: readonly SmsLine[]): string {
 	if (lines.length === 0) return "(no earlier messages)";
 	return lines
 		.map(
 			(line) =>
-				`${line.direction === "INBOUND" ? "Lead" : "Us"}: ${clip(line.body, OUTBOUND_GUARD.historyMessageChars)}`,
+				`${line.direction === "INBOUND" ? "Lead" : "Us"}: ${unfence(clip(line.body, OUTBOUND_GUARD.historyMessageChars))}`,
 		)
 		.join("\n");
 }
@@ -68,7 +75,7 @@ export function smsTurnMessage(input: {
 		"",
 		"New message from the lead:",
 		"<<<",
-		input.inbound.join("\n"),
+		input.inbound.map(unfence).join("\n"),
 		">>>",
 		"",
 		"Earlier in this thread (oldest first):",
@@ -133,6 +140,21 @@ export async function planSmsTask(
 
 	const payload = parseSmsReplyTaskPayload(task.payload);
 	const store = deps.store;
+
+	const contact = await store.contact(contactId);
+	if (!contact?.phone) {
+		return {
+			kind: "settled",
+			outcome: `${SMS_AGENT.outcomes.skipped}: the contact has no phone on an active record`,
+		};
+	}
+	const block = await store.sendBlock(contactId, contact.phone);
+	if (block) {
+		return {
+			kind: "settled",
+			outcome: `${SMS_AGENT.outcomes.skipped}: ${SMS_AGENT.sendBlocks[block]}`,
+		};
+	}
 
 	if (await store.turnInFlight(contactId, task.id)) {
 		return {
@@ -233,6 +255,7 @@ export async function runSmsTask(
 		console.error(
 			`[sms] Task ${task.id} could not be planned: ${error instanceof Error ? error.message : String(error)}`,
 		);
+		await deps.complete(task.id, SMS_AGENT.outcomes.planFailed);
 		return;
 	}
 

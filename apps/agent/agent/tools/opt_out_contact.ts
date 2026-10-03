@@ -1,16 +1,14 @@
-import { DealStage } from "@crm/db/enums";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { focusOn } from "../lib/focus";
-import { SMS_AGENT } from "../lib/sms-config";
-import { deliver } from "../lib/sms-delivery";
+import { optOutLead } from "../lib/sms-opt-out";
 import { apiSendPath, dryRunFrom } from "../lib/sms-outbound";
 import { NOT_AN_SMS_SESSION, smsSessionOf } from "../lib/sms-session";
 import { prismaSmsStore } from "../lib/sms-store";
 
 export default defineTool({
 	description:
-		"Opt the lead out of all texts: suppress the number, revoke consent, close open SMS work, and send the one confirmation. Use it when classify_reply says opt_out or wrong_number. Send nothing after it.",
+		"Opt the lead out of all texts: suppress the number, revoke consent, close open SMS work, and send the one confirmation. classify_reply with opt_out or wrong_number already does this; call it only when the lead asks to stop without classify_reply. Send nothing after it.",
 	inputSchema: z.object({
 		reason: z.enum(["opt_out", "wrong_number"]),
 	}),
@@ -19,33 +17,11 @@ export default defineTool({
 		if (!sms) return NOT_AN_SMS_SESSION;
 		focusOn({ contactId: sms.contactId });
 
-		const contact = await prismaSmsStore.contact(sms.contactId);
-		if (!contact?.phone) {
-			return {
-				ok: false as const,
-				reason: "This contact has no phone number on an active record.",
-			};
-		}
-
-		await prismaSmsStore.optOut({
-			contactId: contact.id,
-			phone: contact.phone,
-			reason,
-			keepTaskId: sms.taskId,
-		});
-		const dealsMoved = await prismaSmsStore.setDealStage(
-			contact.id,
-			DealStage.UNQUALIFIED_TO_BUY,
-		);
-
-		const confirmation = await deliver(
+		const outcome = await optOutLead(
 			{
-				contactId: contact.id,
-				text: SMS_AGENT.messages.optOutConfirmation,
-				purpose: "opt-out-confirmation",
+				contactId: sms.contactId,
+				reason,
 				taskId: sms.taskId,
-				idempotencyKey: `opt_out_contact:${contact.id}:${ctx.callId}`,
-				bookingLink: null,
 				disclosure: sms.disclosure,
 			},
 			{
@@ -54,13 +30,8 @@ export default defineTool({
 				dryRun: dryRunFrom(),
 			},
 		);
+		if (!outcome.ok) return outcome;
 
-		return {
-			ok: true as const,
-			optedOut: true as const,
-			dealsMoved,
-			confirmation: confirmation.status,
-			next: "Stop. Send nothing more to this lead.",
-		};
+		return { ...outcome, next: "Stop. Send nothing more to this lead." };
 	},
 });

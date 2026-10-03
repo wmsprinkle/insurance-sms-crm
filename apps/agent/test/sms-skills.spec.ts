@@ -5,7 +5,7 @@ import { join } from "node:path";
 import {
 	DISCLOSURE_MODES,
 	stripContactInfo,
-} from "../agent/hooks/outbound-guard";
+} from "@crm/validation/outbound-guard";
 
 const SKILLS_DIR = join(import.meta.dir, "../agent/skills");
 const KNOWLEDGE_MAX_CHARS = 9000;

@@ -1,10 +1,11 @@
-import type { SmsHoldReason, SmsSendPurpose } from "@crm/validation/sms-send";
 import {
 	type DisclosureMode,
 	guardOutbound,
 	type OutboundVerdict,
-} from "../hooks/outbound-guard";
+} from "@crm/validation/outbound-guard";
+import type { SmsHoldReason, SmsSendPurpose } from "@crm/validation/sms-send";
 import { explainHold, holdBeforeSend, judgeAttempt } from "./approval-sms";
+import { SMS_AGENT } from "./sms-config";
 import type { SendPath } from "./sms-outbound";
 import type { SmsStore } from "./sms-store";
 
@@ -17,6 +18,7 @@ export type DeliveryRequest = {
 	bookingLink: string | null;
 	disclosure?: DisclosureMode;
 	quietHours?: "draft" | "defer";
+	oncePerKey?: boolean;
 };
 
 export type Delivery =
@@ -72,6 +74,13 @@ export async function deliver(
 		}
 	}
 
+	if (
+		request.oncePerKey &&
+		(await deps.store.replyRecorded(request.idempotencyKey))
+	) {
+		return { status: "refused", reason: SMS_AGENT.next.alreadyReplied };
+	}
+
 	const settings = await deps.store.settings();
 	const verdict = guardOutbound({
 		message: request.text,
@@ -90,6 +99,7 @@ export async function deliver(
 			reason,
 			retryAt,
 			taskId: request.taskId,
+			idempotencyKey: request.idempotencyKey,
 		});
 		return {
 			status: "drafted",

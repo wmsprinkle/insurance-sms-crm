@@ -18,6 +18,9 @@ export type FakeSms = {
 	drafts: (DraftInput & { id: string })[];
 	lines: Map<string, SmsLine & { id: string; contactId: string }>;
 	optOuts: { contactId: string; phone: string; reason: string }[];
+	suppressed: Map<string, Date>;
+	consented: Set<string>;
+	receipts: Set<string>;
 	finished: { contactId: string; outcome: string; keep: string | null }[];
 	stages: { contactId: string; stage: string }[];
 	inFlight: boolean;
@@ -36,6 +39,9 @@ export function fakeSms(overrides: Partial<SmsSettings> = {}): FakeSms {
 		drafts: [],
 		lines: new Map(),
 		optOuts: [],
+		suppressed: new Map(),
+		consented: new Set([LEAD.id]),
+		receipts: new Set(),
 		finished: [],
 		stages: [],
 		inFlight: false,
@@ -62,6 +68,13 @@ export function fakeSms(overrides: Partial<SmsSettings> = {}): FakeSms {
 			fake.drafts.push({ ...draft, id });
 			return { id };
 		},
+		sendBlock: async (contactId, phone) => {
+			if (fake.suppressed.has(phone)) return "suppressed";
+			return fake.consented.has(contactId) ? null : "no-consent";
+		},
+		replyRecorded: async (key) =>
+			fake.receipts.has(key) ||
+			fake.drafts.some((draft) => draft.idempotencyKey === key),
 		inboundCounts: async (contactId, since) => {
 			const inbound = [...fake.lines.values()].filter(
 				(line) => line.contactId === contactId && line.direction === "INBOUND",
@@ -82,6 +95,11 @@ export function fakeSms(overrides: Partial<SmsSettings> = {}): FakeSms {
 				.slice(-limit),
 		optOut: async ({ contactId, phone, reason }) => {
 			fake.optOuts.push({ contactId, phone, reason });
+			const existing = fake.suppressed.get(phone);
+			const suppressedAt = existing ?? new Date(1_000 * fake.optOuts.length);
+			fake.suppressed.set(phone, suppressedAt);
+			fake.consented.delete(contactId);
+			return { created: existing === undefined, suppressedAt };
 		},
 		finishSmsTasks: async (contactId, outcome, keep) => {
 			fake.finished.push({ contactId, outcome, keep });

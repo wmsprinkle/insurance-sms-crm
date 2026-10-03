@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { db, Prisma } from "@crm/db";
-import { ActivityType, DealStage } from "@crm/db/enums";
+import { ActivityType, DealStage, SmsDirection } from "@crm/db/enums";
 import type { CalendarSlot } from "@crm/validation/calendar-book";
 import { z } from "zod";
 import type { CalendarAttempt, CalendarPath } from "./sms-calendar";
@@ -35,6 +35,7 @@ export type BookedMeeting = {
 export interface BookingStore {
 	lead(contactId: string): Promise<BookingLead | null>;
 	saveEmail(contactId: string, email: string): Promise<boolean>;
+	leadTyped(contactId: string, text: string): Promise<boolean>;
 	recordMeeting(meeting: BookedMeeting): Promise<void>;
 	moveDeal(contactId: string, stage: DealStage): Promise<DealMove>;
 }
@@ -88,6 +89,8 @@ const NEXT = {
 	noSlots: "No free time in the next week. ",
 	needsEmail:
 		"Ask the lead for the email address the calendar invite should go to. If they do not want to give one, call book_meeting again with emailDeclined true.",
+	untypedEmail:
+		"The invite goes only to an email on the lead's record or one the lead typed in this text thread. Ask the lead to text the address they want, then call book_meeting again.",
 	taken:
 		"That time was just taken. Offer these new times instead and ask which works.",
 	booked:
@@ -225,7 +228,15 @@ export async function bookMeeting(
 			next: `"${given}" is not an email address. ${NEXT.needsEmail}`,
 		};
 	}
-	const email = given ?? lead.email?.toLowerCase() ?? null;
+	const onRecord = lead.email?.toLowerCase() ?? null;
+	if (
+		given &&
+		given !== onRecord &&
+		!(await deps.booking.leadTyped(contactId, given))
+	) {
+		return { status: "needs-email", next: NEXT.untypedEmail };
+	}
+	const email = given ?? onRecord;
 	if (!email && !input.emailDeclined) {
 		return { status: "needs-email", next: NEXT.needsEmail };
 	}
@@ -235,7 +246,7 @@ export async function bookMeeting(
 	const end = new Date(start.getTime() + SMS_AGENT.booking.durationMs);
 	const eventId = bookingEventId(contactId, start);
 	const summary = `${SMS_AGENT.booking.summary} ${name}`;
-	const description = `${SMS_AGENT.booking.description} Lead phone: ${lead.phone}.`;
+	const description = SMS_AGENT.booking.description;
 	const attendee = email ? { email, name } : null;
 
 	const attempt = await deps.calendar({
@@ -340,6 +351,17 @@ export const prismaBookingStore: BookingStore = {
 			if (isUniqueViolation(cause)) return false;
 			throw cause;
 		}
+	},
+
+	async leadTyped(contactId, text) {
+		const count = await db.smsMessage.count({
+			where: {
+				contactId,
+				direction: SmsDirection.INBOUND,
+				body: { contains: text, mode: "insensitive" },
+			},
+		});
+		return count > 0;
 	},
 
 	async recordMeeting(meeting) {

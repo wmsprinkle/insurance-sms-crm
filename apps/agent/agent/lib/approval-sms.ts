@@ -67,6 +67,13 @@ export function judgeAttempt(attempt: SendAttempt): AttemptVerdict {
 				retryAt: null,
 				detail: attempt.reason,
 			};
+		case "unknown":
+			return {
+				kind: "hold",
+				reason: "send-failed",
+				retryAt: null,
+				detail: `${attempt.reason} Approving the draft reuses that key, so the lead cannot get it twice.`,
+			};
 	}
 }
 
