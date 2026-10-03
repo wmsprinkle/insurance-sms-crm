@@ -659,3 +659,43 @@ Date: 2026-10-03. Full results, the PGlite method and the issue list: `docs/QA_R
 - Fixes: `15ae1e0` (SMS tools in the telemetry allowlist), `5e4d684` (keyless-brand test and `FEATURE_ENRICHMENT`).
 - New: `apps/api/test/core-loop.integration.spec.ts` (`b1ff0b2`), import → first touch → signed inbound → qualify → book → STOP → no consent.
 - Not run: `prisma migrate deploy`, the Nest boot, the UI, `eve eval`.
+
+# Security fixes — agent side (worker-crm-fix-agent)
+
+Date: 2026-10-03. bun 1.3.12. Findings from `docs/COMPLIANCE_SECURITY_REVIEW.md`.
+
+| Finding | Status | Change |
+|---|---|---|
+| C1 | fixed | `agent/tools/sms_lockdown.ts` (eve dynamic tools). In a session with `taskKind` `sms-reply`, `first-touch` or `sms-follow-up`, every tool in `SMS_AGENT.tools.locked` is replaced by a stub that refuses and logs. eve 0.29.4 cannot remove a tool per session, so the model still sees the names. Allowed: `SMS_AGENT.tools.allowed`. `purposeOf` returns `sms` for these sessions, so `assertResearchPurpose` tools also refuse. SMS sessions get short SMS instructions instead of the research preamble. |
+| H1 (agent) | fixed | `classify_reply` with `opt_out` or `wrong_number` opts the lead out itself (`lib/sms-opt-out.ts` `optOutLead`). |
+| H2 (agent) | fixed | `planSmsTask` settles an `sms-reply` without a model when the number is suppressed or has no un-revoked consent for that phone (`store.sendBlock`). The opt-out confirmation goes out only when this call created the suppression, with key `opt-out:<e164>:<suppression createdAt ms>` (the API contract). |
+| H5 (agent) | fixed | Every agent draft stores its send key in `SmsDraft.idempotencyKey` (column from fix-api migration `20261003170000`). A bridge timeout is `unknown`, drafted as `send-failed` with the key. Bridge timeout 45 s. |
+| M2 (agent) | fixed | `send_sms` uses key `send_sms:<taskId>` and `oncePerKey`: a second reply in one task is refused. |
+| M3 (agent) | fixed | `store.optOut` discards `PENDING` drafts in the same transaction. |
+| M5 | fixed | Shared guard: bare domains, shortener TLDs, booking link compared by protocol, host and path prefix (no userinfo), price and guarantee text → fallback `price_or_guarantee`, international, full-width and 7-digit phone numbers. |
+| M6 | fixed | Injection check runs on NFKC text without zero-width characters, with collapsed whitespace and leetspeak folded; new patterns for "you're now", "from now on you", `system:` lines and `<<<`/`>>>`. `smsTurnMessage` removes `<<<`/`>>>` from lead text. |
+| L5 | fixed | `book_meeting` invites only the email on record or one the lead typed in an inbound SMS. The event description no longer holds the phone. |
+| L7 | fixed | A planning error completes the task with `failed: the task could not be planned`. |
+
+- The agent hook `hooks/outbound-guard.ts` now imports `@crm/validation/outbound-guard`; it keeps only the agent constants, `outboundSmsInput`, `attemptedViolations` and the observe hook.
+- god approved `sms_lockdown` in `packages/telemetry/src/allowlist.ts` and `apps/app/lib/agent-transcript.ts` (separate commit).
+
+## Commands and results
+
+| Command | Result |
+|---|---|
+| `bun test test/sms-*.spec.ts test/outbound-guard.spec.ts test/drain.spec.ts test/custom-agent-runtime.spec.ts` (apps/agent) | pass, 259 |
+| `bun test --preload <pglite> test/sms-store.integration.spec.ts` (apps/agent) | pass, 4 |
+| `bun test --preload <pglite> test/core-loop.integration.spec.ts` (apps/api) | pass, 7 |
+| `bun test test/sms-drafts.spec.ts` (apps/api) | pass, 25 |
+| `bun test` (packages/validation) | pass, 85 |
+| `bun test test/allowlist.spec.ts` (telemetry), `test/agent-transcript.spec.ts` (app) | pass, 26 and 45 |
+| `check-types`, `biome check` (apps/agent, packages/validation) | pass; 1 pre-existing warning in `agent/lib/tasks.ts` |
+| `lint:slop` | my files pass; fails on `apps/api/test/compliance-fixes.spec.ts` (fix-api, uncommitted) |
+| `lint:dead` | no finding in apps/agent or packages/validation; pre-existing findings elsewhere |
+
+## Not run / not done
+
+- `eve eval` (spends credits). No eval asserts the lockdown in a live model turn; the unit tests call the resolver.
+- No per-turn random fence marker: lead text can no longer hold the fence characters, and they trigger a hand-off.
+- `\bguarantee` also blocks "guaranteed issue" product names; such a reply falls back to the safe text.
