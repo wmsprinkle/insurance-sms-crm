@@ -648,3 +648,14 @@ Date: 2026-10-03. Docs only; no code changed.
 
 Not run: the local run steps in `SMS_SETUP.md` §3 (no Postgres, no browser), the SQL in
 `OPERATIONS.md` (no database), any Telnyx or Google console step.
+
+# Final QA (worker-crm-qa)
+
+Date: 2026-10-03. Full results, the PGlite method and the issue list: `docs/QA_REPORT.md`.
+
+- Build checks pass (types and lint forced, no turbo cache). `knip` fails: upstream findings plus 24 new unused exports.
+- No Postgres server can start in the sandbox. PGlite in process runs every migration in order and the integration suites:
+  agent 547/547, api 588/588 (2 port-binding files left out), auth 51/51, telemetry 60/61.
+- Fixes: `15ae1e0` (SMS tools in the telemetry allowlist), `5e4d684` (keyless-brand test and `FEATURE_ENRICHMENT`).
+- New: `apps/api/test/core-loop.integration.spec.ts` (`b1ff0b2`), import → first touch → signed inbound → qualify → book → STOP → no consent.
+- Not run: `prisma migrate deploy`, the Nest boot, the UI, `eve eval`.
