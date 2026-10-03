@@ -10,6 +10,7 @@ import { CONTEXT } from "../lib/context-config";
 import { spend } from "../lib/focus";
 import { verdictFor } from "../lib/identity";
 import { personByClues } from "../lib/people";
+import { assertNotSmsPurpose } from "../lib/session-purpose";
 
 export default defineTool({
 	description:
@@ -29,7 +30,11 @@ export default defineTool({
 			.optional()
 			.describe("The last name, if the CRM holds one."),
 	}),
-	async execute({ email, companyName, companyDomain, firstName, lastName }) {
+	async execute(
+		{ email, companyName, companyDomain, firstName, lastName },
+		ctx,
+	) {
+		assertNotSmsPurpose(ctx);
 		if (!(await enabled(CONTEXT_DEV_PEOPLE))) {
 			return { found: false as const, ...unavailable(CONTEXT_DEV_SOURCE) };
 		}

@@ -1,6 +1,7 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { createField, updateFieldBrief } from "../lib/fields";
+import { assertNotSmsPurpose } from "../lib/session-purpose";
 
 export default defineTool({
 	description:
@@ -46,7 +47,8 @@ export default defineTool({
 			.optional()
 			.describe("False hands the field back to the rep entirely."),
 	}),
-	async execute(input) {
+	async execute(input, ctx) {
+		assertNotSmsPurpose(ctx);
 		if (input.action === "create") {
 			if (!input.label || !input.type) {
 				return {

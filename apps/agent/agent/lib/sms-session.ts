@@ -49,3 +49,9 @@ export const NOT_AN_SMS_SESSION = {
 	reason:
 		"This tool only works inside an SMS conversation task. Nothing was sent or written.",
 };
+
+export const NO_TASK_FOR_SEND = {
+	ok: false as const,
+	reason:
+		"This SMS session has no task. A message needs a task to send safely. Nothing was sent.",
+};

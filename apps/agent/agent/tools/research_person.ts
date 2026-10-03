@@ -3,6 +3,7 @@ import { z } from "zod";
 import { enabled, unavailable } from "../lib/capabilities";
 import { spend } from "../lib/focus";
 import { ask } from "../lib/perplexity";
+import { assertNotSmsPurpose } from "../lib/session-purpose";
 
 export default defineTool({
 	description:
@@ -18,7 +19,8 @@ export default defineTool({
 			.default(false)
 			.describe("Reason over more sources. Slower, better for prep briefs."),
 	}),
-	async execute({ question, deep }) {
+	async execute({ question, deep }, ctx) {
+		assertNotSmsPurpose(ctx);
 		if (!(await enabled("PERPLEXITY_API_KEY")))
 			return unavailable("PERPLEXITY_API_KEY");
 

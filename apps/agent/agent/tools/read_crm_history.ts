@@ -2,6 +2,7 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { readCrmHistory } from "../lib/crm";
 import { focusOn } from "../lib/focus";
+import { assertNotSmsPurpose } from "../lib/session-purpose";
 
 export default defineTool({
 	description:
@@ -16,7 +17,8 @@ export default defineTool({
 			.default(5)
 			.describe("How many recent threads to read."),
 	}),
-	async execute({ contactId, threads }) {
+	async execute({ contactId, threads }, ctx) {
+		assertNotSmsPurpose(ctx);
 		focusOn({ contactId });
 
 		const history = await readCrmHistory(contactId, { threads });

@@ -23,10 +23,10 @@ const attributeText = z.string().trim().min(1).nullable().catch(null);
 const SMS_TASK_KINDS = new Set<string>(Object.values(SMS_AGENT.taskKinds));
 
 export function purposeOf(ctx: PurposeContext): SessionPurpose {
-	const purpose = attribute(ctx, "purpose");
-	if (purpose === "builder" || purpose === "team-agent") return purpose;
 	const kind = attribute(ctx, "taskKind");
 	if (kind && SMS_TASK_KINDS.has(kind)) return "sms";
+	const purpose = attribute(ctx, "purpose");
+	if (purpose === "builder" || purpose === "team-agent") return purpose;
 	return "research";
 }
 
@@ -73,5 +73,11 @@ export function requireTeamAgentAttribute(
 export function assertResearchPurpose(ctx: PurposeContext): void {
 	if (purposeOf(ctx) !== "research") {
 		throw new Error("This CRM research tool is unavailable for this session.");
+	}
+}
+
+export function assertNotSmsPurpose(ctx: PurposeContext): void {
+	if (purposeOf(ctx) === "sms") {
+		throw new Error("This tool is locked in SMS conversations.");
 	}
 }

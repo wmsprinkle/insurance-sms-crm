@@ -8,6 +8,7 @@ import {
 	type QualificationFacts,
 	type QualificationKey,
 	qualificationFacts,
+	sanitizeCoverage,
 	TIMELINES,
 } from "@crm/validation/sms-qualification";
 import {
@@ -94,7 +95,13 @@ export function factsFromFields(
 	for (const key of QUALIFICATION_KEYS) {
 		const field = fields.find((entry) => entry.key === fieldKeyFor(key));
 		const value = field ? displayValue(field) : null;
-		if (value !== null) raw[key] = value;
+		if (value === null) continue;
+		if (key === "coverage") {
+			const safe = sanitizeCoverage(value);
+			if (safe) raw[key] = safe;
+			continue;
+		}
+		raw[key] = value;
 	}
 
 	const parsed = qualificationFacts.safeParse(raw);

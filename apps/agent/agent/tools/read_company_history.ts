@@ -2,6 +2,7 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { readCompanyHistory } from "../lib/accounts";
 import { focusOn } from "../lib/focus";
+import { assertNotSmsPurpose } from "../lib/session-purpose";
 
 export default defineTool({
 	description:
@@ -23,7 +24,8 @@ export default defineTool({
 			.default(25)
 			.describe("How many contacts to list."),
 	}),
-	async execute({ companyId, threads, people }) {
+	async execute({ companyId, threads, people }, ctx) {
+		assertNotSmsPurpose(ctx);
 		focusOn({ companyId });
 
 		const history = await readCompanyHistory(companyId, { threads, people });

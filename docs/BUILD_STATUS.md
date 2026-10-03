@@ -778,3 +778,17 @@ Date: 2026-10-03. bun 1.3.12. Findings from `docs/COMPLIANCE_SECURITY_REVIEW.md`
 - The settings UI does not hide the controls for a member; the API answers 403.
 - Frequency cap is a constant in `COMPLIANCE.frequency`, not a settings field.
 - Purge does not suppress the phone. Decide with counsel.
+
+## Security fixes round 2 — agent side (worker-crm-fix2-agent)
+
+| Item | Status |
+|---|---|
+| R1 purpose gate on the 16 CRM tools without one | fixed. `assertNotSmsPurpose` runs first in each. `set_chat_title` already refuses non-builder sessions. |
+| R1 `purposeOf` order | fixed. An SMS `taskKind` now wins over a `purpose` attribute. |
+| R1 runtime proof | partly fixed. `test/sms-deny-by-default.spec.ts` runs the real `execute` of every authored tool and every subagent tool with an SMS context and a hostile `purpose`/`runId` set. All refuse. |
+| R1 allowlist inversion | not fixed (eve limit). eve exposes no API to remove a tool. The stub list stays, and each tool now refuses on its own. `sms-lockdown.spec` fails when a tool is neither allowed nor locked. |
+| Stored injection via `coverage` | fixed. `sanitizeCoverage` in `@crm/validation/sms-qualification` keeps letters, digits and `. , ' & % $ / + -`. It runs on write and on read. |
+| `send_sms` key fallback to `callId` | fixed. A session with no `taskId` is refused. |
+| `subagents/.claude` breaks lockdown spec | fixed. The spec ignores dot-entries. `.gitignore` lists the directory. |
+
+Not proven: the real eve runtime (durable step replay of the stubs, runtime-action routing of subagent calls). No eve eval ran: no model credentials.

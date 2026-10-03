@@ -2,6 +2,7 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { writeField } from "../lib/fields";
 import { focusOn } from "../lib/focus";
+import { assertNotSmsPurpose } from "../lib/session-purpose";
 
 export default defineTool({
 	description:
@@ -18,7 +19,8 @@ export default defineTool({
 				"The value. A select takes the option's label, a date takes YYYY-MM-DD, and null clears it.",
 			),
 	}),
-	async execute({ entity, recordId, key, value }) {
+	async execute({ entity, recordId, key, value }, ctx) {
+		assertNotSmsPurpose(ctx);
 		if (entity === "COMPANY") focusOn({ companyId: recordId });
 		if (entity === "CONTACT") focusOn({ contactId: recordId });
 

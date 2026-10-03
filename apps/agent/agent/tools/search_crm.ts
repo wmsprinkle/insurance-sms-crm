@@ -1,6 +1,7 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { searchCrm } from "../lib/lookup";
+import { assertNotSmsPurpose } from "../lib/session-purpose";
 
 export default defineTool({
 	description:
@@ -18,7 +19,8 @@ export default defineTool({
 			.describe("Narrow the search. Defaults to all three."),
 		limit: z.number().int().min(1).max(25).default(10),
 	}),
-	async execute({ query, kinds, limit }) {
+	async execute({ query, kinds, limit }, ctx) {
+		assertNotSmsPurpose(ctx);
 		const result = await searchCrm(query, { kinds, limit });
 
 		return {

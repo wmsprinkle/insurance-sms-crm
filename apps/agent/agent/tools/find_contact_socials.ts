@@ -2,6 +2,7 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { personForVerification, stampSocialsChecked } from "../lib/crm";
 import { focusOn, spend } from "../lib/focus";
+import { assertNotSmsPurpose } from "../lib/session-purpose";
 import { findSocialCandidates } from "../lib/socials";
 
 export default defineTool({
@@ -10,7 +11,8 @@ export default defineTool({
 	inputSchema: z.object({
 		contactId: z.string(),
 	}),
-	async execute({ contactId }) {
+	async execute({ contactId }, ctx) {
+		assertNotSmsPurpose(ctx);
 		focusOn({ contactId });
 
 		const person = await personForVerification(contactId);

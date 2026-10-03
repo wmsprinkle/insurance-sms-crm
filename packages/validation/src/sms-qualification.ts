@@ -36,6 +36,12 @@ export const TIMELINES = [
 
 export const QUALIFICATION_LIMITS = { coverageMaxLength: 120 } as const;
 
+const COVERAGE_UNSAFE = /[^\p{L}\p{N} .,'&%$/+-]+/gu;
+
+export function sanitizeCoverage(value: string): string {
+	return value.replace(COVERAGE_UNSAFE, " ").replace(/\s+/g, " ").trim();
+}
+
 export const US_STATE_CODE = /^[A-Z]{2}$/;
 
 export const qualificationFacts = z.object({
@@ -49,9 +55,9 @@ export const qualificationFacts = z.object({
 	ageBand: z.enum(AGE_BANDS).optional(),
 	coverage: z
 		.string()
-		.trim()
-		.min(1)
 		.max(QUALIFICATION_LIMITS.coverageMaxLength)
+		.transform(sanitizeCoverage)
+		.pipe(z.string().min(1))
 		.optional(),
 	timeline: z.enum(TIMELINES).optional(),
 });

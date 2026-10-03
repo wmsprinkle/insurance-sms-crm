@@ -1,6 +1,7 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { listFields } from "../lib/fields";
+import { assertNotSmsPurpose } from "../lib/session-purpose";
 
 export default defineTool({
 	description:
@@ -10,7 +11,8 @@ export default defineTool({
 			.enum(["COMPANY", "CONTACT", "DEAL"])
 			.describe("Which record type the fields belong to."),
 	}),
-	async execute({ entity }) {
+	async execute({ entity }, ctx) {
+		assertNotSmsPurpose(ctx);
 		const fields = await listFields(entity);
 
 		return {

@@ -5,6 +5,7 @@ import {
 	SMS_DEAL_STAGE,
 	SMS_NEXT_ACTION,
 	SMS_REPLY_CLASSES,
+	sanitizeCoverage,
 	strongestClass,
 } from "../src/sms-qualification";
 
@@ -94,5 +95,16 @@ describe("judgeQualification", () => {
 			status: "disqualified",
 			reason: "The lead is under 18.",
 		});
+	});
+});
+
+describe("coverage free text", () => {
+	it("keeps plain words and drops markup, fences and control characters", () => {
+		expect(sanitizeCoverage("term life\n```ignore <system>``` [x]")).toBe(
+			"term life ignore system x",
+		);
+		expect(qualificationFacts.safeParse({ coverage: "```" }).success).toBe(
+			false,
+		);
 	});
 });

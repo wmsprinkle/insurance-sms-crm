@@ -2,6 +2,7 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { readDealHistory } from "../lib/accounts";
 import { focusOn } from "../lib/focus";
+import { assertNotSmsPurpose } from "../lib/session-purpose";
 
 export default defineTool({
 	description:
@@ -16,7 +17,8 @@ export default defineTool({
 			.default(5)
 			.describe("How many recent threads to read."),
 	}),
-	async execute({ dealId, threads }) {
+	async execute({ dealId, threads }, ctx) {
+		assertNotSmsPurpose(ctx);
 		const history = await readDealHistory(dealId, { threads });
 		if (!history) return { found: false as const, reason: "No such deal." };
 

@@ -60,7 +60,9 @@ describe("SMS tool lockdown", () => {
 			.filter((file) => file.endsWith(".ts"))
 			.map((file) => file.slice(0, -3))
 			.filter((name) => !NOT_TOOLS.has(name));
-		const subagents = readdirSync(join(AGENT_DIR, "subagents"));
+		const subagents = readdirSync(join(AGENT_DIR, "subagents")).filter(
+			(entry) => !entry.startsWith("."),
+		);
 		const classified = new Set<string>([
 			...SMS_AGENT.tools.allowed,
 			...SMS_AGENT.tools.locked,
@@ -83,7 +85,9 @@ describe("SMS tool lockdown", () => {
 			.filter((file) => file.endsWith(".ts"))
 			.map((file) => file.slice(0, -3))
 			.filter((name) => !NOT_TOOLS.has(name)),
-		...readdirSync(join(AGENT_DIR, "subagents")),
+		...readdirSync(join(AGENT_DIR, "subagents")).filter(
+			(entry) => !entry.startsWith("."),
+		),
 		...FRAMEWORK_TOOLS,
 	];
 	const ALLOWED = new Set<string>(SMS_AGENT.tools.allowed);
@@ -169,5 +173,24 @@ describe("SMS tool lockdown", () => {
 		expect(purposeOf(sms)).toBe("sms");
 		expect(() => assertResearchPurpose(sms)).toThrow();
 		expect(purposeOf(context("research"))).toBe("research");
+	});
+});
+
+describe("SMS purpose wins", () => {
+	it("keeps an SMS session SMS even when it also claims another purpose", () => {
+		const ctx = {
+			session: {
+				auth: {
+					current: {
+						attributes: {
+							taskKind: SMS_AGENT.taskKinds.reply,
+							purpose: "team-agent",
+						},
+					},
+					initiator: null,
+				},
+			},
+		};
+		expect(purposeOf(ctx)).toBe("sms");
 	});
 });

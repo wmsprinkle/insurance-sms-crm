@@ -4,7 +4,11 @@ import { focusOn } from "../lib/focus";
 import { SMS_AGENT } from "../lib/sms-config";
 import { deliver } from "../lib/sms-delivery";
 import { apiSendPath, dryRunFrom } from "../lib/sms-outbound";
-import { NOT_AN_SMS_SESSION, smsSessionOf } from "../lib/sms-session";
+import {
+	NO_TASK_FOR_SEND,
+	NOT_AN_SMS_SESSION,
+	smsSessionOf,
+} from "../lib/sms-session";
 import { prismaSmsStore } from "../lib/sms-store";
 
 export default defineTool({
@@ -15,6 +19,7 @@ export default defineTool({
 	async execute({ body }, ctx) {
 		const sms = smsSessionOf(ctx);
 		if (!sms) return NOT_AN_SMS_SESSION;
+		if (!sms.taskId) return NO_TASK_FOR_SEND;
 		focusOn({ contactId: sms.contactId });
 
 		return deliver(
@@ -23,7 +28,7 @@ export default defineTool({
 				text: body,
 				purpose: "conversation",
 				taskId: sms.taskId,
-				idempotencyKey: `${SMS_AGENT.keys.reply}${sms.taskId ?? ctx.callId}`,
+				idempotencyKey: `${SMS_AGENT.keys.reply}${sms.taskId}`,
 				oncePerKey: true,
 				bookingLink: sms.bookingLink,
 				disclosure: sms.disclosure,

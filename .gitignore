@@ -50,3 +50,6 @@ yarn-error.log*
 
 # Agent scratch files
 .scratch/
+
+# Local agent scratch dirs
+apps/agent/agent/subagents/.claude/
