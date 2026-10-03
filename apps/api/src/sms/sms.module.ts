@@ -1,9 +1,11 @@
 import { readSmsEnv } from "@crm/env/sms";
 import { Logger, Module } from "@nestjs/common";
 import { AgentModule } from "../agent/agent.module";
+import { ComplianceModule } from "../compliance/compliance.module";
 import { RateLimiter } from "./rate-limiter";
 import { SmsService } from "./sms.service";
 import { SMS } from "./sms-config";
+import { SmsSender } from "./sms-sender.service";
 import { TelnyxClient } from "./telnyx.client";
 import { telnyxPublicKey } from "./telnyx-signature";
 import {
@@ -12,10 +14,11 @@ import {
 } from "./telnyx-webhook.controller";
 
 @Module({
-	imports: [AgentModule],
+	imports: [AgentModule, ComplianceModule],
 	controllers: [TelnyxWebhookController],
 	providers: [
 		SmsService,
+		SmsSender,
 		{
 			provide: TelnyxClient,
 			useFactory: () => {
@@ -44,6 +47,6 @@ import {
 			},
 		},
 	],
-	exports: [TelnyxClient, SmsService],
+	exports: [TelnyxClient, SmsService, SmsSender],
 })
 export class SmsModule {}
