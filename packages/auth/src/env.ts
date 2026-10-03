@@ -1,4 +1,5 @@
 import "@crm/env/load";
+import { featureEnabled } from "@crm/env/features";
 
 const DEFAULT_API_URL = "http://localhost:3001";
 const DEFAULT_APP_URL = "http://localhost:3000";
@@ -44,7 +45,10 @@ const microsoftCredentials = ():
 
 const slackCredentials = ():
 	| { clientId: string; clientSecret: string }
-	| undefined => pair("SLACK_CLIENT_ID", "SLACK_CLIENT_SECRET");
+	| undefined =>
+	featureEnabled("slack")
+		? pair("SLACK_CLIENT_ID", "SLACK_CLIENT_SECRET")
+		: undefined;
 
 const apiUrl =
 	optional("API_URL") ?? optional("BETTER_AUTH_URL") ?? DEFAULT_API_URL;

@@ -18,16 +18,24 @@ beforeEach(() => {
 		saved[key] = process.env[key];
 		delete process.env[key];
 	}
+	saved.FEATURE_ENRICHMENT = process.env.FEATURE_ENRICHMENT;
+	process.env.FEATURE_ENRICHMENT = "true";
 });
 
 afterEach(() => {
-	for (const key of KEYS) {
+	for (const key of [...KEYS, "FEATURE_ENRICHMENT"]) {
 		if (saved[key] === undefined) delete process.env[key];
 		else process.env[key] = saved[key];
 	}
 });
 
 describe("capabilities", () => {
+	it("keeps enrichment off unless FEATURE_ENRICHMENT is true", async () => {
+		process.env.PERPLEXITY_API_KEY = "pplx-test";
+		process.env.FEATURE_ENRICHMENT = "";
+		expect(await enabled("PERPLEXITY_API_KEY")).toBe(false);
+	});
+
 	it("reports everything off on a bare install", async () => {
 		expect(capabilitiesFrom(null).every((c) => !c.enabled)).toBe(true);
 		expect(await enabled("PERPLEXITY_API_KEY")).toBe(false);

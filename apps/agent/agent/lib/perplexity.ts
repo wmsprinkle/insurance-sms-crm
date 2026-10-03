@@ -1,3 +1,5 @@
+import { featureEnabled } from "@crm/env/features";
+
 const ENDPOINT = "https://api.perplexity.ai/chat/completions";
 const TIMEOUT_MS = 45_000;
 
@@ -9,7 +11,9 @@ export type Answer = {
 type Outcome<T> = { ok: true; data: T } | { ok: false; reason: string };
 
 export function perplexityEnabled(): boolean {
-	return Boolean(process.env.PERPLEXITY_API_KEY);
+	return (
+		featureEnabled("enrichment") && Boolean(process.env.PERPLEXITY_API_KEY)
+	);
 }
 
 export type AskOptions = {

@@ -11,7 +11,33 @@
   <img alt="stars" height="21" src="https://afterglow.watch/badge/trycompai/crm">
 </p>
 
-<h1 align="center">CRM</h1>
+<h1 align="center">Insurance SMS CRM</h1>
+
+<p align="center">
+  <strong>An SMS-first CRM for insurance lead handling: text opted-in leads over Telnyx toll-free numbers, let an agent qualify them, and book the call.</strong>
+</p>
+
+> **Attribution.** This project is a fork of [trycompai/crm](https://github.com/trycompai/crm)
+> (Comp AI CRM) v1.15.3, used under the MIT licence; the original copyright notice is kept in
+> [LICENSE](./LICENSE). The upstream README follows below for reference. Upstream enrichment
+> (Context.dev / LinkedIn / Perplexity), Slack and website tracking are kept in the code but
+> switched off by default; see "Feature flags".
+
+## Feature flags
+
+| Variable | Turns on | Default |
+|---|---|---|
+| `FEATURE_ENRICHMENT` | Context.dev brand + LinkedIn lookups and Perplexity web research in the agent | off |
+| `FEATURE_SLACK` | Slack account linking (still needs `SLACK_CLIENT_ID` / `SLACK_CLIENT_SECRET`) | off |
+| `FEATURE_TRACKING` | The public website-tracking endpoints (`/api/t/config`, `/api/t/e`) | off |
+
+The only value that turns a flag on is `"true"`.
+
+---
+
+## Upstream README (trycompai/crm)
+
+<h1 align="center">CRM (upstream)</h1>
 
 <p align="center">
   <strong>Comp AI CRM is an open source, CRM designed for AI agents.</strong><br>

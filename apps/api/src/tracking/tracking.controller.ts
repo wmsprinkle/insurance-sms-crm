@@ -5,6 +5,7 @@ import {
 	isSiteId,
 	MAX_BODY_BYTES,
 } from "@crm/db/tracking";
+import { featureEnabled } from "@crm/env/features";
 import {
 	Controller,
 	ForbiddenException,
@@ -79,7 +80,9 @@ export class TrackingController {
 		description: "The compiled config, or null if the site is unknown.",
 	})
 	async publicConfig(@Param("siteId") siteId: string) {
-		if (!isSiteId(siteId)) return { config: null };
+		if (!featureEnabled("tracking") || !isSiteId(siteId)) {
+			return { config: null };
+		}
 
 		const compiled = await this.config.forSite(siteId);
 
@@ -105,6 +108,8 @@ export class TrackingController {
 		@Headers("user-agent") userAgent?: string,
 	): Promise<void> {
 		response.setHeader("cross-origin-resource-policy", "cross-origin");
+
+		if (!featureEnabled("tracking")) return;
 
 		const raw = await read(request, MAX_BODY_BYTES);
 		if (!raw) return;

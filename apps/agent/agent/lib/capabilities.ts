@@ -2,6 +2,7 @@ import "@crm/env/load";
 
 import { db } from "@crm/db";
 import { readContextDevKey } from "@crm/db/settings";
+import { featureEnabled } from "@crm/env/features";
 
 export const CONTEXT_DEV = "CONTEXT_DEV";
 
@@ -18,6 +19,8 @@ export type Capability = {
 };
 
 export async function contextDevKey(): Promise<string | null> {
+	if (!featureEnabled("enrichment")) return null;
+
 	try {
 		return await readContextDevKey(db);
 	} catch (error) {
@@ -43,10 +46,12 @@ export function capabilitiesFrom(
 		from: id,
 		enabled: Boolean(process.env[id]?.trim()),
 	});
+	const enrichment = featureEnabled("enrichment");
 
 	return [
 		{
 			...fromEnv("PERPLEXITY_API_KEY"),
+			enabled: enrichment && fromEnv("PERPLEXITY_API_KEY").enabled,
 			label: "Web research",
 			gives:
 				"open-web context with citations, and the search that finds a LinkedIn slug in the first place",
