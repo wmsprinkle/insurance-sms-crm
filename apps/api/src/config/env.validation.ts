@@ -129,6 +129,10 @@ export class EnvironmentVariables {
 
 	@IsOptional()
 	@IsString()
+	LEAD_INGEST_SECRETS?: string;
+
+	@IsOptional()
+	@IsString()
 	DRY_RUN?: string;
 
 	@IsOptional()

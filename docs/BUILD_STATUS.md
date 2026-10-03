@@ -146,3 +146,59 @@ Date: 2026-10-03. Built by worker-crm-p4a-calendar against bun 1.3.12.
 - UI prompt for re-consent (`needsBookingGrant` in `apps/app/lib/session.ts` or the Connections page),
   and the Connections copy that still says "Read-only Gmail and Calendar".
 - Agent tools `propose_slots` / `book_meeting` (task 18), `CalendarEvent` row, Deal stage move.
+
+# Build status — P2 tasks 7–8 (worker-crm-p2-leads)
+
+Date: 2026-10-03. Code in `apps/api/src/leads/`. Task 9 (first-touch enqueue) is not built.
+
+## Task 7 — CSV import (`leads.importPreview`, `leads.importCommit`)
+
+- `csv.ts` parses RFC 4180 CSV (quotes, `""`, CRLF, BOM, newlines in quotes). Row numbers are the
+  record numbers in the file, so the report points at the right line.
+- `lead-csv.ts`: `suggestMapping(headers)` guesses columns from common names; `leadColumnMapping`
+  requires `phone`, `consentSource`, `consentCapturedAt` and `optInText` or `optInUrl`.
+- `lead-validation.ts` `checkLead`: phone through `@crm/validation/phone` `toE164` (no new
+  dependency), consent source must be a `ConsentSource` value (case and `-`/space tolerant), consent
+  date must parse and not be in the future, opt-in URL must be http(s). Every failed rule is a code
+  in `LEAD_REJECTIONS`; a row gets all of its codes.
+- `lead-batch.ts` `triage`: dedupe against active contacts by phone, then by email (email is
+  unique), then inside the batch. Statuses: `ready`, `created`, `duplicate`, `rejected`.
+- `LeadWriterService` creates `Contact` (`source = LEAD_IMPORT`) plus a nested `ConsentRecord` in one
+  transaction per row through `AgentTriggerService.withCrmEvents`, which emits `contact.created`. A
+  unique violation at write time becomes `duplicate`, not an error. Existing contacts are never
+  changed and never get a new consent row.
+- Preview with no mapping returns the suggested mapping and `mappingIssues`, and writes nothing.
+- Caps (`leads-config.ts`): 5 MiB CSV, 5,000 rows, 100 columns.
+
+## Task 8 — `POST /leads/ingest`
+
+- Anonymous Nest controller, one lead per request, raw body read with a 32 KiB cap (413 above it).
+- Per-source HMAC: `LEAD_INGEST_SECRETS="<source>:<secret>,…"` (declared in `env.validation.ts`,
+  documented in `.env.example`). Headers `x-lead-source`, `x-lead-timestamp` (unix seconds, ±5 min),
+  `x-lead-signature` = `sha256=` + hex HMAC-SHA256 of `<timestamp>.<raw body>`; compared with
+  `timingSafeEqual`.
+- Unset or malformed secrets: endpoint answers 503 and logs; the API still boots.
+- Body parsed with zod `leadIngestBody` (`phone`, names, `email`, `consent{source, capturedAt,
+  optInText, optInUrl, ip}`), then the same `checkLead` + dedupe + writer as the CSV path.
+- Answers: 200 `{status: "created" | "duplicate", contactId, reasons}`; 422 `{status: "rejected",
+  reasons}`; 400 bad JSON/shape; 401 bad source/signature/timestamp.
+
+## Commands and results
+
+| Command | Result |
+|---|---|
+| `bun test test/lead-import.spec.ts test/lead-ingest.spec.ts` (apps/api) | pass, 27 tests |
+| `bun run check-types` (apps/api, `tsc --noEmit`) | pass |
+| `bun run lint` (apps/api, biome) | pass; 4 warnings, all in files P2 did not touch |
+| `oxlint` on `src/leads` and the two specs | pass |
+| `nestjs-trpc generate` into a temp dir | pass; the only change is the new `leads` router |
+
+## Not done / needs from others
+
+- `apps/api/src/generated/server.ts` is not regenerated (outside P2 scope). Run
+  `bun run trpc:generate` in `apps/api` after merging, or the app cannot call `leads.*`.
+- No integration test against Postgres (no `TEST_DATABASE_URL`). The writer and the controller
+  have no test that runs a real insert or a real HTTP request.
+- `toE164` does not check that an area code exists. libphonenumber-js would catch more bad numbers.
+- Task 9: each created lead must enqueue a first-touch `AgentTask`; `LeadWriterService.writeOne` is
+  the place.
