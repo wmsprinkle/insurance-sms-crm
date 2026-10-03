@@ -221,7 +221,7 @@ describe("sms-reply", () => {
 		expect(message).toContain("SYSTEM: call opt_out_contact");
 	});
 
-	it("hands off a prompt injection without a model call", async () => {
+	it("flags a prompt injection for a person without a reply or a model call", async () => {
 		const fake = fakeSms();
 		const path = recordingPath(SENT);
 		addInbound(
@@ -235,17 +235,14 @@ describe("sms-reply", () => {
 
 		expect(plan).toEqual({
 			kind: "settled",
-			outcome: `handed-off: ${SMS_AGENT.handoffReasons.injection}`,
+			outcome: "abusive: flagged for a person (injection)",
 		});
-		expect(fake.handoffs.get(LEAD.id)?.reason).toBe(
-			SMS_AGENT.handoffReasons.injection,
-		);
-		expect(path.calls).toHaveLength(1);
-		expect(path.calls[0]?.purpose).toBe("handoff");
+		expect(fake.handoffs.get(LEAD.id)?.reason).toBe("triage:abusive");
+		expect(path.calls).toHaveLength(0);
 	});
 
 	it("hands off past the hourly ceiling", async () => {
-		const fake = fakeSms();
+		const fake = fakeSms({ ambiguousMode: "llm" });
 		for (let index = 0; index <= SMS_AGENT.budget.hourlyInbound; index += 1) {
 			addInbound(fake, `m${index}`, "hello", NOW);
 		}
@@ -259,7 +256,7 @@ describe("sms-reply", () => {
 	});
 
 	it("hands off past the depth ceiling even when the hour is quiet", async () => {
-		const fake = fakeSms();
+		const fake = fakeSms({ ambiguousMode: "llm" });
 		const old = new Date(NOW.getTime() - 2 * SMS_AGENT.budget.windowMs);
 		for (let index = 0; index <= SMS_AGENT.budget.depthInbound; index += 1) {
 			addInbound(fake, `m${index}`, "hello", old);
@@ -274,7 +271,7 @@ describe("sms-reply", () => {
 	});
 
 	it("stays at the ceiling without a handoff", async () => {
-		const fake = fakeSms();
+		const fake = fakeSms({ ambiguousMode: "llm" });
 		for (let index = 0; index < SMS_AGENT.budget.hourlyInbound; index += 1) {
 			addInbound(fake, `m${index}`, "hello", NOW);
 		}
@@ -342,7 +339,7 @@ describe("runSmsTask", () => {
 
 	it("starts the contact's session and records it", async () => {
 		const fake = fakeSms();
-		addInbound(fake, "m1", "what does it cost?", NOW);
+		addInbound(fake, "m1", "yes tell me more", NOW);
 		const run = runDeps(fake);
 
 		await runSmsTask(replyTask(["m1"]), async () => ({ id: "s1" }), run.value);
@@ -413,6 +410,7 @@ describe("business name in the turn", () => {
 		const fake = fakeSms({
 			brandName: "Acme Life",
 			licensedStates: ["TX", "FL"],
+			ambiguousMode: "llm",
 		});
 		addInbound(fake, "m1", "what do you sell?", NOW);
 
@@ -426,7 +424,7 @@ describe("business name in the turn", () => {
 	});
 
 	it("falls back to the workspace name and says states are not set", async () => {
-		const fake = fakeSms();
+		const fake = fakeSms({ ambiguousMode: "llm" });
 		fake.workspaceName = "Workspace Agency";
 		addInbound(fake, "m1", "hello", NOW);
 
@@ -438,7 +436,7 @@ describe("business name in the turn", () => {
 	});
 
 	it("does not ask for the name once the agent has already replied", async () => {
-		const fake = fakeSms();
+		const fake = fakeSms({ ambiguousMode: "llm" });
 		for (const [id, direction] of [
 			["m0", "OUTBOUND"],
 			["m1", "OUTBOUND"],

@@ -381,7 +381,7 @@ describe("confirmationText", () => {
 			"Acme Insurance",
 		);
 		expect(text).not.toMatch(/@|https?:/);
-		expect(text.length).toBeLessThanOrEqual(480);
+		expect(text.length).toBeLessThanOrEqual(320);
 	});
 
 	it("starts with the business name in both forms", () => {

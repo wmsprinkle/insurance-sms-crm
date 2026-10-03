@@ -336,7 +336,9 @@ describe("core loop: import, first touch, reply, qualify, book, stop", () => {
 
 		expect(sent).toHaveLength(1);
 		expect(sent[0]?.to).toBe(LEAD_PHONE);
-		expect(sent[0]?.text).toContain("STOP");
+		expect(sent[0]?.text).toMatch(
+			/^Hello \w+, Are you interested in life or health coverage\?$/,
+		);
 		const done = await db.agentTask.findUniqueOrThrow({
 			where: { id: task.id },
 		});

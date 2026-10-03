@@ -17,13 +17,16 @@
 		"./field-backfill": "./src/field-backfill.ts",
 		"./field-templates": "./src/field-templates.ts",
 		"./first-touch-task": "./src/first-touch-task.ts",
+		"./funnel-status": "./src/funnel-status.ts",
 		"./outbound-guard": "./src/outbound-guard.ts",
 		"./phone": "./src/phone.ts",
 		"./saved-view": "./src/saved-view.ts",
+		"./sms-first-message": "./src/sms-first-message.ts",
 		"./sms-qualification": "./src/sms-qualification.ts",
 		"./sms-reply-task": "./src/sms-reply-task.ts",
 		"./sms-send": "./src/sms-send.ts",
-		"./sms-settings": "./src/sms-settings.ts"
+		"./sms-settings": "./src/sms-settings.ts",
+		"./sms-triage": "./src/sms-triage.ts"
 	},
 	"scripts": {
 		"check-types": "tsc --noEmit",

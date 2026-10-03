@@ -2,17 +2,24 @@ import { z } from "zod";
 
 export const SMS_DISCLOSURE_MODES = ["disclose", "deflect"] as const;
 
-export type SmsDisclosureMode = (typeof SMS_DISCLOSURE_MODES)[number];
+export const SMS_AMBIGUOUS_MODES = ["human", "llm"] as const;
 
-export const SMS_TEMPLATE_TOKENS = {
-	firstName: "{firstName}",
-	agency: "{agency}",
-} as const;
+export type SmsAmbiguousMode = (typeof SMS_AMBIGUOUS_MODES)[number];
+
+export const FIRST_MESSAGE_RISK_WARNING =
+	"Toll-free verification reviewers usually require business identification and opt-out language in the first message. The default first message has neither. Turn these on if the carrier rejects the number.";
+
+export type SmsDisclosureMode = (typeof SMS_DISCLOSURE_MODES)[number];
 
 export const SMS_SETTINGS_LIMITS = {
 	firstMessage: { minLength: 20, maxLength: 320 },
 	brandName: { maxLength: 80 },
 	licensedStates: { maxCount: 60 },
+} as const;
+
+export const SMS_TEMPLATE_TOKENS = {
+	firstName: "{firstName}",
+	agency: "{agency}",
 } as const;
 
 export const SMS_BRAND_FALLBACK = "Our team";
@@ -26,6 +33,9 @@ export const DEFAULT_SMS_SETTINGS = {
 	autoSend: false,
 	brandName: "",
 	licensedStates: [] as string[],
+	firstMessageBrandPrefix: false,
+	firstMessageStopFooter: false,
+	ambiguousMode: "human",
 } as const satisfies SmsSettings;
 
 export const firstMessageTemplate = z
@@ -79,6 +89,9 @@ export const smsSettings = z.object({
 	autoSend: z.boolean(),
 	brandName,
 	licensedStates,
+	firstMessageBrandPrefix: z.boolean().default(false),
+	firstMessageStopFooter: z.boolean().default(false),
+	ambiguousMode: z.enum(SMS_AMBIGUOUS_MODES).default("human"),
 });
 
 export type SmsSettings = z.infer<typeof smsSettings>;
@@ -105,14 +118,4 @@ export function resolveBrand(
 	workspaceName: string | null | undefined,
 ): string {
 	return brandName.trim() || workspaceName?.trim() || SMS_BRAND_FALLBACK;
-}
-
-export function renderFirstMessage(
-	template: string,
-	values: { firstName: string | null; agency: string },
-): string {
-	const firstName = values.firstName?.trim() || "there";
-	return template
-		.replaceAll(SMS_TEMPLATE_TOKENS.firstName, firstName)
-		.replaceAll(SMS_TEMPLATE_TOKENS.agency, values.agency.trim());
 }

@@ -75,6 +75,11 @@ export interface SmsStore {
 	turnInFlight(contactId: string, exceptTaskId: string): Promise<boolean>;
 	deferTask(taskId: string, delayMs: number): Promise<void>;
 	finishStartedTurns(contactId: string, outcome: string): Promise<number>;
+	modelTurns(
+		contactId: string,
+		since: Date,
+	): Promise<{ recent: number; total: number }>;
+	discardDrafts(contactId: string): Promise<number>;
 }
 
 const SMS_TASK_KINDS = Object.values(SMS_AGENT.taskKinds);
@@ -287,6 +292,27 @@ export const prismaSmsStore: SmsStore = {
 				attempts: { decrement: 1 },
 			},
 		});
+	},
+
+	async modelTurns(contactId, since) {
+		const where = {
+			contactId,
+			kind: SMS_AGENT.taskKinds.reply,
+			sessionId: { not: null },
+		} as const;
+		const [recent, total] = await Promise.all([
+			db.agentTask.count({ where: { ...where, startedAt: { gte: since } } }),
+			db.agentTask.count({ where }),
+		]);
+		return { recent, total };
+	},
+
+	async discardDrafts(contactId) {
+		const { count } = await db.smsDraft.updateMany({
+			where: { contactId, status: SmsDraftStatus.PENDING },
+			data: { status: SmsDraftStatus.DISCARDED, decidedAt: new Date() },
+		});
+		return count;
 	},
 
 	async finishStartedTurns(contactId, outcome) {

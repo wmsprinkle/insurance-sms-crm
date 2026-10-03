@@ -12,6 +12,7 @@ async function clear() {
 		select: { id: true },
 	});
 	const ids = contacts.map((contact) => contact.id);
+	await db.agentTask.deleteMany({ where: { contactId: { in: ids } } });
 	await db.smsDraft.deleteMany({ where: { contactId: { in: ids } } });
 	await db.smsMessage.deleteMany({ where: { contactId: { in: ids } } });
 	await db.consentRecord.deleteMany({ where: { contactId: { in: ids } } });
@@ -74,6 +75,60 @@ describe("prismaSmsStore", () => {
 		expect(await prismaSmsStore.sendBlock(contactId, phone)).toBe("suppressed");
 		const drafts = await db.smsDraft.findMany({ where: { contactId } });
 		expect(drafts.map((draft) => draft.status)).toEqual([
+			SmsDraftStatus.DISCARDED,
+		]);
+	});
+
+	it("counts model turns by started tasks with a session, total and per hour", async () => {
+		const contactId = await lead();
+		const hourAgo = new Date(Date.now() - 60 * 60_000);
+		const now = new Date();
+		const turn = (startedAt: Date, sessionId: string | null) =>
+			db.agentTask.create({
+				data: {
+					contactId,
+					kind: "sms-reply",
+					reason: "Lead replied",
+					dueAt: startedAt,
+					startedAt,
+					sessionId,
+				},
+			});
+		await turn(new Date(now.getTime() - 3 * 60 * 60_000), "crm:sms:a");
+		await turn(new Date(now.getTime() - 60_000), "crm:sms:b");
+		await turn(now, null);
+
+		expect(await prismaSmsStore.modelTurns(contactId, hourAgo)).toEqual({
+			recent: 1,
+			total: 2,
+		});
+	});
+
+	it("discards only pending drafts", async () => {
+		const contactId = await lead();
+		const draft = (key: string) =>
+			prismaSmsStore.saveDraft({
+				contactId,
+				body: key,
+				reason: "approval-mode",
+				retryAt: null,
+				taskId: null,
+				idempotencyKey: key,
+			});
+		const first = await draft("send_sms:t-a");
+		await draft("send_sms:t-b");
+		await db.smsDraft.update({
+			where: { id: first.id },
+			data: { status: SmsDraftStatus.APPROVED },
+		});
+
+		expect(await prismaSmsStore.discardDrafts(contactId)).toBe(1);
+		const rows = await db.smsDraft.findMany({
+			where: { contactId },
+			orderBy: { createdAt: "asc" },
+		});
+		expect(rows.map((row) => row.status).sort()).toEqual([
+			SmsDraftStatus.APPROVED,
 			SmsDraftStatus.DISCARDED,
 		]);
 	});

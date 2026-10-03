@@ -123,7 +123,9 @@ export class SettingsRouter {
 		await this.admin.record(ctx.user.id, "smsSettingsChanged", {
 			autoSend: input.autoSend,
 			disclosureMode: input.disclosureMode,
-			firstMessageTemplate: input.firstMessageTemplate,
+			firstMessageBrandPrefix: input.firstMessageBrandPrefix,
+			firstMessageStopFooter: input.firstMessageStopFooter,
+			ambiguousMode: input.ambiguousMode,
 			brandName: input.brandName,
 			licensedStates: input.licensedStates,
 		});

@@ -14,6 +14,7 @@ import { apiSendPath, dryRunFrom } from "../lib/sms-outbound";
 import { readQualification } from "../lib/sms-qualification";
 import { smsSessionOf } from "../lib/sms-session";
 import { prismaSmsStore } from "../lib/sms-store";
+import { declineLead } from "../lib/sms-triage";
 
 export default defineTool({
 	description:
@@ -54,6 +55,18 @@ export default defineTool({
 				next: outcome.ok ? SMS_AGENT.next.optedOut : outcome.reason,
 				outcome,
 				recorded: outcome.ok,
+			};
+		}
+
+		if (label === "not_interested") {
+			const moved = await declineLead(sms.contactId, sms.taskId, {
+				store: prismaSmsStore,
+			});
+			return {
+				label,
+				next: SMS_AGENT.next.declined,
+				dealsMoved: moved,
+				recorded: true as const,
 			};
 		}
 

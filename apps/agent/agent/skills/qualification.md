@@ -61,7 +61,7 @@ Never read a single word as the lead's intent. These are not `not_interested`:
 | `opt_out` | In an SMS task `classify_reply` already opts the lead out and sends the one confirmation. If its result does not say done, call `opt_out_contact`. Send nothing else. | `UNQUALIFIED_TO_BUY` |
 | `wrong_number` | Same as `opt_out`, with reason wrong number. Do not ask who they are. | `UNQUALIFIED_TO_BUY` |
 | `needs_human` | `handoff_to_human` with one line on why. Then stop replying. | unchanged |
-| `not_interested` | One polite close. No second pitch. | `UNQUALIFIED_TO_BUY` |
+| `not_interested` | Send nothing. `classify_reply` marks the lead and the code stops. | `UNQUALIFIED_TO_BUY` |
 | `qualified` | Offer times with `propose_slots`, then book (below). | `QUALIFIED_TO_BUY` |
 | `interested`, `question` | Answer from the knowledge skills, then ask for the next missing fact. | unchanged |
 

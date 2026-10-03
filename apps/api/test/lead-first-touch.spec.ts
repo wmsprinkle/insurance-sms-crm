@@ -2,7 +2,6 @@ import { describe, expect, it } from "bun:test";
 import type { Db, Prisma } from "@crm/db";
 import { RecordSource } from "@crm/db/enums";
 import { parseFirstTouchTaskPayload } from "@crm/validation/first-touch-task";
-import { DEFAULT_FIRST_MESSAGE_TEMPLATE } from "@crm/validation/sms-settings";
 import type { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import { ConsentService } from "../src/compliance/consent.service";
 import { nextSendWindow, sendWindowFor } from "../src/compliance/quiet-hours";
@@ -96,8 +95,7 @@ describe("FirstTouchService.enqueue", () => {
 		expect(parseFirstTouchTaskPayload(task?.payload)).toEqual({
 			type: "lead.created",
 			to: PHONE,
-			message:
-				"Hi Ana, this is Acme Insurance. You asked us about an insurance quote, so we are following up here. Reply with any questions. Reply STOP to opt out.",
+			message: "Hello Ana, Are you interested in life or health coverage?",
 			origin: "LEAD_IMPORT",
 		});
 	});
@@ -116,32 +114,52 @@ describe("FirstTouchService.enqueue", () => {
 		expect(state.tasks).toHaveLength(1);
 	});
 
-	it("uses the edited template from settings", async () => {
+	it("ignores the legacy template and uses the fixed text", async () => {
 		const { state, tx, service } = harness(
 			{ workspaceName: "Acme" },
-			{
-				firstMessageTemplate:
-					"{agency} here for {firstName}. Reply STOP to end.",
-			},
+			{ firstMessageTemplate: "{agency} here for {firstName}. Reply STOP." },
 		);
 
 		await service.enqueue(tx, { ...LEAD, firstName: null }, IN_HOURS);
 
 		expect(parseFirstTouchTaskPayload(state.tasks[0]?.payload).message).toBe(
-			"Acme here for there. Reply STOP to end.",
+			"Hello there, Are you interested in life or health coverage?",
 		);
 	});
 
-	it("falls back to a neutral agency name and the default template", async () => {
+	it("title-cases the first name", async () => {
 		const { state, tx, service } = harness();
+
+		await service.enqueue(tx, { ...LEAD, firstName: "  aNA " }, IN_HOURS);
+
+		expect(parseFirstTouchTaskPayload(state.tasks[0]?.payload).message).toBe(
+			"Hello Ana, Are you interested in life or health coverage?",
+		);
+	});
+
+	it("adds the business name and the STOP footer only when both are on", async () => {
+		const { state, tx, service } = harness(
+			{ workspaceName: "Acme" },
+			{ firstMessageBrandPrefix: true, firstMessageStopFooter: true },
+		);
 
 		await service.enqueue(tx, LEAD, IN_HOURS);
 
 		expect(parseFirstTouchTaskPayload(state.tasks[0]?.payload).message).toBe(
-			DEFAULT_FIRST_MESSAGE_TEMPLATE.replace("{firstName}", "Ana").replace(
-				"{agency}",
-				"Our team",
-			),
+			"Acme: Hello Ana, Are you interested in life or health coverage? Reply STOP to opt out.",
+		);
+	});
+
+	it("adds only the brand prefix when only that is on", async () => {
+		const { state, tx, service } = harness(
+			{ workspaceName: "Acme" },
+			{ firstMessageBrandPrefix: true },
+		);
+
+		await service.enqueue(tx, LEAD, IN_HOURS);
+
+		expect(parseFirstTouchTaskPayload(state.tasks[0]?.payload).message).toBe(
+			"Acme: Hello Ana, Are you interested in life or health coverage?",
 		);
 	});
 
@@ -181,7 +199,7 @@ describe("FirstTouchService.enqueue", () => {
 	});
 
 	it("fails loudly on an unreadable settings value", async () => {
-		const { tx, service } = harness({}, { firstMessageTemplate: 42 });
+		const { tx, service } = harness({}, { ambiguousMode: 42 });
 
 		await expect(service.enqueue(tx, LEAD, IN_HOURS)).rejects.toThrow(
 			/Unreadable sms settings/,

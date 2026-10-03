@@ -106,7 +106,8 @@ export const SMS_NEXT_ACTION = {
 		"Call opt_out_contact with reason wrong_number. Do not ask who they are.",
 	needs_human:
 		"Call handoff_to_human with one line on why. Then stop replying.",
-	not_interested: "Send one polite close with send_sms. No second pitch.",
+	not_interested:
+		"Send nothing. The code marks the lead not interested and stops. Call no other tool.",
 	qualified: "Offer call times. Do not ask for more facts.",
 	interested:
 		"Answer from the knowledge skills, then ask for the next missing fact with send_sms.",

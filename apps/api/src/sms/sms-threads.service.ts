@@ -3,6 +3,7 @@ import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
 import { paginate } from "../trpc/list-input";
 import { SMS } from "./sms-config";
+import { loadFunnelStatuses } from "./sms-funnel";
 import { contactDisplayName, previewOf, threadSearch } from "./sms-threads";
 import type {
 	SmsAgentSessionOutput,
@@ -70,6 +71,7 @@ export class SmsThreadsService {
 			),
 		]);
 
+		const funnel = await loadFunnelStatuses(this.db, contacts);
 		const contactById = new Map(contacts.map((row) => [row.id, row]));
 		const openById = new Map(
 			openCounts.map((row) => [row.contactId, row._count._all]),
@@ -91,6 +93,7 @@ export class SmsThreadsService {
 						createdAt: last.createdAt.toISOString(),
 					},
 					openCount: openById.get(contactId) ?? 0,
+					funnelStatus: funnel.get(contactId) ?? "new",
 				},
 			];
 		});
@@ -148,6 +151,7 @@ export class SmsThreadsService {
 				: null,
 		]);
 
+		const funnel = await loadFunnelStatuses(this.db, [contact]);
 		const truncated = recent.length > SMS.threads.maxMessages;
 		const messages = recent
 			.slice(0, SMS.threads.maxMessages)
@@ -167,6 +171,7 @@ export class SmsThreadsService {
 			phone: contact.phone,
 			suppressed: suppression !== null,
 			consented: consent !== null,
+			funnelStatus: funnel.get(contact.id) ?? "new",
 			openCount,
 			truncated,
 			messages,

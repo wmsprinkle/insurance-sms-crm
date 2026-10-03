@@ -8,6 +8,7 @@ import { type DeliveryDeps, deliver } from "./sms-delivery";
 import { handOff } from "./sms-handoff";
 import { IDENTIFY_ON, SMS_ATTRIBUTES } from "./sms-session";
 import type { SmsLine } from "./sms-store";
+import { applyTriage, triageInbound } from "./sms-triage";
 import type { LeasedTask } from "./tasks";
 
 const SMS_KINDS = new Set<string>([
@@ -83,7 +84,9 @@ export function smsTurnMessage(input: {
 		"",
 		"New message from the lead:",
 		"<<<",
-		input.inbound.map(unfence).join("\n"),
+		input.inbound
+			.map((text) => unfence(clip(text, SMS_AGENT.budget.inboundChars)))
+			.join("\n"),
 		">>>",
 		"",
 		"Earlier in this thread (oldest first):",
@@ -119,6 +122,18 @@ function outcomeOf(
 		case "later":
 			return `${prefix}: quiet hours until ${delivery.retryAt.toISOString()}`;
 	}
+}
+
+function overBudgetReason(
+	counts: { recent: number; total: number },
+	turns: { recent: number; total: number },
+): string | null {
+	const { budget, handoffReasons } = SMS_AGENT;
+	if (counts.recent > budget.hourlyInbound) return handoffReasons.hourly;
+	if (counts.total > budget.depthInbound) return handoffReasons.depth;
+	if (turns.recent >= budget.hourlyTurns) return handoffReasons.turnsHourly;
+	if (turns.total >= budget.depthTurns) return handoffReasons.turnsDepth;
+	return null;
 }
 
 export async function planSmsTask(
@@ -186,21 +201,28 @@ export async function planSmsTask(
 		};
 	}
 
-	const now = deps.now ?? new Date();
-	const counts = await store.inboundCounts(
-		contactId,
-		new Date(now.getTime() - SMS_AGENT.budget.windowMs),
-	);
-	const overBudget =
-		counts.recent > SMS_AGENT.budget.hourlyInbound
-			? SMS_AGENT.handoffReasons.hourly
-			: counts.total > SMS_AGENT.budget.depthInbound
-				? SMS_AGENT.handoffReasons.depth
-				: null;
-
 	const inbound = (await store.messages(payload.smsMessageIds)).map(
 		(line) => line.body,
 	);
+	const now = deps.now ?? new Date();
+	const since = new Date(now.getTime() - SMS_AGENT.budget.windowMs);
+	const settings = await store.settings();
+	const turns = await store.modelTurns(contactId, since);
+
+	const stop = await applyTriage(
+		{
+			verdict: triageInbound(inbound),
+			contactId,
+			taskId: task.id,
+			conversationStarted: turns.total > 0,
+			ambiguousMode: settings.ambiguousMode,
+		},
+		deps,
+	);
+	if (stop) return { kind: "settled", outcome: stop.outcome };
+
+	const counts = await store.inboundCounts(contactId, since);
+	const overBudget = overBudgetReason(counts, turns);
 	const reason =
 		overBudget ??
 		(inbound.some(detectInjection) ? SMS_AGENT.handoffReasons.injection : null);
@@ -221,7 +243,6 @@ export async function planSmsTask(
 		};
 	}
 
-	const settings = await store.settings();
 	const history = await store.history(
 		contactId,
 		OUTBOUND_GUARD.historyMessages,

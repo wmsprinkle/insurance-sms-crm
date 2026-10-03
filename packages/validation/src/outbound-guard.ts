@@ -1,7 +1,7 @@
 import { SMS_DISCLOSURE_MODES, type SmsDisclosureMode } from "./sms-settings";
 
 export const OUTBOUND_GUARD = {
-	maxChars: 480,
+	maxChars: 320,
 	safeFallback:
 		"Happy to help with that. Want me to have a licensed agent give you a quick call to go over it?",
 } as const;

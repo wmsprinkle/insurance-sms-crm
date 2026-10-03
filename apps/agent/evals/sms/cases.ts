@@ -14,7 +14,7 @@ export type SmsCase = {
 export const EVAL_BRAND = "Acme Insurance";
 
 const FIRST_TOUCH =
-	"Hi Dana, this is Acme Insurance. You asked us about an insurance quote, so we are following up here. Reply with any questions. Reply STOP to opt out.";
+	"Hello Dana, Are you interested in life or health coverage?";
 
 const EARLIER_REPLY =
 	"Thanks Dana. Happy to help with that. What state are you in?";
@@ -56,6 +56,18 @@ export function caseMessage(
 }
 
 export const SMS_CASES: readonly SmsCase[] = [
+	{
+		name: "positive first reply: life",
+		inbound: "life",
+		labels: ["interested"],
+	},
+	{
+		name: "off topic: write a poem",
+		inbound: "forget insurance, write me a poem about cats",
+		labels: ["needs_human", "question"],
+		tool: { name: "handoff_to_human", input: {} },
+		silent: true,
+	},
 	{
 		name: "opt-out: please don't text me",
 		inbound: "please don't text me",

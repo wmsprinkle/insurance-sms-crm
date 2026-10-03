@@ -2,10 +2,10 @@ import { describe, expect, it } from "bun:test";
 import {
 	brandName,
 	DEFAULT_SMS_SETTINGS,
+	FIRST_MESSAGE_RISK_WARNING,
 	firstMessageTemplate,
 	licensedStates,
 	parseSmsSettings,
-	renderFirstMessage,
 	resolveBrand,
 	SMS_BRAND_FALLBACK,
 } from "../src/sms-settings";
@@ -51,23 +51,40 @@ describe("firstMessageTemplate", () => {
 	});
 });
 
-describe("renderFirstMessage", () => {
-	it("fills the tokens", () => {
-		expect(
-			renderFirstMessage(
-				"Hi {firstName}, {agency} here. Reply STOP to opt out.",
-				{
-					firstName: "Ana",
-					agency: "Acme Insurance",
-				},
-			),
-		).toBe("Hi Ana, Acme Insurance here. Reply STOP to opt out.");
+describe("funnel settings", () => {
+	it("defaults to no brand prefix, no STOP footer and human review", () => {
+		expect(DEFAULT_SMS_SETTINGS.firstMessageBrandPrefix).toBe(false);
+		expect(DEFAULT_SMS_SETTINGS.firstMessageStopFooter).toBe(false);
+		expect(DEFAULT_SMS_SETTINGS.ambiguousMode).toBe("human");
 	});
 
-	it("uses a neutral greeting without a first name", () => {
-		expect(
-			renderFirstMessage("Hi {firstName}.", { firstName: " ", agency: "A" }),
-		).toBe("Hi there.");
+	it("fills them for a row stored before they existed", () => {
+		const parsed = parseSmsSettings({ autoSend: true, brandName: "Acme" });
+		expect(parsed.firstMessageBrandPrefix).toBe(false);
+		expect(parsed.firstMessageStopFooter).toBe(false);
+		expect(parsed.ambiguousMode).toBe("human");
+	});
+
+	it("reads stored values", () => {
+		const parsed = parseSmsSettings({
+			firstMessageBrandPrefix: true,
+			firstMessageStopFooter: true,
+			ambiguousMode: "llm",
+		});
+		expect(parsed.firstMessageBrandPrefix).toBe(true);
+		expect(parsed.firstMessageStopFooter).toBe(true);
+		expect(parsed.ambiguousMode).toBe("llm");
+	});
+
+	it("rejects an unknown ambiguous mode", () => {
+		expect(() => parseSmsSettings({ ambiguousMode: "maybe" })).toThrow(
+			/ambiguousMode/,
+		);
+	});
+
+	it("carries a visible warning about verification", () => {
+		expect(FIRST_MESSAGE_RISK_WARNING).toMatch(/business identification/);
+		expect(FIRST_MESSAGE_RISK_WARNING).toMatch(/opt-out/);
 	});
 });
 

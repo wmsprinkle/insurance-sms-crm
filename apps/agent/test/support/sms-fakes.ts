@@ -30,6 +30,8 @@ export type FakeSms = {
 	inFlight: boolean;
 	deferred: { taskId: string; delayMs: number }[];
 	closedTurns: { contactId: string; outcome: string }[];
+	turns: { startedAt: Date }[];
+	discarded: string[];
 };
 
 export const LEAD = { id: "c1", firstName: "Dana", phone: "+15125550100" };
@@ -52,6 +54,8 @@ export function fakeSms(overrides: Partial<SmsSettings> = {}): FakeSms {
 		inFlight: false,
 		deferred: [],
 		closedTurns: [],
+		turns: [],
+		discarded: [],
 	};
 
 	const store: SmsStore = {
@@ -119,6 +123,14 @@ export function fakeSms(overrides: Partial<SmsSettings> = {}): FakeSms {
 		turnInFlight: async () => fake.inFlight,
 		deferTask: async (taskId, delayMs) => {
 			fake.deferred.push({ taskId, delayMs });
+		},
+		modelTurns: async (_contactId, since) => ({
+			recent: fake.turns.filter((turn) => turn.startedAt >= since).length,
+			total: fake.turns.length,
+		}),
+		discardDrafts: async (contactId) => {
+			fake.discarded.push(contactId);
+			return 0;
 		},
 		finishStartedTurns: async (contactId, outcome) => {
 			fake.closedTurns.push({ contactId, outcome });

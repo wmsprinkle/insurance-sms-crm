@@ -1,4 +1,5 @@
 import { SmsDirection, SmsStatus } from "@crm/db/enums";
+import { FUNNEL_STATUSES } from "@crm/validation/funnel-status";
 import { z } from "zod";
 import { listInput } from "../trpc/list-input";
 
@@ -21,6 +22,7 @@ const smsThreadRow = z.object({
 		createdAt: z.string(),
 	}),
 	openCount: z.number().int(),
+	funnelStatus: z.enum(FUNNEL_STATUSES),
 });
 
 type SmsThreadRow = z.infer<typeof smsThreadRow>;
@@ -58,6 +60,7 @@ export const smsThreadOutput = z.object({
 	phone: z.string().nullable(),
 	suppressed: z.boolean(),
 	consented: z.boolean(),
+	funnelStatus: z.enum(FUNNEL_STATUSES),
 	openCount: z.number().int(),
 	truncated: z.boolean(),
 	messages: z.array(smsMessageRow),

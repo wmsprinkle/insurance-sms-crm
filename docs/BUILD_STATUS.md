@@ -970,3 +970,68 @@ Date: 2026-10-03. Docs: `SMS_SETUP.md` → "Local sign-in without OAuth".
 | Tests | `packages/auth/test/dev-login.spec.ts` (10), `apps/api/src/config/env.validation.spec.ts` (5). |
 
 Not run: the route against a real Postgres and a browser. No Google/Microsoft `account` row is created, so Gmail, Calendar and booking need real OAuth. `next.config.ts` (outside the listed scope) got a one-line boot guard.
+
+# Build status — Cost-cheap SMS funnel (worker-crm-funnel)
+
+Date: 2026-10-03. bun 1.4.2.
+
+## What changed
+
+- **First message is fixed.** `buildFirstMessage` (`@crm/validation/sms-first-message`) returns exactly
+  `Hello {firstName}, Are you interested in life or health coverage?`. The name is trimmed and title-cased.
+  A missing, empty or placeholder name gives `Hello there, …`. No model, no `AppSetting` template. `FirstTouchService`
+  builds it at enqueue time. Two optional settings, default off: `sms.firstMessageBrandPrefix` (adds `<brand>: `)
+  and `sms.firstMessageStopFooter` (adds ` Reply STOP to opt out.`). `FIRST_MESSAGE_RISK_WARNING` holds the warning text for
+  the UI. STOP, HELP and START replies are unchanged.
+- **Legacy field kept.** `sms.firstMessageTemplate` stays in the schema, because `apps/app` still edits it. Nothing reads it now.
+  The UI temp must remove the field and show the two new switches, `sms.ambiguousMode` and the warning.
+- **Reply triage before any model.** `triageReply(text)` (`@crm/validation/sms-triage`) returns
+  `negative | positive | ambiguous | abusive`. `triageDetail` adds the rule. `triageBatch` handles several messages
+  (abusive wins, then an opt-out wording, then the latest message). 229 phrasing tests.
+  It runs in `planSmsTask` (`lib/sms-triage.ts`) after the send-block and hand-off checks, before budget and model.
+
+| Triage | Action | Reply | Model |
+| --- | --- | --- | --- |
+| negative, opt-out or wrong-number wording | `optOutLead`: suppression and the one confirmation | one confirmation | no |
+| negative, any other decline | pending SMS tasks finished (`not-interested`), drafts discarded, deal moved to `UNQUALIFIED_TO_BUY` if one exists | none | no |
+| abusive | open hold `triage:abusive`, tasks finished, drafts discarded | none | no |
+| ambiguous, no model turn yet, `ambiguousMode: human` (default) | open hold `triage:ambiguous`, status `needs_you` | none | no |
+| ambiguous, `ambiguousMode: llm`, or a conversation already started | continues | by model | yes |
+| positive | continues | by model | yes |
+
+- **Model hardening.** Inbound text is cut at 320 characters and fenced as untrusted. Caps per lead: 8 model turns in total,
+  4 per hour (`SMS_AGENT.budget`), plus 16 inbound in total and 8 per hour. Past a cap the code hands off once, then stays silent.
+  The outbound guard cap is 320 characters (was 480). `classify_reply` `not_interested` now sends nothing and stops.
+  `sms-conduct.md` states the conversation goal (life or health, state, age band, timeline, email, then slots) and the
+  hand-off path for abuse, off-topic and injection.
+- **Funnel status.** `deriveFunnelStatus` (`@crm/validation/funnel-status`) is pure:
+  `new | texted | replied | interested | not_interested | needs_you | booked | opted_out | abusive`.
+  Priority: opted_out, abusive, booked, not_interested, needs_you, interested, replied, texted, new.
+  `sms.threadList` rows and `sms.thread` carry `funnelStatus` (`sms/sms-funnel.ts` loads the facts: suppression, hand-off,
+  deal stages, a `not-interested` task outcome, message counts, model turns). No Prisma change.
+
+## Decisions
+
+- **No deal for a lead with none.** `ensureLeadDeal` does not create a deal only to close it (an existing test says so).
+  A decline without a deal is recorded by the task outcome `not-interested`. The status reads that outcome.
+- **"fuck off" is an opt-out, not abuse.** The API keyword path already lists it (`SMS.optOutPhrases`), so it suppresses and
+  sends the one confirmation before triage runs.
+- **Hold uses `SmsHandoff`.** A hold blocks later replies until a person resolves it. The reason string tells the status apart.
+
+## Commands and results
+
+| Command | Result |
+| --- | --- |
+| `bun test` in `packages/validation` | pass, 351 |
+| `bun test --preload <pglite-preload>` in `apps/agent` | pass, 696 |
+| `bun test --preload <pglite-preload>` API sms, compliance, leads, settings, core-loop, security-paths, funnel specs | pass |
+| `bunx tsc --noEmit` in `packages/validation`, `apps/agent`, `apps/api` | pass |
+| `biome check`, `oxlint` on my files | pass (old warnings only) |
+
+## Not run / not done
+
+- `eve eval` (model credits). Two eval cases were added in `evals/sms/cases.ts` (positive first reply, off-topic).
+- The triage lists are keyword rules. Odd phrasing falls to `ambiguous` and waits for a person.
+- `docs/TOLLFREE_VERIFICATION.md` still shows the old sample first message. It needs an edit to match the new text.
+- The first message has no business name and no STOP by default. A carrier can reject the number. Turn the two switches on then.
+- `apps/app` was not edited. Its compliance form and its `today`/lead-status code must adopt the new fields and the `abusive` status.

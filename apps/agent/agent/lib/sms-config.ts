@@ -1,5 +1,6 @@
 import { DealStage } from "@crm/db/enums";
 import { FIRST_TOUCH_TASK_KIND } from "@crm/validation/first-touch-task";
+import { FUNNEL_OUTCOMES } from "@crm/validation/funnel-status";
 import { SMS_REPLY_TASK_KIND } from "@crm/validation/sms-reply-task";
 
 const SECOND_MS = 1000;
@@ -71,8 +72,11 @@ export const SMS_AGENT = {
 	},
 	budget: {
 		windowMs: HOUR_MS,
-		hourlyInbound: 12,
-		depthInbound: 20,
+		hourlyInbound: 8,
+		depthInbound: 16,
+		hourlyTurns: 4,
+		depthTurns: 8,
+		inboundChars: 320,
 	},
 	bridge: {
 		timeoutMs: 45 * SECOND_MS,
@@ -129,6 +133,8 @@ export const SMS_AGENT = {
 	next: {
 		optedOut:
 			"Done: the lead is opted out and the code sent the one confirmation. Send nothing more and call no other tool.",
+		declined:
+			"Done: the lead declined and the code marked them not interested. Send nothing more and call no other tool.",
 		alreadyReplied:
 			"You already replied to this message. Send nothing more in this turn.",
 	},
@@ -142,6 +148,9 @@ export const SMS_AGENT = {
 		optedOut: "opted-out",
 		handedOff: "handed-off",
 		replied: "replied",
+		notInterested: FUNNEL_OUTCOMES.declined,
+		abusive: "abusive",
+		needsYou: "needs-you",
 		drafted: "drafted",
 		blocked: "blocked",
 		skipped: "skipped",
@@ -155,5 +164,7 @@ export const SMS_AGENT = {
 		hourly: "hourly message limit",
 		depth: "conversation depth limit",
 		injection: "suspected prompt injection",
+		turnsHourly: "hourly model turn limit",
+		turnsDepth: "conversation turn limit",
 	},
 } as const;

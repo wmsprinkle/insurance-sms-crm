@@ -1,6 +1,5 @@
 import { describe, expect, it } from "bun:test";
 import { smsReplyClass } from "@crm/validation/sms-qualification";
-import { SMS_AGENT } from "../agent/lib/sms-config";
 import { planSmsTask } from "../agent/lib/sms-pipeline";
 import type { LeasedTask } from "../agent/lib/tasks";
 import {
@@ -28,8 +27,11 @@ const TASK: LeasedTask = {
 	dueAt: NOW,
 };
 
-async function planFor(text: string) {
-	const fake = fakeSms();
+async function planFor(
+	text: string,
+	settings: Parameters<typeof fakeSms>[0] = {},
+) {
+	const fake = fakeSms(settings);
 	addInbound(fake, "m1", text, NOW);
 	const plan = await planSmsTask(TASK, {
 		store: fake.store,
@@ -54,26 +56,58 @@ describe("injection never reaches the model", () => {
 		const { plan, fake } = await planFor(text);
 		expect(plan).toEqual({
 			kind: "settled",
-			outcome: `handed-off: ${SMS_AGENT.handoffReasons.injection}`,
+			outcome: "abusive: flagged for a person (injection)",
 		});
-		expect(fake.handoffs.has(LEAD.id)).toBe(true);
+		expect(fake.handoffs.get(LEAD.id)?.reason).toBe("triage:abusive");
 	});
 });
 
-describe("free text reaches the classifier, not a keyword path", () => {
+describe("free text opt-outs are settled in code, before any model", () => {
 	it.each([
 		"please don't text me",
-		"remove me",
-		"no problem, tell me more",
-		"stop by the office?",
-		"Dan here, is this Acme?",
+		"remove me from your list",
+		"leave me alone",
 	])("%s", async (text) => {
-		const { plan } = await planFor(text);
-		expect(plan.kind).toBe("model");
-		if (plan.kind !== "model") return;
-		expect(plan.turn.message).toContain(text);
-		expect(plan.turn.message).toContain("Call classify_reply first");
+		const { plan, fake } = await planFor(text);
+		expect(plan).toEqual({
+			kind: "settled",
+			outcome: "opted-out: opt-out reply",
+		});
+		expect(fake.optOuts).toHaveLength(1);
 	});
+});
+
+describe("replies that reach the model", () => {
+	it.each(["no problem, tell me more", "yes", "life insurance"])(
+		"positive: %s",
+		async (text) => {
+			const { plan } = await planFor(text);
+			expect(plan.kind).toBe("model");
+			if (plan.kind !== "model") return;
+			expect(plan.turn.message).toContain(text);
+			expect(plan.turn.message).toContain("Call classify_reply first");
+		},
+	);
+
+	it.each(["stop by the office?", "Dan here, is this Acme?"])(
+		"ambiguous with ambiguousMode llm: %s",
+		async (text) => {
+			const { plan } = await planFor(text, { ambiguousMode: "llm" });
+			expect(plan.kind).toBe("model");
+		},
+	);
+
+	it.each(["stop by the office?", "Dan here, is this Acme?"])(
+		"ambiguous by default waits for a person: %s",
+		async (text) => {
+			const { plan, fake } = await planFor(text);
+			expect(plan).toEqual({
+				kind: "settled",
+				outcome: "needs-you: an unclear first reply waits for a person",
+			});
+			expect(fake.handoffs.get(LEAD.id)?.reason).toBe("triage:ambiguous");
+		},
+	);
 });
 
 describe("eval cases", () => {
@@ -112,7 +146,9 @@ describe("eval cases", () => {
 		const message = caseMessage("remove me");
 		expect(message).toContain("Disclosure mode: disclose");
 		expect(message).toContain("Booking link: none");
-		expect(message).toContain("Reply STOP to opt out.");
+		expect(message).toContain(
+			"Hello Dana, Are you interested in life or health coverage?",
+		);
 	});
 
 	it("catch a price in a reply", () => {
