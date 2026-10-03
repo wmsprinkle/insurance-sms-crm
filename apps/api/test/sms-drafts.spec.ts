@@ -3,6 +3,7 @@ import type { Db } from "@crm/db";
 import { SmsDirection, SmsDraftStatus } from "@crm/db/enums";
 import { OUTBOUND_GUARD } from "@crm/validation/outbound-guard";
 import type { SmsSendRequest, SmsSendResponse } from "@crm/validation/sms-send";
+import { z } from "zod";
 import {
 	guardRepText,
 	heldAfterBlock,
@@ -63,14 +64,20 @@ type Receipt = {
 	purpose: string;
 };
 
+const inSet = z.object({ in: z.array(z.unknown()) });
+
 function matches<T extends object>(row: T, where: Partial<T>): boolean {
 	return (Object.keys(where) as (keyof T)[]).every((key) => {
-		const wanted: unknown = where[key];
-		if (wanted && typeof wanted === "object" && "in" in wanted) {
-			return (wanted.in as unknown[]).includes(row[key]);
-		}
-		return row[key] === wanted;
+		const set = inSet.safeParse(where[key]);
+		return set.success
+			? set.data.in.includes(row[key])
+			: row[key] === where[key];
 	});
+}
+
+function contactIds(value: string | { in: string[] }): string[] {
+	const set = inSet.safeParse(value);
+	return set.success ? (set.data.in as string[]) : [String(value)];
 }
 
 function draft(overrides: Partial<Draft> = {}): Draft {
@@ -170,9 +177,9 @@ function fake(seed: {
 				state.messages
 					.filter(
 						(row) =>
-							(typeof where.contactId === "string"
-								? row.contactId === where.contactId
-								: where.contactId.in.includes(row.contactId)) &&
+							(contactIds(where.contactId) as string[]).includes(
+								row.contactId,
+							) &&
 							row.direction === where.direction &&
 							(!where.createdAt || row.createdAt >= where.createdAt.gte),
 					)

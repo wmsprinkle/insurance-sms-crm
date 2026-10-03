@@ -1,4 +1,4 @@
-import { eveTurnFailure } from "@crm/validation/eve-stream";
+import type { EveTurnFailure } from "@crm/validation/eve-stream";
 import { parseFirstTouchTaskPayload } from "@crm/validation/first-touch-task";
 import { detectInjection } from "@crm/validation/outbound-guard";
 import {
@@ -336,10 +336,8 @@ export async function runSmsTask(
 	}
 }
 
-export function smsTurnFailureOutcome(data: unknown): string {
-	return smsFailureOutcome(
-		classifyTurnFailure(eveTurnFailure.parse(data).code),
-	);
+export function smsTurnFailureOutcome(failure: EveTurnFailure): string {
+	return smsFailureOutcome(classifyTurnFailure(failure.code));
 }
 
 export async function closeSmsTurn(

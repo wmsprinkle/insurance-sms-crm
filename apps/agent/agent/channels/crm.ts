@@ -300,7 +300,7 @@ export default defineChannel({
 			if (
 				await closeSmsTurn(
 					channel.continuationToken,
-					smsTurnFailureOutcome(data),
+					smsTurnFailureOutcome(eveTurnFailure.parse(data)),
 					finishSmsTurns,
 				)
 			)

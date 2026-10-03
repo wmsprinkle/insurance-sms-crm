@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { eveTurnFailure } from "@crm/validation/eve-stream";
 import { APP_AUTH } from "../agent/lib/app-auth";
 import { SMS_AGENT } from "../agent/lib/sms-config";
 import {
@@ -482,14 +483,20 @@ describe("business name in the turn", () => {
 describe("smsTurnFailureOutcome", () => {
 	it("types a model call failure so the app can say what to fix", () => {
 		expect(
-			smsTurnFailureOutcome({ code: "MODEL_CALL_FAILED", message: "x" }),
+			smsTurnFailureOutcome(
+				eveTurnFailure.parse({ code: "MODEL_CALL_FAILED", message: "x" }),
+			),
 		).toBe("failed: model-unavailable");
 	});
 
 	it("types any other failure, and a payload nobody can read", () => {
-		expect(smsTurnFailureOutcome({ code: "TOOL_ERROR", message: "x" })).toBe(
+		expect(
+			smsTurnFailureOutcome(
+				eveTurnFailure.parse({ code: "TOOL_ERROR", message: "x" }),
+			),
+		).toBe("failed: turn-failed");
+		expect(smsTurnFailureOutcome(eveTurnFailure.parse("garbage"))).toBe(
 			"failed: turn-failed",
 		);
-		expect(smsTurnFailureOutcome("garbage")).toBe("failed: turn-failed");
 	});
 });
