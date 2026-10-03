@@ -1,9 +1,16 @@
 import type { IncomingMessage } from "node:http";
 
+type RequestWithRawBody = IncomingMessage & { rawBody?: Buffer };
+
 export function readRawBody(
 	request: IncomingMessage,
 	limit: number,
 ): Promise<Buffer | null> {
+	const captured = (request as RequestWithRawBody).rawBody;
+	if (Buffer.isBuffer(captured)) {
+		return Promise.resolve(captured.length > limit ? null : captured);
+	}
+	if (request.readableEnded) return Promise.resolve(null);
 	return new Promise((resolve) => {
 		const chunks: Buffer[] = [];
 		let size = 0;

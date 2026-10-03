@@ -33,6 +33,7 @@ import { SearchModule } from "./search/search.module";
 import { SettingsModule } from "./settings/settings.module";
 import { SlackModule } from "./slack/slack.module";
 import { SmsModule } from "./sms/sms.module";
+import { SMS } from "./sms/sms-config";
 import { SsoModule } from "./sso/sso.module";
 import { SyncModule } from "./sync/sync.module";
 import { TelemetryModule } from "./telemetry/telemetry.module";
@@ -53,7 +54,14 @@ import { WorkspaceModule } from "./workspace/workspace.module";
 		AppCacheModule,
 		DatabaseModule,
 		CrmModule,
-		BetterAuthModule.forRoot({ auth, middleware: logAuthRoute }),
+		BetterAuthModule.forRoot({
+			auth,
+			middleware: logAuthRoute,
+			bodyParser: {
+				rawBody: true,
+				json: { limit: SMS.webhook.maxBodyBytes },
+			},
+		}),
 		AuthModule,
 		HealthModule,
 		TrpcModule,
