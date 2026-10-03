@@ -20,6 +20,7 @@ import { DatabaseModule } from "./database/database.module";
 import { DealsModule } from "./deals/deals.module";
 import { EnrichmentModule } from "./enrichment/enrichment.module";
 import { FieldsModule } from "./fields/fields.module";
+import { CalendarWriteModule } from "./google/calendar-write.module";
 import { GoogleModule } from "./google/google.module";
 import { HealthModule } from "./health/health.module";
 import { LeadsModule } from "./leads/leads.module";
@@ -70,6 +71,7 @@ import { WorkspaceModule } from "./workspace/workspace.module";
 		SearchModule,
 		MailboxModule,
 		GoogleModule,
+		CalendarWriteModule,
 		MicrosoftModule,
 		SyncModule,
 		SettingsModule,

@@ -342,7 +342,7 @@ function calendarIdOf(booking: BookingInput): string {
 
 function eventBody(booking: BookingInput) {
 	return {
-		...(booking.eventId ? { id: booking.eventId } : {}),
+		id: booking.eventId,
 		summary: booking.summary,
 		description: booking.description,
 		start: {

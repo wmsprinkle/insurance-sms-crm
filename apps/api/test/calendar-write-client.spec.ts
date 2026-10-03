@@ -20,16 +20,15 @@ function tokens(scopes: readonly string[] = ALL_SCOPES): CalendarTokens {
 	};
 }
 
-function fakeFetch(replies: Reply[]): {
-	fetcher: CalendarFetch;
-	calls: Call[];
-} {
+type FakeFetch = { fetcher: CalendarFetch; calls: Call[] };
+
+function fakeFetch(replies: Reply[]): FakeFetch {
 	const calls: Call[] = [];
 	const fetcher: CalendarFetch = async (input, init) => {
 		calls.push({
 			url: new URL(input),
 			method: init?.method ?? "GET",
-			body: typeof init?.body === "string" ? JSON.parse(init.body) : null,
+			body: init?.body ? JSON.parse(String(init.body)) : null,
 		});
 		const reply = replies.shift() ?? { status: 500, body: {} };
 		return new Response(JSON.stringify(reply.body), {
