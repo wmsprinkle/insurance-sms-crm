@@ -1451,6 +1451,9 @@ model AppSetting {
   /// SMS settings, shape in @crm/validation/sms-settings.
   sms Json?
 
+  /// Calendar booking settings, shape in @crm/validation/calendar-settings.
+  calendar Json?
+
   updatedAt DateTime @updatedAt
 
   @@map("appSetting")
