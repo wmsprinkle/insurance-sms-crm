@@ -99,8 +99,8 @@ async function SignIn({
 
 				<p className="text-center text-muted-foreground text-sm/5">
 					Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET — or MICROSOFT_CLIENT_ID
-					and MICROSOFT_CLIENT_SECRET — in the root .env file and restart. Steps:
-					docs/OAUTH_SETUP.md.
+					and MICROSOFT_CLIENT_SECRET — in the root .env file and restart.
+					Steps: docs/OAUTH_SETUP.md.
 				</p>
 			</>
 		);

@@ -128,27 +128,27 @@ export function WorkspaceForm({ showWebsite }: { showWebsite: boolean }) {
 						</Field>
 
 						{showWebsite ? (
-						<Field>
-							<FieldLabel htmlFor={websiteId}>Website</FieldLabel>
-							<InputGroup>
-								<InputGroupAddon>
-									<InputGroupText>https://</InputGroupText>
-								</InputGroupAddon>
-								<InputGroupInput
-									id={websiteId}
-									value={values.website}
-									onChange={(event) => edit({ website: event.target.value })}
-									placeholder="acme.com"
-									autoComplete="off"
-									autoCapitalize="off"
-									autoCorrect="off"
-									spellCheck={false}
-									inputMode="url"
-									disabled={!canRename || save.isPending}
-								/>
-							</InputGroup>
-							<FieldDescription>Your own company's website.</FieldDescription>
-						</Field>
+							<Field>
+								<FieldLabel htmlFor={websiteId}>Website</FieldLabel>
+								<InputGroup>
+									<InputGroupAddon>
+										<InputGroupText>https://</InputGroupText>
+									</InputGroupAddon>
+									<InputGroupInput
+										id={websiteId}
+										value={values.website}
+										onChange={(event) => edit({ website: event.target.value })}
+										placeholder="acme.com"
+										autoComplete="off"
+										autoCapitalize="off"
+										autoCorrect="off"
+										spellCheck={false}
+										inputMode="url"
+										disabled={!canRename || save.isPending}
+									/>
+								</InputGroup>
+								<FieldDescription>Your own company's website.</FieldDescription>
+							</Field>
 						) : null}
 					</FieldGroup>
 				</form>
