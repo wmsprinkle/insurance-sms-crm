@@ -21,10 +21,10 @@ describe("model provider selection", () => {
 	});
 
 	it("uses the Anthropic provider when the key is set", () => {
-		const model = fallbackModel(KEYED);
+		expect(fallbackModel(KEYED)).not.toBeString();
+		const model = directModel(ANTHROPIC.defaultModelId, KEYED);
 
-		expect(typeof model).not.toBe("string");
-		if (typeof model === "string") return;
+		if (!model) throw new Error("expected a direct model");
 		expect(model.provider).toStartWith("anthropic");
 		expect(model.modelId).toBe(ANTHROPIC.defaultModelId);
 	});
@@ -41,7 +41,7 @@ describe("model provider selection", () => {
 	it("sends the workspace header only when the id is set", async () => {
 		const seen: Array<Headers> = [];
 		const original = globalThis.fetch;
-		globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
+		globalThis.fetch = (async (_url: RequestInfo | URL, init?: RequestInit) => {
 			seen.push(new Headers(init?.headers));
 			return new Response("{}", { status: 400 });
 		}) as unknown as typeof fetch;

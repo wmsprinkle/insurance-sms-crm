@@ -74,11 +74,11 @@ export function modelDefinition<Ctx>(
 	pick: (ctx: Ctx) => Promise<ModelSelection | null>,
 	env: Env = process.env,
 ): AgentModelDefinition {
-	const fallback = fallbackModel(env);
+	const fallback = directModel(ANTHROPIC.defaultModelId, env);
 
-	if (typeof fallback === "string") {
+	if (!fallback) {
 		return defineDynamic({
-			fallback,
+			fallback: DEFAULT_AGENT_MODEL.id,
 			events: { "session.started": (_event, ctx) => pick(ctx as Ctx) },
 		});
 	}

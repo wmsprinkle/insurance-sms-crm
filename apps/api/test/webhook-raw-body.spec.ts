@@ -21,7 +21,7 @@ function post(
 ): Promise<{ status: number }> {
 	const socket = new Socket();
 	socket.write = ((...args: unknown[]) => {
-		const done = args.find((arg) => typeof arg === "function") as
+		const done = args.find((arg) => arg instanceof Function) as
 			| (() => void)
 			| undefined;
 		done?.();
