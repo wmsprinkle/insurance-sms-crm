@@ -28,8 +28,8 @@ export default function ComplianceSettingsPage() {
 				<PageShellHeading>
 					<PageShellTitle>Compliance</PageShellTitle>
 					<PageShellDescription>
-						What leads get, how replies are handled, where calls are booked and
-						the rules that limit texting.
+						What leads get, how replies are handled, where meetings are booked
+						and the rules that limit texting.
 					</PageShellDescription>
 				</PageShellHeading>
 			</PageShellHeader>

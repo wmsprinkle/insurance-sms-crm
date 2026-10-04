@@ -7,6 +7,8 @@ const NOT_FOUND = "not found";
 export function routeFor(rawUrl, config = PUBLIC) {
 	let pathname;
 
+	if (!/^\/(?!\/)/.test(rawUrl)) return "blocked";
+
 	try {
 		pathname = new URL(rawUrl, "http://edge.invalid").pathname.toLowerCase();
 	} catch {
@@ -18,7 +20,8 @@ export function routeFor(rawUrl, config = PUBLIC) {
 		pathname.includes("\\") ||
 		config.blockedPrefixes.some(
 			(prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-		)
+		) ||
+		config.blockedFragments.some((fragment) => pathname.includes(fragment))
 	) {
 		return "blocked";
 	}

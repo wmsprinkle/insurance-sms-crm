@@ -10,10 +10,11 @@ internet → ngrok → edge proxy 127.0.0.1:8080
                     └─ everything else                 → app   :3000 (proxies /api/*, /eve/* to api and agent)
 ```
 
-- `/internal/*` is blocked twice: by the ngrok traffic policy (`scripts/ngrok-policy.yml`) and by the edge proxy (`scripts/edge-proxy.mjs`). The proxy forwards bytes and headers unchanged, so the Telnyx signature check still passes.
+- `/internal/*` and `dev-login` paths are blocked twice: by the ngrok traffic policy (`scripts/ngrok-policy.yml`) and by the edge proxy (`scripts/edge-proxy.mjs`). The proxy forwards bytes and headers unchanged, so the Telnyx signature check still passes.
 - `scripts/local-cron.mjs` replaces Vercel cron. It posts to the five `/internal/*` jobs with the same schedules as `vercel.json` (UTC).
 - The agent schedules itself inside `eve start`.
-- Production mode: `NODE_ENV=production`. The script refuses to start if `DEV_LOGIN` is set. Sign-in is Google only.
+- Production mode: `NODE_ENV=production`. Public sign-in is Google only.
+- `DEV_LOGIN=true` is allowed. The script prints a warning. The "Continue as" button works from `http://localhost:3000` on this Mac only. The edge proxy and ngrok return 404 for any path that contains `dev-login`. See `docs/OAUTH_SETUP.md`.
 
 ## One manual step
 
@@ -23,6 +24,18 @@ In Google Cloud → APIs & Services → Credentials → your OAuth client:
 - Authorised redirect URI: `https://campfire-nervous-shamrock.ngrok-free.dev/api/auth/callback/google`
 
 Without this, Google sign-in fails with `redirect_uri_mismatch`.
+
+## Check the dev sign-in bypass
+
+With `DEV_LOGIN=true` and one full address in `ALLOWED_SIGN_IN`, after `scripts/run-public.sh --build`:
+
+```sh
+curl -s -o /dev/null -w '%{http_code}\n' -X POST -H 'origin: http://localhost:3000' http://localhost:3000/api/auth/dev-login
+curl -s -o /dev/null -w '%{http_code}\n' -X POST http://127.0.0.1:8080/api/auth/dev-login
+curl -s -o /dev/null -w '%{http_code}\n' -X POST https://campfire-nervous-shamrock.ngrok-free.dev/api/auth/dev-login
+```
+
+Expected: `200`, `404`, `404`. In the browser, `http://localhost:3000/sign-in` shows "Continue as <email>". The public URL does not.
 
 ## Start and stop
 

@@ -50,7 +50,9 @@ set -a
 . "$ROOT/.env"
 set +a
 
-[ -z "${DEV_LOGIN:-}" ] || die "DEV_LOGIN is set. Remove it from .env. Refusing to start."
+if [ -n "${DEV_LOGIN:-}" ] && [ "$DEV_LOGIN" != "true" ]; then
+	die "DEV_LOGIN must be empty or exactly true."
+fi
 
 if [ ! -f "$SECRETS_FILE" ]; then
 	umask 077
@@ -77,7 +79,10 @@ export API_URL="$PUBLIC_URL"
 export NEXT_PUBLIC_API_URL="$PUBLIC_URL"
 export API_INTERNAL_URL="http://127.0.0.1:$API_PORT"
 export AGENT_URL="http://127.0.0.1:$AGENT_PORT"
-unset DEV_LOGIN
+if [ "${DEV_LOGIN:-}" = "true" ]; then
+	echo "WARNING: DEV_LOGIN=true. The 'Continue as' button works from http://localhost:3000 on this Mac only."
+	echo "WARNING: The edge proxy and ngrok refuse /api/auth/dev-login. Never set DEV_LOGIN on another machine."
+fi
 
 [ "${#AGENT_BRIDGE_SECRET}" -ge 32 ] || die "AGENT_BRIDGE_SECRET must be 32 characters or more."
 [ "${#CRON_SECRET}" -ge 16 ] || die "CRON_SECRET must be 16 characters or more."
@@ -154,6 +159,9 @@ wait_http edge "http://127.0.0.1:$EDGE_PORT/sign-in"
 
 internal_code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:$EDGE_PORT/internal/sync/mailboxes")"
 [ "$internal_code" = "404" ] || die "edge proxy exposes /internal (got $internal_code)."
+
+dev_login_code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:$EDGE_PORT/api/auth/dev-login")"
+[ "$dev_login_code" = "404" ] || die "edge proxy exposes dev-login (got $dev_login_code)."
 
 start cron node "$ROOT/scripts/local-cron.mjs"
 

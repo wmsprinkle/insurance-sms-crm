@@ -14,7 +14,7 @@
 <h1 align="center">Insurance SMS CRM</h1>
 
 <p align="center">
-  <strong>An SMS-first CRM for insurance lead handling: text opted-in leads over Telnyx toll-free numbers, let an agent qualify them, and book the call.</strong>
+  <strong>An SMS-first CRM for insurance lead handling: text opted-in leads over Telnyx toll-free numbers, let an agent qualify them, and book the meeting.</strong>
 </p>
 
 > **Attribution.** This project is a fork of [trycompai/crm](https://github.com/trycompai/crm)

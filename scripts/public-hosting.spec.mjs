@@ -22,6 +22,28 @@ describe("routeFor", () => {
 		expect(routeFor("/%69nternal/sync/rates")).toBe("blocked");
 		expect(routeFor("/internal")).toBe("blocked");
 	});
+
+	test("blocks the dev-login endpoint in every spelling", () => {
+		for (const path of [
+			"/api/auth/dev-login",
+			"/api/auth/dev-login?x=1",
+			"/api/auth/dev-login/",
+			"/API/Auth/Dev-Login",
+			"/api/auth/%64ev-login",
+			"/api/auth/dev-login%2f",
+			"/dev-login",
+			"//api/auth/dev-login",
+			"//evil.example/api/auth/dev-login",
+		]) {
+			expect(routeFor(path)).toBe("blocked");
+		}
+	});
+
+	test("blocks request targets that are not an origin-form path", () => {
+		for (const path of ["", "api", "http://evil.example/", "*"]) {
+			expect(routeFor(path)).toBe("blocked");
+		}
+	});
 });
 
 describe("dueJobs", () => {
@@ -112,6 +134,7 @@ describe.skipIf(!canListen)("edge proxy", () => {
 			},
 			apiPaths: ["/webhooks/telnyx", "/leads/ingest"],
 			blockedPrefixes: ["/internal"],
+			blockedFragments: ["dev-login"],
 		});
 		edgePort = await listen(edge);
 		servers.push(app, api, edge);
@@ -134,5 +157,11 @@ describe.skipIf(!canListen)("edge proxy", () => {
 		expect(JSON.parse(toApp.text).path).toBe("/sign-in?x=1");
 		const blocked = await send(edgePort, "/internal/sync/mailboxes", "");
 		expect(blocked.status).toBe(404);
+	});
+
+	test("refuses the dev-login endpoint and never reaches the app", async () => {
+		const result = await send(edgePort, "/api/auth/dev-login", "{}");
+		expect(result.status).toBe(404);
+		expect(result.text).toBe("not found");
 	});
 });

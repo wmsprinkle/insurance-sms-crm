@@ -33,25 +33,25 @@ describe("validateEnv DEV_LOGIN", () => {
 		expect(() => validateEnv({ ...base, DEV_LOGIN: "true" })).not.toThrow();
 	});
 
-	it("refuses to boot with DEV_LOGIN in production", () => {
-		expect(() => validateEnv({ ...production, DEV_LOGIN: "true" })).toThrow(
-			/DEV_LOGIN=true is not allowed/,
-		);
+	it("boots with DEV_LOGIN in production behind a public URL", () => {
+		expect(() =>
+			validateEnv({ ...production, DEV_LOGIN: "true" }),
+		).not.toThrow();
 	});
 
-	it("refuses a non-local API_URL", () => {
+	it("refuses a list of addresses", () => {
 		expect(() =>
 			validateEnv({
 				...base,
 				DEV_LOGIN: "true",
-				API_URL: "https://api.example.com",
+				ALLOWED_SIGN_IN: "a@gmail.com,b@gmail.com",
 			}),
-		).toThrow(/localhost/);
+		).toThrow(/exactly one full email address/);
 	});
 
 	it("refuses a domain-only allow-list", () => {
 		expect(() =>
 			validateEnv({ ...base, DEV_LOGIN: "true", ALLOWED_SIGN_IN: "acme.com" }),
-		).toThrow(/full email address/);
+		).toThrow(/exactly one full email address/);
 	});
 });

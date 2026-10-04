@@ -1,4 +1,9 @@
-import { devLoginFromEnvironment, isLoopbackUrl } from "@crm/auth/dev-login";
+import {
+	DEV_LOGIN_WARNING,
+	devLoginFromEnvironment,
+	isLoopbackUrl,
+} from "@crm/auth/dev-login";
+import { Logger } from "@nestjs/common";
 import { plainToInstance, Type } from "class-transformer";
 import {
 	IsEnum,
@@ -270,7 +275,9 @@ export function validateEnv(config: RawEnvironment): EnvironmentVariables {
 		);
 	}
 
-	devLoginFromEnvironment(config);
+	if (devLoginFromEnvironment(config).enabled) {
+		new Logger("Env").warn(DEV_LOGIN_WARNING);
+	}
 
 	const unsafe = productionProblems(config);
 	if (unsafe.length > 0) {

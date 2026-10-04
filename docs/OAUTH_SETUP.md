@@ -9,7 +9,7 @@ Sign-in is Google (and Microsoft, if you configure it) through Better Auth. No p
 3. Accounts never link by email alone. No provider is trusted for linking.
 4. The sign-in page shows only the buttons you configured. With none, it shows "No way in yet".
 5. In production the API refuses to boot with no OAuth credentials, a non-https `API_URL` or `APP_URL`, or a weak `AGENT_BRIDGE_SECRET`.
-6. `DEV_LOGIN` works only when `NODE_ENV` is not `production` and both URLs are localhost. Any other setup stops the API and app at boot.
+6. `DEV_LOGIN` signs in only requests that come straight from this machine to `localhost` or `127.0.0.1`. A request through a proxy or tunnel is refused. See "Local development".
 
 ## Create the Google OAuth client
 
@@ -44,7 +44,7 @@ Restart the API and app. Open `http://localhost:3000/sign-in`. Click **Continue 
 
 1. Set `API_URL` and `APP_URL` to the public https URLs.
 2. Add the matching origin and redirect URI in the Google client (steps 6 and 7).
-3. Set `NODE_ENV=production`, `DEV_LOGIN` unset, and `AGENT_BRIDGE_SECRET` to 32 or more random characters.
+3. Set `NODE_ENV=production`, `DEV_LOGIN` unset on any shared host, and `AGENT_BRIDGE_SECRET` to 32 or more random characters.
 4. Restart. A wrong value stops the boot with a list of what to fix.
 
 ## Microsoft (optional)
@@ -53,4 +53,16 @@ Create an app registration in Entra ID. Redirect URI (Web): `<API_URL>/api/auth/
 
 ## Local development
 
-`DEV_LOGIN="true"` adds a "Continue as <email>" button on localhost only. `ALLOWED_SIGN_IN` must hold a full address. Leave it unset in every shared or public environment.
+`DEV_LOGIN="true"` adds a "Continue as <email>" button. It works on the machine that runs the CRM, including the production stack from `scripts/run-public.sh`. Leave it unset on every other host.
+
+The bypass is on only when all of these are true:
+
+1. `DEV_LOGIN` is exactly `true`.
+2. `ALLOWED_SIGN_IN` holds exactly one full email address. A domain or a list stops the boot.
+3. The request itself is local. The TCP peer is `127.0.0.1` or `::1`. The `Host` header is `localhost`, `127.0.0.1` or `[::1]`, on any port. The request has no `x-forwarded-*`, `forwarded`, `x-real-ip`, `ngrok-*` or `cf-*` header.
+
+Anything that arrives through the edge proxy or the ngrok tunnel fails rule 3. The button does not render. The endpoint answers 403. The edge proxy and the ngrok policy also return 404 for any path that contains `dev-login`.
+
+The session is a normal session for that one address. Google OAuth and `ALLOWED_SIGN_IN` are unchanged. The API and the app log a warning at boot when `DEV_LOGIN` is on.
+
+Use `http://localhost:3000/sign-in`. Chrome and Firefox keep the secure session cookie on `http://localhost`. Safari does not.

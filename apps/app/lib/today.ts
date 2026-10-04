@@ -313,8 +313,8 @@ export function getStartedItems(state: GetStartedState): GetStartedItem[] {
 			id: "calendar",
 			title: "Google Calendar connected",
 			detail: state.calendarConnected
-				? "Booked calls land on your calendar."
-				: "Connect Google so booked calls land on your calendar.",
+				? "Booked meetings land on your calendar."
+				: "Connect Google so booked meetings land on your calendar.",
 			status: state.calendarConnected ? "done" : "todo",
 			action: state.calendarConnected
 				? null

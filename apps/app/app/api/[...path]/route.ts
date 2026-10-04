@@ -1,3 +1,4 @@
+import { DEV_LOGIN_APP_PATH, isLoopbackAppRequest } from "@crm/auth/dev-login";
 import { connection } from "next/server";
 import { bufferedProxyResponse } from "@/lib/api-proxy-response";
 import { API_SERVER_URL } from "@/lib/env";
@@ -6,6 +7,20 @@ async function handler(request: Request): Promise<Response> {
 	await connection();
 
 	const url = new URL(request.url);
+
+	if (
+		url.pathname.toLowerCase().includes("dev-login") &&
+		!(
+			url.pathname === DEV_LOGIN_APP_PATH &&
+			isLoopbackAppRequest(request.headers)
+		)
+	) {
+		return Response.json(
+			{ error: "Dev sign-in answers only on localhost." },
+			{ status: 403 },
+		);
+	}
+
 	const target = `${API_SERVER_URL}${url.pathname}${url.search}`;
 
 	const headers = new Headers(request.headers);

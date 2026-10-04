@@ -1,8 +1,11 @@
 import { createAuthEndpoint } from "better-auth/api";
 import { setSessionCookie } from "better-auth/cookies";
-import { isLoopbackUrl, LOOPBACK_HOSTS } from "./dev-login";
-
-export const DEV_LOGIN_PATH = "/dev-login";
+import {
+	DEV_LOGIN_PATH,
+	isLoopbackRequest,
+	isLoopbackUrl,
+	PEER_HEADER,
+} from "./dev-login";
 
 export function devLoginPlugin(email: string) {
 	return {
@@ -12,11 +15,18 @@ export function devLoginPlugin(email: string) {
 				DEV_LOGIN_PATH,
 				{ method: "POST" },
 				async (ctx) => {
-					const origin = ctx.request?.headers.get("origin");
-					const host = ctx.request ? new URL(ctx.request.url).hostname : null;
+					const headers = ctx.request?.headers;
+					const origin = headers?.get("origin");
+
 					if (
-						!host ||
-						!LOOPBACK_HOSTS.has(host) ||
+						!headers ||
+						!isLoopbackRequest({
+							peer: headers.get(PEER_HEADER),
+							host: headers.get("host"),
+							headerNames: [...headers.keys()].filter(
+								(name) => name !== PEER_HEADER,
+							),
+						}) ||
 						(origin && !isLoopbackUrl(origin))
 					) {
 						throw ctx.error("FORBIDDEN", {

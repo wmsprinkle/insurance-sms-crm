@@ -410,7 +410,7 @@ function MeetingsCard({ meetings }: { meetings: Meeting[] }) {
 						</EmptyMedia>
 						<EmptyTitle>No meetings booked yet</EmptyTitle>
 						<EmptyDescription>
-							When a lead picks a time, the call shows up here and on your
+							When a lead picks a time, the meeting shows up here and on your
 							calendar.
 						</EmptyDescription>
 					</EmptyHeader>

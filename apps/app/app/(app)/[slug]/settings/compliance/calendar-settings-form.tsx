@@ -86,7 +86,7 @@ export function CalendarSettingsForm() {
 			<CardHeader>
 				<CardTitle>Calendar</CardTitle>
 				<CardDescription>
-					Where booked calls go, and what happens when the calendar is down.
+					Where booked meetings go, and what happens when the calendar is down.
 				</CardDescription>
 				<CardAction>
 					<Button
@@ -137,7 +137,7 @@ export function CalendarSettingsForm() {
 							<FieldDescription>
 								{accounts.length === 0
 									? "No one has connected Google yet. Connect an account in Settings, then Connections."
-									: `Booked calls go on ${effective ? `${effective.name}'s` : "this person's"} calendar. Only people who connected Google can be picked.`}
+									: `Booked meetings go on ${effective ? `${effective.name}'s` : "this person's"} calendar. Only people who connected Google can be picked.`}
 							</FieldDescription>
 						</Field>
 

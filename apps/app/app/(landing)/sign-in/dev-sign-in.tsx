@@ -50,7 +50,7 @@ export function DevSignIn({
 				{pending ? <Spinner data-icon="inline-start" /> : null}
 				Continue as {email}
 			</Button>
-			<Badge variant="secondary">Local development only</Badge>
+			<Badge variant="secondary">This computer only</Badge>
 		</div>
 	);
 }

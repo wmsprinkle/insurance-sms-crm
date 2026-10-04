@@ -12,6 +12,7 @@ export const PUBLIC = {
 	},
 	apiPaths: ["/webhooks/telnyx", "/leads/ingest"],
 	blockedPrefixes: ["/internal"],
+	blockedFragments: ["dev-login"],
 	cron: {
 		timeoutMs: 60 * SECOND_MS,
 		jobs: [

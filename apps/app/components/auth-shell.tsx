@@ -1,43 +1,72 @@
+import { Bubble, BubbleContent, BubbleGroup } from "@crm/ui/components/bubble";
 import Logo from "@crm/ui/components/logo";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { AuthShader } from "@/components/auth-shader";
 import { PRODUCT } from "@/lib/product";
 
-export function AuthShell({ children }: { children: ReactNode }) {
+const SAMPLE_CONVERSATION = [
+	{
+		id: "ask",
+		from: "us",
+		text: "Hello Sam, Are you interested in life or health coverage?",
+	},
+	{ id: "reply", from: "lead", text: "Yes, tell me more" },
+	{ id: "book", from: "us", text: "Great, how about Thursday at 2pm?" },
+] as const;
+
+export function AuthShell({
+	children,
+	preview = false,
+}: {
+	children: ReactNode;
+	preview?: boolean;
+}) {
 	return (
-		<main className="dark grid min-h-svh bg-background text-foreground lg:grid-cols-[minmax(0,1fr)_minmax(420px,520px)]">
-			<section className="relative hidden min-h-svh overflow-hidden bg-muted p-8 lg:flex lg:flex-col lg:justify-between xl:p-12">
-				<AuthShader />
+		<main className="dark relative isolate flex min-h-svh flex-col items-center justify-center overflow-hidden bg-background px-4 py-10 text-foreground sm:px-6">
+			<AuthShader />
 
-				<div className="relative flex gap-2 text-sm/5">
-					<Link href="/" aria-label="Homepage" className="flex">
-						<Logo className="size-5 shrink-0" />
-					</Link>
-				</div>
+			<div className="relative flex w-full max-w-sm flex-col items-center gap-8">
+				<Link href="/" aria-label="Homepage" className="flex">
+					<Logo className="size-6 shrink-0" />
+				</Link>
 
-				<div className="relative flex max-w-lg flex-col gap-8">
-					<div className="flex flex-col gap-4">
+				{preview ? (
+					<div className="flex flex-col items-center gap-3 text-center">
 						<p className="font-mono text-xs/4 text-muted-foreground uppercase">
 							{PRODUCT.name}
 						</p>
-						<h1 className="max-w-[14ch] text-5xl/14 font-semibold text-balance">
+						<h1 className="text-3xl/9 font-semibold text-balance sm:text-4xl/10">
 							{PRODUCT.tagline}
 						</h1>
 					</div>
-				</div>
-			</section>
+				) : null}
 
-			<section className="flex min-h-svh flex-col bg-background px-6 py-8 sm:px-10 lg:px-14">
-				<div className="flex gap-2 text-sm/5 max-lg:hidden lg:invisible">
-					<Logo className="size-5 shrink-0" />
-				</div>
+				{preview ? <SmsPreview /> : null}
 
-				<div className="flex flex-1 items-center justify-center py-12">
-					<div className="flex w-full max-w-sm flex-col gap-8">{children}</div>
-				</div>
-			</section>
+				<div className="flex w-full flex-col gap-8">{children}</div>
+			</div>
 		</main>
+	);
+}
+
+function SmsPreview() {
+	return (
+		<BubbleGroup
+			role="group"
+			aria-label="Example text conversation with a lead"
+			className="w-full text-left"
+		>
+			{SAMPLE_CONVERSATION.map((message) => (
+				<Bubble
+					key={message.id}
+					align={message.from === "us" ? "end" : "start"}
+					variant={message.from === "us" ? "default" : "secondary"}
+				>
+					<BubbleContent>{message.text}</BubbleContent>
+				</Bubble>
+			))}
+		</BubbleGroup>
 	);
 }
 
@@ -49,18 +78,13 @@ export function AuthHeading({
 	description: ReactNode;
 }) {
 	return (
-		<div className="flex flex-col gap-3 text-left">
-			<Link href="/" aria-label="Homepage" className="flex">
-				<Logo className="size-6 shrink-0" />
-			</Link>
-			<div className="flex flex-col gap-1">
-				<h2 className="text-2xl/8 font-semibold tracking-tight text-balance">
-					{title}
-				</h2>
-				<p className="max-w-[32ch] text-sm/5 text-muted-foreground text-pretty">
-					{description}
-				</p>
-			</div>
+		<div className="flex flex-col items-center gap-1 text-center">
+			<h2 className="text-2xl/8 font-semibold tracking-tight text-balance">
+				{title}
+			</h2>
+			<p className="max-w-[40ch] text-sm/5 text-muted-foreground text-pretty">
+				{description}
+			</p>
 		</div>
 	);
 }

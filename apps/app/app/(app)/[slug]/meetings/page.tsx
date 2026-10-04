@@ -25,7 +25,7 @@ export default function MeetingsPage() {
 				<PageShellHeading>
 					<PageShellTitle>Meetings</PageShellTitle>
 					<PageShellDescription>
-						Calls leads booked with you. Each one is on your Google Calendar.
+						Meetings leads booked with you. Each one is on your Google Calendar.
 					</PageShellDescription>
 				</PageShellHeading>
 			</PageShellHeader>

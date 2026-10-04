@@ -1,6 +1,11 @@
-import { devLoginFromEnvironment } from "@crm/auth/dev-login";
+import {
+	devLoginFromEnvironment,
+	isLoopbackAppRequest,
+} from "@crm/auth/dev-login";
 import type { MailboxProviderId } from "@crm/auth/scopes";
+import { Skeleton } from "@crm/ui/components/skeleton";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { redirect, unstable_rethrow } from "next/navigation";
 import { Suspense } from "react";
 import { AuthHeading, AuthShell } from "@/components/auth-shell";
@@ -44,13 +49,16 @@ async function currentSession() {
 
 export default function SignInPage({ searchParams }: PageProps<"/sign-in">) {
 	return (
-		<AuthShell>
+		<AuthShell preview>
 			<Suspense
 				fallback={
-					<AuthHeading
-						title="Welcome back"
-						description="Sign in with your account to continue."
-					/>
+					<>
+						<AuthHeading
+							title="Welcome back"
+							description="Sign in with your account to continue."
+						/>
+						<Skeleton className="h-9 w-full" />
+					</>
 				}
 			>
 				<SignIn searchParams={searchParams} />
@@ -62,10 +70,11 @@ export default function SignInPage({ searchParams }: PageProps<"/sign-in">) {
 async function SignIn({
 	searchParams,
 }: Pick<PageProps<"/sign-in">, "searchParams">) {
-	const [session, options, { method }] = await Promise.all([
+	const [session, options, { method }, requestHeaders] = await Promise.all([
 		currentSession(),
 		signInOptions(),
 		searchParams,
+		headers(),
 	]);
 
 	if (session) {
@@ -76,7 +85,11 @@ async function SignIn({
 	if (options?.google ?? false) configured.push("google");
 	if (options?.microsoft ?? false) configured.push("microsoft");
 
-	const devLogin = devLoginFromEnvironment(process.env);
+	const configuredDevLogin = devLoginFromEnvironment(process.env);
+	const devLogin =
+		configuredDevLogin.enabled && isLoopbackAppRequest(requestHeaders)
+			? configuredDevLogin
+			: ({ enabled: false } as const);
 
 	const providers = options?.providers ?? [];
 
@@ -97,7 +110,7 @@ async function SignIn({
 					description="This app has no sign-in method configured, so nobody can get in — including you."
 				/>
 
-				<p className="text-center text-muted-foreground text-sm/5">
+				<p className="mx-auto max-w-[40ch] text-center text-muted-foreground text-sm/5">
 					Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET — or MICROSOFT_CLIENT_ID
 					and MICROSOFT_CLIENT_SECRET — in the root .env file and restart.
 					Steps: docs/OAUTH_SETUP.md.

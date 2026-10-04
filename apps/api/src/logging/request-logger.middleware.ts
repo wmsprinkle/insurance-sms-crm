@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { PEER_HEADER } from "@crm/auth/dev-login";
 import { Injectable, Logger, type NestMiddleware } from "@nestjs/common";
 import type { NextFunction, Request, Response } from "express";
 import { loggablePath } from "./loggable-path";
@@ -95,6 +96,7 @@ export function logAuthRoute(
 	response: Response,
 	next: NextFunction,
 ): void {
+	request.headers[PEER_HEADER] = request.socket.remoteAddress ?? "";
 	sharedInstance.use(request, response, next);
 }
 
