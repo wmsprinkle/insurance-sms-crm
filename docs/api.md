@@ -78,7 +78,7 @@ request.
   read is never made while onboarding is open.
 - **An unreachable API fails open** (`unknown` lets the request through).
 - **`/sign-in`, `/grant-access`, `/eve` are ungated.** `/sign-in` is the only path a
-  stranger may read; `/` joins it only when `IS_MARKETING` is set.
+  stranger may read; `/` sends a stranger to it.
 - **There is no way past the key gate but to answer** — Skip stranded installs, every
   later company sitting `PENDING` with nothing saying so.
 

@@ -40,7 +40,6 @@ over the file.
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Yes for booking | Google sign-in, Gmail and Calendar. Set both or neither. Booking needs Google. |
 | `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET` / `MICROSOFT_TENANT_ID` | No | Microsoft sign-in and Outlook mail. Microsoft calendar booking is not built. |
 | `SLACK_CLIENT_ID` / `SLACK_CLIENT_SECRET` | No | Slack linking. Also needs `FEATURE_SLACK="true"`. |
-| `IS_MARKETING` | No | Serves the upstream landing page at `/`. Leave unset. |
 | `API_URL` | Off localhost; **always for the agent** | API origin (default `http://localhost:3001`). The agent posts SMS sends and bookings to it. Without it the agent drafts every text with reason "no send path". |
 | `APP_URL` | Off localhost | App origin (default `http://localhost:3000`). |
 | `AUTH_COOKIE_DOMAIN` | Only on split subdomains | Parent domain such as `.example.com`. |

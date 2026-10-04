@@ -1,7 +1,6 @@
 import { AUTH_COOKIE_PREFIX } from "@crm/auth/cookies";
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
-import { isMarketing } from "@/lib/env";
 import { ONBOARDING_PATH, readWorkspaceSlug } from "@/lib/onboarding";
 import { workspaceUrl } from "@/lib/workspace-url";
 
@@ -25,9 +24,7 @@ export async function proxy(request: NextRequest) {
 	if (
 		getSessionCookie(request, { cookiePrefix: AUTH_COOKIE_PREFIX }) === null
 	) {
-		return isPublic(pathname)
-			? NextResponse.next()
-			: NextResponse.redirect(new URL(SIGN_IN_PATH, request.nextUrl));
+		return NextResponse.redirect(new URL(SIGN_IN_PATH, request.nextUrl));
 	}
 
 	if (isUngated(pathname)) return NextResponse.next();
@@ -57,10 +54,6 @@ function appPath(pathname: string, slug: string): string {
 
 function isUnder(pathname: string, prefix: string): boolean {
 	return pathname === prefix || pathname.startsWith(`${prefix}/`);
-}
-
-function isPublic(pathname: string): boolean {
-	return pathname === LANDING_PATH && isMarketing();
 }
 
 function isUngated(pathname: string): boolean {

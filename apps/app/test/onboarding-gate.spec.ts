@@ -10,17 +10,9 @@ const SLUG = "comp-ai";
 
 const realFetch = globalThis.fetch;
 
-const realMarketing = process.env.IS_MARKETING;
-
 afterEach(() => {
 	globalThis.fetch = realFetch;
-	marketing(realMarketing);
 });
-
-function marketing(value: string | undefined) {
-	if (value === undefined) delete process.env.IS_MARKETING;
-	else process.env.IS_MARKETING = value;
-}
 
 function stub(handler: (url: string) => Promise<Response>) {
 	globalThis.fetch = ((input: string | URL | Request) =>
@@ -91,26 +83,13 @@ describe("readWorkspaceSlug", () => {
 });
 
 describe("proxy", () => {
-	it("shows a stranger the landing page and nothing behind it", async () => {
-		marketing("true");
-
-		expect(redirectedTo(await proxy(request("/")))).toBeNull();
-		expect(redirectedTo(await proxy(request("/sign-in")))).toBeNull();
-		expect(redirectedTo(await proxy(request(`/${SLUG}`)))).toBe("/sign-in");
-		expect(redirectedTo(await proxy(request(`/${SLUG}/companies`)))).toBe(
-			"/sign-in",
-		);
-	});
-
-	it("sends a stranger to sign in when the install has no landing page", async () => {
-		marketing(undefined);
-
+	it("sends a stranger from the root to sign in", async () => {
 		expect(redirectedTo(await proxy(request("/")))).toBe("/sign-in");
 		expect(redirectedTo(await proxy(request("/sign-in")))).toBeNull();
+		expect(redirectedTo(await proxy(request(`/${SLUG}`)))).toBe("/sign-in");
 	});
 
 	it("never aims a redirect at the sign-in page itself", async () => {
-		marketing(undefined);
 		setup();
 
 		expect(redirectedTo(await proxy(request("/sign-in")))).toBeNull();
@@ -120,17 +99,6 @@ describe("proxy", () => {
 		expect(
 			redirectedTo(await proxy(request("/sign-in?method=google"))),
 		).toBeNull();
-	});
-
-	it("reads the flag on every request, and only the literal true turns it on", async () => {
-		marketing("false");
-		expect(redirectedTo(await proxy(request("/")))).toBe("/sign-in");
-
-		marketing("1");
-		expect(redirectedTo(await proxy(request("/")))).toBe("/sign-in");
-
-		marketing("true");
-		expect(redirectedTo(await proxy(request("/")))).toBeNull();
 	});
 
 	it("ignores a neighbour's cookie from the parent domain", async () => {
@@ -201,7 +169,7 @@ describe("proxy", () => {
 });
 
 describe("the slug the app is served under", () => {
-	it("sends a signed-in rep off the landing page and into the workspace", async () => {
+	it("sends a signed-in rep from the root into the workspace", async () => {
 		setup();
 
 		expect(redirectedTo(await proxy(request("/", [SESSION_COOKIE])))).toBe(

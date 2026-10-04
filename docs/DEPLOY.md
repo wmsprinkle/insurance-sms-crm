@@ -139,7 +139,7 @@ The API refuses to boot in production if: no Google or Microsoft pair, `API_URL`
 | `ANTHROPIC_WORKSPACE_ID` | Only for a key not scoped to a workspace | Anthropic console |
 | `BLOB_READ_WRITE_TOKEN`, `PERPLEXITY_API_KEY`, `GITHUB_TOKEN` | Optional | See `.env.example` |
 
-Leave `IS_MARKETING` unset. With `ANTHROPIC_API_KEY` set, the agent calls Claude direct. The agent holds no Telnyx keys. The API sends the SMS.
+With `ANTHROPIC_API_KEY` set, the agent calls Claude direct. The agent holds no Telnyx keys. The API sends the SMS.
 
 ## 8. Deploy [HUMAN clicks, GOD can run the CLI]
 
