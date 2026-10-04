@@ -175,7 +175,7 @@ deleted* comes to be true of email and not of forms.
 
 ## Retention
 
-`POST /internal/tracking/retention`, nightly at 04:00 via `apps/api/vercel.json`,
+`POST /internal/tracking/retention`, nightly at 04:00 via root `vercel.json` (`services.api.crons`),
 `CRON_SECRET` or nothing.
 
 - **The cutoff is a whole UTC day**, `EVENT_RETENTION_DAYS` back and then truncated.

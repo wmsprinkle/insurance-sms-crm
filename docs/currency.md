@@ -63,5 +63,5 @@ Any judgement about it belongs in `apps/agent`.
 
 `POST /internal/sync/rates` is guarded by `CRON_SECRET` (`timingSafeEquals`) and
 **fails closed when unset**. **A route is not a schedule** — add it to
-`apps/api/vercel.json` in the same change or nothing runs it.
+root `vercel.json` (`services.api.crons`) in the same change or nothing runs it.
 

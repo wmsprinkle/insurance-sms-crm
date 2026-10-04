@@ -176,7 +176,7 @@ imports nothing, Calendar reads from `now`, and Outlook records `now` as its cur
 **`CRON_SECRET`** (min 16 chars) guards `POST /internal/sync/mailboxes` and
 `/internal/sync/rates`; both **fail closed when unset**. `/internal/sync/google` is
 kept as an alias of the first, so an existing deployment's cron does not break on
-deploy. **Crons live in `apps/api/vercel.json`** — mailboxes `*/5 * * * *`, rates
+deploy. **Crons live in root `vercel.json` (`services.api.crons`)** — mailboxes `*/5 * * * *`, rates
 daily. Minute-level schedules need a Pro plan; on Hobby it silently becomes daily.
 
 Deliberate absences: **no `GOOGLE_SYNC_ENABLED`** (a switch that can disable a mandatory

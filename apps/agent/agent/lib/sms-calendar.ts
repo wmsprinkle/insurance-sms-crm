@@ -27,7 +27,7 @@ export function apiCalendarPath(
 ): CalendarPath {
 	return async (request) => {
 		const secret = env.AGENT_BRIDGE_SECRET?.trim();
-		const base = env.API_URL?.trim();
+		const base = (env.API_INTERNAL_URL ?? env.API_URL)?.trim();
 		if (!secret || !base) {
 			return {
 				status: "no-bridge",

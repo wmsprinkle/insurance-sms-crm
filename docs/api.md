@@ -263,7 +263,7 @@ row is still there, just filtered out of every list.
   different from the cron.
 
 **Pruning**: `ArchiveRetentionController` (`internal/archive/prune`, `CRON_SECRET`-gated,
-`apps/api/vercel.json`) reads `AppSetting.archiveRetentionDays`
+root `vercel.json` (`services.api.crons`)) reads `AppSetting.archiveRetentionDays`
 (`readArchiveRetentionDays`, `@crm/db/settings`, default 180) and calls each service's
 `purgeExpired(before)` — `findMany({ archivedAt: { lte: before } })` capped at
 `ARCHIVE.prune.maxBatch` (`archive/archive-config.ts`), then `purge` per row through

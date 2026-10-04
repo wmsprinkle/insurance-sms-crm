@@ -1,5 +1,5 @@
 import { CONFIG_MAX_AGE_SECONDS, isSiteId } from "@crm/db/tracking";
-import { API_URL } from "@/lib/env";
+import { API_SERVER_URL } from "@/lib/env";
 import { trackerSource } from "@/lib/tracking/tracker";
 
 const EMPTY = "/* no tracking site is configured */\n";
@@ -16,7 +16,7 @@ export async function GET(
 	let payload: { config: unknown; hash?: string } | null = null;
 
 	try {
-		const upstream = await fetch(`${API_URL}/api/t/config/${siteId}`, {
+		const upstream = await fetch(`${API_SERVER_URL}/api/t/config/${siteId}`, {
 			headers: { accept: "application/json" },
 		});
 
