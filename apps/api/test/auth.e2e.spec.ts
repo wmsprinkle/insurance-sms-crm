@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { isGoogleConfigured, isMicrosoftConfigured } from "@crm/auth";
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 import request from "supertest";
@@ -60,16 +61,9 @@ describe("Auth (e2e)", () => {
 			.get("/api/trpc/sso.signInOptions")
 			.expect(200);
 
-		const googleConfigured = Boolean(
-			process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET,
-		);
-		const microsoftConfigured = Boolean(
-			process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET,
-		);
-
 		expect(response.body.result.data).toEqual({
-			google: googleConfigured,
-			microsoft: microsoftConfigured,
+			google: isGoogleConfigured(),
+			microsoft: isMicrosoftConfigured(),
 			providers: [],
 		});
 	});

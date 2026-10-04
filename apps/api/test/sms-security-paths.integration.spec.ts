@@ -88,8 +88,7 @@ const PHONES = {
 	injected: "+15125550215",
 } as const;
 
-const today = new Date().toISOString().slice(0, 10);
-const NOW = new Date(`${today}T17:00:00Z`);
+const NOW = new Date("2026-10-07T20:00:00Z");
 
 type SentText = { to: string; text: string };
 

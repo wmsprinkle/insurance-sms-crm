@@ -1,4 +1,11 @@
-import { describe, expect, it } from "bun:test";
+import {
+	afterAll,
+	beforeAll,
+	describe,
+	expect,
+	it,
+	setSystemTime,
+} from "bun:test";
 import type { Db } from "@crm/db";
 import { SmsStatus } from "@crm/db/enums";
 import type { SmsEnv } from "@crm/env/sms";
@@ -76,6 +83,14 @@ const message = {
 };
 
 describe("SmsSender", () => {
+	beforeAll(() => {
+		setSystemTime(new Date("2026-10-07T20:00:00Z"));
+	});
+
+	afterAll(() => {
+		setSystemTime();
+	});
+
 	it("sends nothing and records nothing when the gate blocks", async () => {
 		const { sms, state, calls } = sender({});
 
