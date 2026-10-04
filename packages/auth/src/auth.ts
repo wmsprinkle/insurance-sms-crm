@@ -119,7 +119,14 @@ export const auth = betterAuth({
 	},
 
 	plugins: [
-		...(env.devLogin.enabled ? [devLoginPlugin(env.devLogin.email)] : []),
+		...(env.devLogin.enabled
+			? [
+					devLoginPlugin(
+						env.devLogin.email,
+						process.env.AGENT_BRIDGE_SECRET?.trim(),
+					),
+				]
+			: []),
 		...(slackOAuth
 			? [
 					genericOAuth({

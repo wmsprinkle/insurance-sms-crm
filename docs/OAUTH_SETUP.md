@@ -63,6 +63,12 @@ The bypass is on only when all of these are true:
 
 Anything that arrives through the edge proxy or the ngrok tunnel fails rule 3. The button does not render. The endpoint answers 403. The edge proxy and the ngrok policy also return 404 for any path that contains `dev-login`.
 
+The app decides, once, on the original browser request. A dedicated route handler (`apps/app/app/api/auth/dev-login/route.ts`) checks Host, origin and forwarding headers. Next route handlers cannot see the TCP peer. The edge proxy sits on a different listener and always forwards through a proxy or tunnel, so a request through it fails the header rule or never arrives (404).
+
+The route then calls the API server to server with `x-crm-dev-login-proof`. That header is an HMAC of `AGENT_BRIDGE_SECRET`. The API refuses the call without a valid proof (constant-time compare), without a loopback TCP peer, or when `AGENT_BRIDGE_SECRET` is unset. The generic `/api/*` proxy refuses every path that contains `dev-login`. The route relays the API `Set-Cookie` headers unchanged.
+
+Residual risk: a process on this machine can send forged headers to `localhost:3000`. That process already has local access. Safari does not store `Secure` cookies on `http://localhost`, which Better Auth sets in production. Use Chrome or Firefox for this button.
+
 The session is a normal session for that one address. Google OAuth and `ALLOWED_SIGN_IN` are unchanged. The API and the app log a warning at boot when `DEV_LOGIN` is on.
 
 Use `http://localhost:3000/sign-in`. Chrome and Firefox keep the secure session cookie on `http://localhost`. Safari does not.

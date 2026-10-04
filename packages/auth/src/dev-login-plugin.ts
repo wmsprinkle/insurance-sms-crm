@@ -1,13 +1,9 @@
 import { createAuthEndpoint } from "better-auth/api";
 import { setSessionCookie } from "better-auth/cookies";
-import {
-	DEV_LOGIN_PATH,
-	isLoopbackRequest,
-	isLoopbackUrl,
-	PEER_HEADER,
-} from "./dev-login";
+import { DEV_LOGIN_PATH, isLoopbackPeer, PEER_HEADER } from "./dev-login";
+import { DEV_LOGIN_PROOF_HEADER, verifyDevLoginProof } from "./dev-login-proof";
 
-export function devLoginPlugin(email: string) {
+export function devLoginPlugin(email: string, secret: string | undefined) {
 	return {
 		id: "dev-login",
 		endpoints: {
@@ -16,18 +12,11 @@ export function devLoginPlugin(email: string) {
 				{ method: "POST" },
 				async (ctx) => {
 					const headers = ctx.request?.headers;
-					const origin = headers?.get("origin");
 
 					if (
 						!headers ||
-						!isLoopbackRequest({
-							peer: headers.get(PEER_HEADER),
-							host: headers.get("host"),
-							headerNames: [...headers.keys()].filter(
-								(name) => name !== PEER_HEADER,
-							),
-						}) ||
-						(origin && !isLoopbackUrl(origin))
+						!isLoopbackPeer(headers.get(PEER_HEADER)) ||
+						!verifyDevLoginProof(secret, headers.get(DEV_LOGIN_PROOF_HEADER))
 					) {
 						throw ctx.error("FORBIDDEN", {
 							message: "Dev sign-in answers only on localhost.",
