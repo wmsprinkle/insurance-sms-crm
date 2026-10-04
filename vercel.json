@@ -30,13 +30,6 @@
 					"format": "url",
 					"env": "AGENT_URL"
 				}
-			],
-			"crons": [
-				{ "path": "/internal/sync/mailboxes", "schedule": "*/5 * * * *" },
-				{ "path": "/internal/sync/rates", "schedule": "0 6 * * *" },
-				{ "path": "/internal/telemetry/rollup", "schedule": "0 7 * * *" },
-				{ "path": "/internal/tracking/retention", "schedule": "0 4 * * *" },
-				{ "path": "/internal/archive/prune", "schedule": "0 5 * * *" }
 			]
 		},
 		"agent": {
@@ -52,26 +45,76 @@
 			]
 		}
 	},
+	"crons": [
+		{
+			"path": "/internal/sync/mailboxes",
+			"schedule": "*/5 * * * *"
+		},
+		{
+			"path": "/internal/sync/rates",
+			"schedule": "0 6 * * *"
+		},
+		{
+			"path": "/internal/telemetry/rollup",
+			"schedule": "0 7 * * *"
+		},
+		{
+			"path": "/internal/tracking/retention",
+			"schedule": "0 4 * * *"
+		},
+		{
+			"path": "/internal/archive/prune",
+			"schedule": "0 5 * * *"
+		}
+	],
 	"rewrites": [
-		{ "source": "/webhooks/telnyx", "destination": { "service": "api" } },
-		{ "source": "/leads/ingest", "destination": { "service": "api" } },
+		{
+			"source": "/webhooks/telnyx",
+			"destination": {
+				"service": "api"
+			}
+		},
+		{
+			"source": "/leads/ingest",
+			"destination": {
+				"service": "api"
+			}
+		},
 		{
 			"source": "/internal/sync/mailboxes",
-			"destination": { "service": "api" }
+			"destination": {
+				"service": "api"
+			}
 		},
-		{ "source": "/internal/sync/rates", "destination": { "service": "api" } },
+		{
+			"source": "/internal/sync/rates",
+			"destination": {
+				"service": "api"
+			}
+		},
 		{
 			"source": "/internal/telemetry/rollup",
-			"destination": { "service": "api" }
+			"destination": {
+				"service": "api"
+			}
 		},
 		{
 			"source": "/internal/tracking/retention",
-			"destination": { "service": "api" }
+			"destination": {
+				"service": "api"
+			}
 		},
 		{
 			"source": "/internal/archive/prune",
-			"destination": { "service": "api" }
+			"destination": {
+				"service": "api"
+			}
 		},
-		{ "source": "/(.*)", "destination": { "service": "app" } }
+		{
+			"source": "/(.*)",
+			"destination": {
+				"service": "app"
+			}
+		}
 	]
 }

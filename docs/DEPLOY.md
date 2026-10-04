@@ -177,4 +177,4 @@ Leave `IS_MARKETING` unset. With `ANTHROPIC_API_KEY` set, the agent calls Claude
 - Only the `production` environment runs migrations.
 - A Vercel Hobby plan breaks the agent queue. Use Pro.
 - Google restricted scope `gmail.readonly` on an External consent screen needs Google verification for users outside your test list (`docs/setup.md`).
-- Unverified at the time of writing: the exact `services` schema keys in `vercel.json` (`root`, `bindings`, per-service `crons`). Confirm against https://vercel.com/docs/services before the first deploy.
+- Unverified at the time of writing: the exact `services` schema keys in `vercel.json` (`root`, `bindings`). Vercel rejected `crons` inside a service, so the 5 crons are top-level in `vercel.json`. Confirm against https://vercel.com/docs/services before the first deploy.
