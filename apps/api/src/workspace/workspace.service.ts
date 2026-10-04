@@ -287,9 +287,7 @@ export class WorkspaceService {
 		return where;
 	}
 
-	private async settleDefaults(
-		row: WorkspaceRow,
-	) {
+	private async settleDefaults(row: WorkspaceRow) {
 		const name =
 			row.name === DEFAULT_WORKSPACE.legacyName
 				? DEFAULT_WORKSPACE.name
