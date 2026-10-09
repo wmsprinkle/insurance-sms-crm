@@ -38,7 +38,6 @@ import { SsoModule } from "./sso/sso.module";
 import { SyncModule } from "./sync/sync.module";
 import { TelemetryModule } from "./telemetry/telemetry.module";
 import { TodayModule } from "./today/today.module";
-import { TrackingModule } from "./tracking/tracking.module";
 import { TrpcModule } from "./trpc/trpc.module";
 import { UsersModule } from "./users/users.module";
 import { WorkspaceModule } from "./workspace/workspace.module";
@@ -89,7 +88,6 @@ import { WorkspaceModule } from "./workspace/workspace.module";
 		SlackModule,
 		BackfillModule,
 		TelemetryModule,
-		TrackingModule,
 		ArchiveModule,
 		SavedViewsModule,
 		SmsModule,

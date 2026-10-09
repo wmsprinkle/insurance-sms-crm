@@ -37,7 +37,6 @@ import { OwnerCell } from "@/components/crm/owner-cell";
 import { CompanySocials } from "@/components/crm/social-links";
 import { DealStageMenu } from "@/components/crm/stage-change";
 import { Timeline } from "@/components/crm/timeline/timeline";
-import { WebsiteActivity } from "@/components/crm/website-activity";
 import {
 	DetailSheetBody,
 	DetailSheetEmpty,
@@ -328,8 +327,6 @@ function CompanyOverview({ company }: { company: Company }) {
 							<DetailSheetProse>{company.description}</DetailSheetProse>
 						</DetailSheetSection>
 					) : null}
-
-					<WebsiteActivity companyId={company.id} />
 				</DetailSheetMain>
 
 				<DetailSheetRail>

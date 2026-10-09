@@ -3,8 +3,6 @@ export type HeaderRule = {
 	headers: Array<{ key: string; value: string }>;
 };
 
-const TRACKING_PATH = "/t/:path*";
-
 const DOCUMENT_POLICY = [
 	"frame-ancestors 'none'",
 	"base-uri 'self'",
@@ -44,6 +42,5 @@ export function securityHeaders(production: boolean): HeaderRule[] {
 				{ key: "Content-Security-Policy", value: DOCUMENT_POLICY },
 			],
 		},
-		{ source: TRACKING_PATH, headers: common },
 	];
 }

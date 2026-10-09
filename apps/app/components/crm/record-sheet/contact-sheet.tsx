@@ -41,7 +41,6 @@ import { SmsThread } from "@/components/crm/sms-thread";
 import { ContactSocials } from "@/components/crm/social-links";
 import { DealStageMenu } from "@/components/crm/stage-change";
 import { Timeline } from "@/components/crm/timeline/timeline";
-import { WebsiteActivity } from "@/components/crm/website-activity";
 import {
 	DetailSheetBody,
 	DetailSheetEmpty,
@@ -439,8 +438,6 @@ function ContactOverview({ contact }: { contact: Contact }) {
 					<ContactSocials contact={contact} />
 				</DetailSheetSection>
 			) : null}
-
-			<WebsiteActivity contactId={contact.id} />
 		</DetailSheetBody>
 	);
 }

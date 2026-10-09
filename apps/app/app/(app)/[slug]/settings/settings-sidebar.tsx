@@ -20,7 +20,6 @@ const ITEMS: SettingsNavItem[] = [
 	{ title: "Compliance", href: `${ROOT}/compliance` },
 	{ title: "Connections", href: `${ROOT}/connections` },
 	{ title: "Members", href: `${ROOT}/members` },
-	{ title: "Tracking & Analytics", href: `${ROOT}/tracking`, upstream: true },
 	{ title: "Currencies", href: `${ROOT}/currencies`, upstream: true },
 	{ title: "API Keys", href: `${ROOT}/api-keys`, upstream: true },
 	{ title: "SSO", href: `${ROOT}/sso`, upstream: true },

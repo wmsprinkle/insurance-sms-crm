@@ -51,10 +51,6 @@
 			"schedule": "0 7 * * *"
 		},
 		{
-			"path": "/internal/tracking/retention",
-			"schedule": "0 4 * * *"
-		},
-		{
 			"path": "/internal/archive/prune",
 			"schedule": "0 5 * * *"
 		}
@@ -98,12 +94,6 @@
 		},
 		{
 			"source": "/internal/telemetry/rollup",
-			"destination": {
-				"service": "api"
-			}
-		},
-		{
-			"source": "/internal/tracking/retention",
 			"destination": {
 				"service": "api"
 			}

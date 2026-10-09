@@ -112,12 +112,6 @@ export const PROCEDURE_ROLES = {
 	"sms.setSending": "admin",
 	"sso.register": "admin",
 	"sso.remove": "admin",
-	"tracking.setFlag": "admin",
-	"tracking.setCookieLifetime": "admin",
-	"tracking.addDomain": "admin",
-	"tracking.removeDomain": "admin",
-	"tracking.rotateSiteId": "admin",
-	"tracking.verify": "admin",
 	"workspace.update": "admin",
 	"workspace.setMemberRole": "admin",
 } as const satisfies Record<string, ProcedureRole>;

@@ -35,7 +35,6 @@ import { sendingStateOutput, setSendingInput } from "../sms/sending.contracts";
 import { smsThreadListInput, smsThreadListOutput, smsThreadInput, smsThreadOutput, smsAgentSessionOutput, smsMarkHandledOutput } from "../sms/sms-threads.contracts";
 import { ssoSignInOptionsOutput, ssoSettingsOutput, ssoProviderListInput, ssoProviderListOutput, registerSsoProviderInput, ssoProviderOutput, deleteSsoProviderInput, deleteSsoProviderOutput } from "../sso/sso.contracts";
 import { todaySummaryOutput, todayMeetingsOutput, todayLeadsInput, todayLeadsOutput, todayLeadInput, todayLeadOutput } from "../today/today.contracts";
-import { trackingSettingsOutput, trackingFlagInput, cookieLifetimeInput, addDomainInput, trackedDomainOutput, removeDomainInput, rotateSiteIdOutput, verifyInput, verifyOutput, sourcesOutput, companyActivityInput, websiteActivityOutput, contactActivityInput } from "../tracking/tracking.contracts";
 import { workspaceOutput, memberListInput, memberListOutput, updateWorkspaceInput, setMemberRoleInput, workspaceMemberOutput } from "../workspace/workspace.contracts";
 import type { UsersRouter } from "../users/users.router";
 
@@ -784,45 +783,6 @@ const appRouter = t.router({
     lead: publicProcedure
       .input(todayLeadInput)
       .output(todayLeadOutput)
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
-    }),
-  tracking: t.router({
-    settings: publicProcedure
-      .output(trackingSettingsOutput)
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    setFlag: publicProcedure
-      .input(trackingFlagInput)
-      .output(z.void())
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    setCookieLifetime: publicProcedure
-      .input(cookieLifetimeInput)
-      .output(z.void())
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    addDomain: publicProcedure
-      .input(addDomainInput)
-      .output(trackedDomainOutput)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    removeDomain: publicProcedure
-      .input(removeDomainInput)
-      .output(z.void())
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    rotateSiteId: publicProcedure
-      .output(rotateSiteIdOutput)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    verify: publicProcedure
-      .input(verifyInput)
-      .output(verifyOutput)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    sources: publicProcedure
-      .output(sourcesOutput)
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    companyActivity: publicProcedure
-      .input(companyActivityInput)
-      .output(websiteActivityOutput)
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    contactActivity: publicProcedure
-      .input(contactActivityInput)
-      .output(websiteActivityOutput)
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   users: t.router({
