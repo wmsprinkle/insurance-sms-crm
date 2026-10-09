@@ -59,6 +59,12 @@ async function handler(request: Request): Promise<Response> {
 		);
 	}
 
+	if (upstream.status >= 300 && upstream.status < 400) {
+		console.error(
+			`API proxy: ${request.method} ${target} answered ${upstream.status} with location ${upstream.headers.get("location")}.`,
+		);
+	}
+
 	const responseHeaders = new Headers(upstream.headers);
 	for (const header of [
 		"transfer-encoding",
