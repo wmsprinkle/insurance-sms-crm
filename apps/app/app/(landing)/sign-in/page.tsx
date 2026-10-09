@@ -2,7 +2,6 @@ import {
 	devLoginFromEnvironment,
 	isLoopbackAppRequest,
 } from "@crm/auth/dev-login";
-import type { MailboxProviderId } from "@crm/auth/scopes";
 import { Skeleton } from "@crm/ui/components/skeleton";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
@@ -12,7 +11,7 @@ import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { getSession } from "@/lib/session";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { DevSignIn } from "./dev-sign-in";
-import { SocialSignIn } from "./social-sign-in";
+import { type SocialProviderId, SocialSignIn } from "./social-sign-in";
 import { type SsoProvider, SsoSignIn } from "./sso-sign-in";
 
 export const metadata: Metadata = {
@@ -22,6 +21,7 @@ export const metadata: Metadata = {
 type SignInOptions = {
 	google: boolean;
 	microsoft: boolean;
+	auth0: boolean;
 	providers: SsoProvider[];
 };
 
@@ -81,7 +81,8 @@ async function SignIn({
 		redirect("/");
 	}
 
-	const configured: MailboxProviderId[] = [];
+	const configured: SocialProviderId[] = [];
+	if (options?.auth0 ?? false) configured.push("auth0");
 	if (options?.google ?? false) configured.push("google");
 	if (options?.microsoft ?? false) configured.push("microsoft");
 
@@ -111,9 +112,10 @@ async function SignIn({
 				/>
 
 				<p className="mx-auto max-w-[40ch] text-center text-muted-foreground text-sm/5">
-					Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET — or MICROSOFT_CLIENT_ID
-					and MICROSOFT_CLIENT_SECRET — in the root .env file and restart.
-					Steps: docs/OAUTH_SETUP.md.
+					Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET, MICROSOFT_CLIENT_ID and
+					MICROSOFT_CLIENT_SECRET, or AUTH0_DOMAIN, AUTH0_CLIENT_ID and
+					AUTH0_CLIENT_SECRET in the root .env file and restart. Steps:
+					docs/OAUTH_SETUP.md.
 				</p>
 			</>
 		);

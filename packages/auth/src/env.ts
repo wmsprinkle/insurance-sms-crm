@@ -44,6 +44,30 @@ const microsoftCredentials = ():
 	};
 };
 
+const auth0Credentials = ():
+	| { clientId: string; clientSecret: string; domain: string }
+	| undefined => {
+	const credentials = pair("AUTH0_CLIENT_ID", "AUTH0_CLIENT_SECRET");
+	const domain = optional("AUTH0_DOMAIN");
+
+	if (!credentials) {
+		if (domain) {
+			throw new Error(
+				"AUTH0_DOMAIN, AUTH0_CLIENT_ID and AUTH0_CLIENT_SECRET must be set together.",
+			);
+		}
+		return undefined;
+	}
+
+	if (!domain) {
+		throw new Error(
+			"AUTH0_DOMAIN, AUTH0_CLIENT_ID and AUTH0_CLIENT_SECRET must be set together.",
+		);
+	}
+
+	return { ...credentials, domain };
+};
+
 const slackCredentials = ():
 	| { clientId: string; clientSecret: string }
 	| undefined =>
@@ -68,6 +92,7 @@ export const env = {
 	appUrl,
 	google: googleCredentials(),
 	microsoft: microsoftCredentials(),
+	auth0: auth0Credentials(),
 	slack: slackCredentials(),
 	cookieDomain: optional("AUTH_COOKIE_DOMAIN"),
 	trustedOrigins: [
@@ -87,6 +112,10 @@ export function isGoogleConfigured(): boolean {
 
 export function isMicrosoftConfigured(): boolean {
 	return env.microsoft !== undefined;
+}
+
+export function isAuth0Configured(): boolean {
+	return env.auth0 !== undefined;
 }
 
 export function isSlackConfigured(): boolean {

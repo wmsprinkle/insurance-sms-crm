@@ -43,7 +43,12 @@ the three that is genuinely optional on its own — set it to your tenant's GUID
 refuse other tenants at Microsoft instead of at `ALLOWED_SIGN_IN`. There is **no
 Microsoft equivalent of `hd`**: `tenantId` is the whole of it.
 
-**Neither pair is required, but an install wants one of them or an SSO provider** —
+**`AUTH0_DOMAIN` + `AUTH0_CLIENT_ID` + `AUTH0_CLIENT_SECRET`** are a third sign-in
+button, set all three or none (`packages/auth/src/env.ts` throws otherwise). Auth0 has
+no mailbox, so an Auth0 rep connects Gmail or Outlook from Settings → Connections, like
+an SSO rep. The redirect URI is `<API_URL>/api/auth/oauth2/callback/auth0`.
+
+**No pair is required, but an install wants one of them, the Auth0 trio, or an SSO provider** —
 with none, the sign-in page says so by name rather than rendering nothing.
 
 **`ALLOWED_SIGN_IN`** — comma-separated whole domains or single addresses (bare

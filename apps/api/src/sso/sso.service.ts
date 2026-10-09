@@ -1,6 +1,7 @@
 import {
 	auth,
 	canConfigureSso,
+	isAuth0Configured,
 	isGoogleConfigured,
 	isMicrosoftConfigured,
 	ssoCallbackBase,
@@ -126,6 +127,7 @@ export class SsoService {
 		return {
 			google: isGoogleConfigured(),
 			microsoft: isMicrosoftConfigured(),
+			auth0: isAuth0Configured(),
 			providers: rows.map((row) => ({
 				providerId: row.providerId,
 				name: ssoProviderName(row.providerId),

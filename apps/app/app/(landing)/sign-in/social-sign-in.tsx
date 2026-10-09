@@ -2,6 +2,7 @@
 
 import { signIn } from "@crm/auth/client";
 import type { MailboxProviderId } from "@crm/auth/scopes";
+import Auth0Logo from "@crm/ui/components/brand-logos/auth0";
 import GoogleLogo from "@crm/ui/components/brand-logos/google";
 import MicrosoftLogo from "@crm/ui/components/brand-logos/microsoft";
 import { Button } from "@crm/ui/components/button";
@@ -15,12 +16,15 @@ type ProviderChoice = {
 	Logo: FC<SVGProps<SVGSVGElement>>;
 };
 
+export type SocialProviderId = MailboxProviderId | "auth0";
+
 const PROVIDERS = {
+	auth0: { label: "Continue with Auth0", Logo: Auth0Logo },
 	google: { label: "Continue with Google", Logo: GoogleLogo },
 	microsoft: { label: "Continue with Microsoft", Logo: MicrosoftLogo },
-} as const satisfies Record<MailboxProviderId, ProviderChoice>;
+} as const satisfies Record<SocialProviderId, ProviderChoice>;
 
-export function SocialSignIn({ provider }: { provider: MailboxProviderId }) {
+export function SocialSignIn({ provider }: { provider: SocialProviderId }) {
 	const [pending, setPending] = useState(false);
 
 	const { label, Logo } = PROVIDERS[provider];
@@ -35,11 +39,15 @@ export function SocialSignIn({ provider }: { provider: MailboxProviderId }) {
 
 		const origin = window.location.origin;
 
-		const { error } = await signIn.social({
-			provider,
+		const callbacks = {
 			callbackURL: `${origin}/`,
 			errorCallbackURL: `${origin}/sign-in`,
-		});
+		};
+
+		const { error } =
+			provider === "auth0"
+				? await signIn.oauth2({ providerId: "auth0", ...callbacks })
+				: await signIn.social({ provider, ...callbacks });
 
 		if (error) fail(error.message);
 	}

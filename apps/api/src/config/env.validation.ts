@@ -80,6 +80,18 @@ export class EnvironmentVariables {
 
 	@IsOptional()
 	@IsString()
+	AUTH0_DOMAIN?: string;
+
+	@IsOptional()
+	@IsString()
+	AUTH0_CLIENT_ID?: string;
+
+	@IsOptional()
+	@IsString()
+	AUTH0_CLIENT_SECRET?: string;
+
+	@IsOptional()
+	@IsString()
 	SLACK_CLIENT_ID?: string;
 
 	@IsOptional()
@@ -198,10 +210,15 @@ export function productionProblems(config: RawEnvironment): string[] {
 
 	if (
 		!(has("GOOGLE_CLIENT_ID") && has("GOOGLE_CLIENT_SECRET")) &&
-		!(has("MICROSOFT_CLIENT_ID") && has("MICROSOFT_CLIENT_SECRET"))
+		!(has("MICROSOFT_CLIENT_ID") && has("MICROSOFT_CLIENT_SECRET")) &&
+		!(
+			has("AUTH0_DOMAIN") &&
+			has("AUTH0_CLIENT_ID") &&
+			has("AUTH0_CLIENT_SECRET")
+		)
 	) {
 		problems.push(
-			"Production needs OAuth sign-in: set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET (or the MICROSOFT pair). See docs/OAUTH_SETUP.md.",
+			"Production needs OAuth sign-in: set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET (or the MICROSOFT pair, or the AUTH0 trio). See docs/OAUTH_SETUP.md.",
 		);
 	}
 

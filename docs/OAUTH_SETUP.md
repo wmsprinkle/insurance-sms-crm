@@ -1,6 +1,6 @@
 # OAuth sign-in setup
 
-Sign-in is Google (and Microsoft, if you configure it) through Better Auth. No password, email code or magic link exists. Nobody can sign in until you finish the steps below.
+Sign-in is Google, Microsoft or Auth0, whichever you configure, through Better Auth. No password, email code or magic link exists. Nobody can sign in until you finish the steps below.
 
 ## What the code enforces
 
@@ -46,6 +46,10 @@ Restart the API and app. Open `http://localhost:3000/sign-in`. Click **Continue 
 2. Add the matching origin and redirect URI in the Google client (steps 6 and 7).
 3. Set `NODE_ENV=production`, `DEV_LOGIN` unset on any shared host, and `AGENT_BRIDGE_SECRET` to 32 or more random characters.
 4. Restart. A wrong value stops the boot with a list of what to fix.
+
+## Auth0 (optional)
+
+Create a Regular Web Application in Auth0. Allowed Callback URL: `<API_URL>/api/auth/oauth2/callback/auth0`. Allowed Logout URL: `<APP_URL>`. Set `AUTH0_DOMAIN` (the tenant host, no scheme), `AUTH0_CLIENT_ID` and `AUTH0_CLIENT_SECRET`. Set all three or none. Auth0 reports `email_verified`, and the CRM refuses an unverified email. `ALLOWED_SIGN_IN` still decides who gets an account. This is a built-in button, not an SSO row. Do not also add an SSO provider with ID `auth0`.
 
 ## Microsoft (optional)
 
