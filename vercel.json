@@ -34,15 +34,7 @@
 		},
 		"agent": {
 			"root": "apps/agent",
-			"framework": "eve",
-			"bindings": [
-				{
-					"type": "service",
-					"service": "api",
-					"format": "url",
-					"env": "API_INTERNAL_URL"
-				}
-			]
+			"framework": "eve"
 		}
 	},
 	"crons": [
@@ -76,6 +68,18 @@
 		},
 		{
 			"source": "/leads/ingest",
+			"destination": {
+				"service": "api"
+			}
+		},
+		{
+			"source": "/internal/sms/send",
+			"destination": {
+				"service": "api"
+			}
+		},
+		{
+			"source": "/internal/calendar/book",
 			"destination": {
 				"service": "api"
 			}

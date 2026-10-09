@@ -26,18 +26,21 @@ One Vercel project, one repo-root `vercel.json`, three **services**: `app`, `api
 | --- | --- |
 | `/webhooks/telnyx` | `api` (Telnyx posts here) |
 | `/leads/ingest` | `api` (web forms post here) |
+| `/internal/sms/send`, `/internal/calendar/book` | `api` (the agent posts here. Each needs `Authorization: Bearer $AGENT_BRIDGE_SECRET`. Without it the API returns 401.) |
 | `/internal/sync/mailboxes`, `/internal/sync/rates`, `/internal/telemetry/rollup`, `/internal/tracking/retention`, `/internal/archive/prune` | `api` (Vercel Cron calls these. Each needs `Authorization: Bearer $CRON_SECRET`.) |
 | everything else (`/`, `/api/auth/*`, `/api/trpc`, `/api/t/*`, `/eve/v1/*`) | `app` |
 
 - Browser → **app** only. The app proxies `/api/*` to the API and `/eve/v1/*` to the agent.
-- `/internal/sms`, `/internal/calendar` and `/health` stay private.
+- Only `/internal/sms/send` and `/internal/calendar/book` are public under `/internal/sms` and `/internal/calendar`. `/health` stays private.
 
 | Caller | Target | Binding variable |
 | --- | --- | --- |
 | `app` | `api` | `API_INTERNAL_URL` |
 | `app` | `agent` | `AGENT_URL` |
 | `api` | `agent` | `AGENT_URL` |
-| `agent` | `api` | `API_INTERNAL_URL` |
+| `agent` | `api` | none. The agent calls the public `API_URL`. |
+
+A binding from `agent` to `api` would close a loop with `api` to `agent`. Vercel rejects it: `circular service binding`. So the agent has no binding and reads `API_URL`.
 
 Vercel injects the binding variables at runtime, in functions only. Do not set them. They do not exist at build time or in `apps/app/proxy.ts`. The proxy reads `API_URL`, the public origin, so it needs no binding.
 
