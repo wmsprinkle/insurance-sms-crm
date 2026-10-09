@@ -1,15 +1,18 @@
+import { AUTH_COOKIE_PREFIX } from "@crm/auth/cookies";
 import {
 	devLoginFromEnvironment,
 	isLoopbackAppRequest,
 } from "@crm/auth/dev-login";
 import { Skeleton } from "@crm/ui/components/skeleton";
+import { getSessionCookie } from "better-auth/cookies";
 import type { Metadata } from "next";
+import { cacheLife } from "next/cache";
 import { headers } from "next/headers";
 import { redirect, unstable_rethrow } from "next/navigation";
 import { Suspense } from "react";
 import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { getSession } from "@/lib/session";
-import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+import { getPublicTrpcClient } from "@/lib/trpc/server";
 import { DevSignIn } from "./dev-sign-in";
 import { type SocialProviderId, SocialSignIn } from "./social-sign-in";
 import { type SsoProvider, SsoSignIn } from "./sso-sign-in";
@@ -25,11 +28,15 @@ type SignInOptions = {
 	providers: SsoProvider[];
 };
 
+async function fetchSignInOptions(): Promise<SignInOptions> {
+	"use cache";
+	cacheLife({ stale: 60, revalidate: 60, expire: 600 });
+	return getPublicTrpcClient().sso.signInOptions.query();
+}
+
 async function signInOptions(): Promise<SignInOptions | null> {
 	try {
-		return await getServerQueryClient().fetchQuery(
-			getServerTrpc().sso.signInOptions.queryOptions(),
-		);
+		return await fetchSignInOptions();
 	} catch (error) {
 		unstable_rethrow(error);
 		console.error("Sign-in: could not read the sign-in options.", error);
@@ -37,7 +44,14 @@ async function signInOptions(): Promise<SignInOptions | null> {
 	}
 }
 
-async function currentSession() {
+async function currentSession(requestHeaders: Headers) {
+	if (
+		getSessionCookie(requestHeaders, { cookiePrefix: AUTH_COOKIE_PREFIX }) ===
+		null
+	) {
+		return null;
+	}
+
 	try {
 		return await getSession();
 	} catch (error) {
@@ -70,11 +84,11 @@ export default function SignInPage({ searchParams }: PageProps<"/sign-in">) {
 async function SignIn({
 	searchParams,
 }: Pick<PageProps<"/sign-in">, "searchParams">) {
-	const [session, options, { method }, requestHeaders] = await Promise.all([
-		currentSession(),
+	const requestHeaders = await headers();
+	const [session, options, { method }] = await Promise.all([
+		currentSession(requestHeaders),
 		signInOptions(),
 		searchParams,
-		headers(),
 	]);
 
 	if (session) {

@@ -26,6 +26,12 @@ export function getServerTrpcClient(): TRPCClient<AppRouter> {
 	});
 }
 
+export function getPublicTrpcClient(): TRPCClient<AppRouter> {
+	return createTRPCClient<AppRouter>({
+		links: [httpBatchLink({ url: `${API_SERVER_URL}/api/trpc` })],
+	});
+}
+
 export function getServerTrpc(): TRPCOptionsProxy<AppRouter> {
 	const client = getServerTrpcClient();
 
