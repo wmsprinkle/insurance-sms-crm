@@ -4,10 +4,11 @@ import {
 	autoSendChoice,
 	brandProblem,
 	firstMessagePreview,
+	firstMessageProblem,
 	frequencyCapText,
 	parseStatesText,
+	replyToneProblem,
 	sameSmsSettings,
-	showFirstMessageWarning,
 	statesProblem,
 	statesText,
 } from "./sms-settings-fields";
@@ -47,80 +48,62 @@ describe("frequencyCapText", () => {
 });
 
 const SETTINGS: SmsSettings = {
-	firstMessageTemplate: "Hello {firstName}, reply STOP to opt out of texts.",
+	firstMessageTemplate:
+		"Hello {firstName}, this is {agency}. Reply STOP to opt out of texts.",
 	disclosureMode: "disclose",
 	autoSend: false,
 	brandName: "",
 	licensedStates: ["TX"],
-	firstMessageBrandPrefix: false,
-	firstMessageStopFooter: false,
 	ambiguousMode: "human",
+	replyTone: "",
 };
 
 describe("firstMessagePreview", () => {
-	it("shows the plain message by default", () => {
+	it("fills the name and the workspace name", () => {
 		expect(firstMessagePreview(SETTINGS, "Acme")).toBe(
-			"Hello Alex, Are you interested in life or health coverage?",
-		);
-	});
-
-	it("adds the business name and the STOP footer", () => {
-		expect(
-			firstMessagePreview(
-				{
-					...SETTINGS,
-					firstMessageBrandPrefix: true,
-					firstMessageStopFooter: true,
-				},
-				"Acme",
-			),
-		).toBe(
-			"Acme: Hello Alex, Are you interested in life or health coverage? Reply STOP to opt out.",
+			"Hello Alex, this is Acme. Reply STOP to opt out of texts.",
 		);
 	});
 
 	it("prefers the business name over the workspace name", () => {
 		expect(
 			firstMessagePreview(
-				{
-					...SETTINGS,
-					brandName: "Sun Life Agency",
-					firstMessageBrandPrefix: true,
-				},
+				{ ...SETTINGS, brandName: "Sun Life Agency" },
 				"Acme",
 			),
-		).toContain("Sun Life Agency:");
+		).toContain("this is Sun Life Agency.");
 	});
 });
 
-describe("showFirstMessageWarning", () => {
-	it("shows when either toggle is off", () => {
-		expect(showFirstMessageWarning(SETTINGS)).toBe(true);
-		expect(
-			showFirstMessageWarning({
-				...SETTINGS,
-				firstMessageBrandPrefix: true,
-			}),
-		).toBe(true);
+describe("firstMessageProblem", () => {
+	it("passes the default wording", () => {
+		expect(firstMessageProblem(SETTINGS.firstMessageTemplate)).toBeNull();
 	});
 
-	it("hides when both toggles are on", () => {
+	it("names the missing business name", () => {
 		expect(
-			showFirstMessageWarning({
-				...SETTINGS,
-				firstMessageBrandPrefix: true,
-				firstMessageStopFooter: true,
-			}),
-		).toBe(false);
+			firstMessageProblem("Hello {firstName}, want a quote? Reply STOP."),
+		).toMatch(/\{agency\}/);
+	});
+});
+
+describe("replyToneProblem", () => {
+	it("passes plain wording and an empty tone", () => {
+		expect(replyToneProblem("")).toBeNull();
+		expect(replyToneProblem("Warm and brief.")).toBeNull();
+	});
+
+	it("refuses a link", () => {
+		expect(replyToneProblem("Send people to https://x.example")).not.toBeNull();
 	});
 });
 
 describe("sameSmsSettings", () => {
 	it("sees a changed toggle and ambiguous mode", () => {
 		expect(sameSmsSettings(SETTINGS, { ...SETTINGS })).toBe(true);
-		expect(
-			sameSmsSettings(SETTINGS, { ...SETTINGS, firstMessageStopFooter: true }),
-		).toBe(false);
+		expect(sameSmsSettings(SETTINGS, { ...SETTINGS, replyTone: "Warm." })).toBe(
+			false,
+		);
 		expect(
 			sameSmsSettings(SETTINGS, { ...SETTINGS, ambiguousMode: "llm" }),
 		).toBe(false);

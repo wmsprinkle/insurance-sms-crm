@@ -45,7 +45,6 @@ async function plan(
 	const result = await planSmsTask(TASK, {
 		store: fake.store,
 		sendPath: path.path,
-		dryRun: true,
 		now: NOW,
 	});
 	return { result, fake, calls: path.calls };

@@ -1,6 +1,5 @@
 "use client";
 
-import { Alert, AlertDescription, AlertTitle } from "@crm/ui/components/alert";
 import { Badge } from "@crm/ui/components/badge";
 import { Button } from "@crm/ui/components/button";
 import {
@@ -21,11 +20,12 @@ import {
 import { Input } from "@crm/ui/components/input";
 import { Spinner } from "@crm/ui/components/spinner";
 import { Switch } from "@crm/ui/components/switch";
+import { Textarea } from "@crm/ui/components/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@crm/ui/components/toggle-group";
 import {
-	FIRST_MESSAGE_RISK_WARNING,
 	SMS_AMBIGUOUS_MODES,
 	SMS_DISCLOSURE_MODES,
+	SMS_TEMPLATE_TOKENS,
 	type SmsAmbiguousMode,
 	type SmsDisclosureMode,
 	type SmsSettings,
@@ -37,10 +37,11 @@ import {
 	autoSendChoice,
 	brandProblem,
 	firstMessagePreview,
+	firstMessageProblem,
 	parseStatesText,
+	replyToneProblem,
 	SMS_CHOICES,
 	sameSmsSettings,
-	showFirstMessageWarning,
 	statesProblem,
 	statesText,
 } from "@/lib/sms-settings-fields";
@@ -100,8 +101,8 @@ export function SmsSettingsForm() {
 	const cache = useCrmCache();
 	const brandId = useId();
 	const statesId = useId();
-	const prefixId = useId();
-	const footerId = useId();
+	const templateId = useId();
+	const toneId = useId();
 
 	const sms = useQuery(trpc.settings.sms.queryOptions());
 	const workspace = useQuery(trpc.workspace.get.queryOptions());
@@ -129,11 +130,17 @@ export function SmsSettingsForm() {
 
 	const brandError = brandProblem(draft.brandName);
 	const statesError = statesProblem(states);
+	const firstMessageError = firstMessageProblem(draft.firstMessageTemplate);
+	const toneError = replyToneProblem(draft.replyTone);
 	const next: SmsSettings = {
 		...draft,
 		licensedStates: parseStatesText(states),
 	};
-	const invalid = brandError !== null || statesError !== null;
+	const invalid =
+		brandError !== null ||
+		statesError !== null ||
+		firstMessageError !== null ||
+		toneError !== null;
 	const unchanged = sameSmsSettings(next, sms.data.settings);
 	const busy = save.isPending;
 
@@ -142,7 +149,8 @@ export function SmsSettingsForm() {
 			className="flex flex-col gap-6"
 			onSubmit={(event) => {
 				event.preventDefault();
-				const problem = brandError ?? statesError;
+				const problem =
+					brandError ?? statesError ?? firstMessageError ?? toneError;
 				if (problem) {
 					toast.error(problem);
 					return;
@@ -233,53 +241,32 @@ export function SmsSettingsForm() {
 							</FieldDescription>
 						</Field>
 
-						<Field orientation="horizontal">
-							<FieldContent>
-								<FieldLabel htmlFor={prefixId}>
-									Start with my business name
-								</FieldLabel>
-								<FieldDescription>
-									Puts your business name before the greeting so the lead knows
-									who is texting.
-								</FieldDescription>
-							</FieldContent>
-							<Switch
-								id={prefixId}
-								checked={draft.firstMessageBrandPrefix}
+						<Field data-invalid={firstMessageError !== null}>
+							<FieldLabel htmlFor={templateId}>Wording</FieldLabel>
+							<Textarea
+								id={templateId}
+								value={draft.firstMessageTemplate}
 								disabled={busy}
-								onCheckedChange={(firstMessageBrandPrefix) =>
-									setDraft({ ...draft, firstMessageBrandPrefix })
+								rows={4}
+								aria-invalid={firstMessageError !== null}
+								onChange={(event) =>
+									setDraft({
+										...draft,
+										firstMessageTemplate: event.target.value,
+									})
 								}
 							/>
+							<FieldDescription>
+								Change the words as you like. Keep{" "}
+								<code>{SMS_TEMPLATE_TOKENS.agency}</code>, which becomes your
+								business name, and the line "Reply STOP to opt out." Use{" "}
+								<code>{SMS_TEMPLATE_TOKENS.firstName}</code> for the lead's
+								first name.
+							</FieldDescription>
+							{firstMessageError ? (
+								<FieldError>{firstMessageError}</FieldError>
+							) : null}
 						</Field>
-
-						<Field orientation="horizontal">
-							<FieldContent>
-								<FieldLabel htmlFor={footerId}>
-									End with "Reply STOP to opt out."
-								</FieldLabel>
-								<FieldDescription>
-									Adds opt-out language to the first message.
-								</FieldDescription>
-							</FieldContent>
-							<Switch
-								id={footerId}
-								checked={draft.firstMessageStopFooter}
-								disabled={busy}
-								onCheckedChange={(firstMessageStopFooter) =>
-									setDraft({ ...draft, firstMessageStopFooter })
-								}
-							/>
-						</Field>
-
-						{showFirstMessageWarning(draft) ? (
-							<Alert variant="destructive">
-								<AlertTitle>Toll-free verification may fail</AlertTitle>
-								<AlertDescription>
-									{FIRST_MESSAGE_RISK_WARNING}
-								</AlertDescription>
-							</Alert>
-						) : null}
 					</FieldGroup>
 				</CardContent>
 			</Card>
@@ -293,6 +280,27 @@ export function SmsSettingsForm() {
 				</CardHeader>
 				<CardContent>
 					<FieldGroup>
+						<Field data-invalid={toneError !== null}>
+							<FieldLabel htmlFor={toneId}>Reply tone</FieldLabel>
+							<Textarea
+								id={toneId}
+								value={draft.replyTone}
+								disabled={busy}
+								rows={3}
+								placeholder="Warm and brief. Plain words. No jargon."
+								aria-invalid={toneError !== null}
+								onChange={(event) =>
+									setDraft({ ...draft, replyTone: event.target.value })
+								}
+							/>
+							<FieldDescription>
+								Tells the assistant how to word its replies. It changes the
+								style only. It never changes what the assistant is allowed to
+								say.
+							</FieldDescription>
+							{toneError ? <FieldError>{toneError}</FieldError> : null}
+						</Field>
+
 						<Choice
 							label="Before a reply is sent"
 							value={autoSendChoice(draft.autoSend)}

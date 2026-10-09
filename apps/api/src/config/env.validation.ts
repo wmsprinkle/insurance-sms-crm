@@ -155,10 +155,6 @@ export class EnvironmentVariables {
 
 	@IsOptional()
 	@IsString()
-	DRY_RUN?: string;
-
-	@IsOptional()
-	@IsString()
 	TELNYX_API_KEY?: string;
 
 	@IsOptional()
@@ -254,17 +250,6 @@ export function productionProblems(config: RawEnvironment): string[] {
 			problems.push(
 				`AGENT_BRIDGE_SECRET must be at least ${SECRET_MIN_LENGTH} characters when AGENT_URL is set.`,
 			);
-		}
-	}
-
-	if (config.DRY_RUN === "false") {
-		if (!has("TELNYX_PUBLIC_KEY")) {
-			problems.push(
-				"DRY_RUN=false needs TELNYX_PUBLIC_KEY. Without it the webhook cannot verify Telnyx.",
-			);
-		}
-		if (!has("TELNYX_API_KEY")) {
-			problems.push("DRY_RUN=false needs TELNYX_API_KEY.");
 		}
 	}
 

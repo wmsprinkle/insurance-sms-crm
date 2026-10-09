@@ -1453,6 +1453,9 @@ model AppSetting {
   trackingConfigHash       String?
   trackingPaused           Boolean @default(false)
 
+  /// Whether texts really go out. Off means every send is recorded and none leaves.
+  smsLive Boolean @default(false)
+
   /// SMS settings, shape in @crm/validation/sms-settings.
   sms Json?
 

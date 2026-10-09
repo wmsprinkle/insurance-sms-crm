@@ -19,7 +19,6 @@ export const smsSendRequest = z.object({
 	purpose: z.enum(SMS_SEND_PURPOSES),
 	idempotencyKey: z.string().trim().min(1).max(200),
 	taskId: z.string().trim().min(1).nullable(),
-	dryRun: z.boolean(),
 });
 
 export type SmsSendRequest = z.infer<typeof smsSendRequest>;

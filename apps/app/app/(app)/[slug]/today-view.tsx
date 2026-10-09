@@ -142,7 +142,7 @@ export function TodayView() {
 		fromNumberMasked: summary.data.setup.fromNumberMasked,
 		modelKeySet: summary.data.setup.modelKeySet,
 		webhookUrl: summary.data.setup.webhookUrl,
-		dryRun: summary.data.dryRun,
+		sendingLive: summary.data.sendingLive,
 		calendarConnected: (calendar.data?.accounts.length ?? 0) > 0,
 		leadCount: summary.data.setup.leadCount,
 		brandName: sms.data?.settings.brandName ?? "",

@@ -5,7 +5,7 @@ import {
 	FIRST_TOUCH_TASK_KIND,
 	type FirstTouchTaskPayload,
 } from "@crm/validation/first-touch-task";
-import { buildFirstMessage } from "@crm/validation/sms-first-message";
+import { renderFirstMessage } from "@crm/validation/sms-first-message";
 import { parseSmsSettings } from "@crm/validation/sms-settings";
 import { Injectable, Logger } from "@nestjs/common";
 import { ConsentService } from "../compliance/consent.service";
@@ -107,13 +107,11 @@ export class FirstTouchService {
 			}),
 			readBrand(tx),
 		]);
-		const { firstMessageBrandPrefix, firstMessageStopFooter } =
-			parseSmsSettings(settings?.sms ?? null);
-		return buildFirstMessage({
+		const { firstMessageTemplate } = parseSmsSettings(settings?.sms ?? null);
+		return renderFirstMessage({
+			template: firstMessageTemplate,
 			firstName,
 			brand,
-			brandPrefix: firstMessageBrandPrefix,
-			stopFooter: firstMessageStopFooter,
 		});
 	}
 }

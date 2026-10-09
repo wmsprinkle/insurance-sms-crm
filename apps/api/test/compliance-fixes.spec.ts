@@ -80,7 +80,7 @@ function harness(
 			messagingProfileId: null,
 			fromNumber: "+18005550100",
 			messagesPerSecond: null,
-			dryRun: true,
+			canSend: false,
 		},
 		new RateLimiter(1, 1, {
 			now: () => now,

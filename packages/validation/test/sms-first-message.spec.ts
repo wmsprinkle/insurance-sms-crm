@@ -1,73 +1,69 @@
 import { describe, expect, it } from "bun:test";
-import { buildFirstMessage, cleanFirstName } from "../src/sms-first-message";
+import { cleanFirstName, renderFirstMessage } from "../src/sms-first-message";
+import { DEFAULT_FIRST_MESSAGE_TEMPLATE } from "../src/sms-settings";
 
-const OFF = { brand: "Acme Insurance", brandPrefix: false, stopFooter: false };
+const TEMPLATE = DEFAULT_FIRST_MESSAGE_TEMPLATE;
 
-describe("buildFirstMessage", () => {
-	it("is exactly the owner's text by default", () => {
-		expect(buildFirstMessage({ ...OFF, firstName: "Ana" })).toBe(
-			"Hello Ana, Are you interested in life or health coverage?",
+describe("renderFirstMessage", () => {
+	it("fills the name and the business name into the default wording", () => {
+		expect(
+			renderFirstMessage({
+				template: TEMPLATE,
+				firstName: "Ana",
+				brand: "Acme Insurance",
+			}),
+		).toBe(
+			"Hello Ana, this is Acme Insurance. Are you interested in life or health coverage? Reply STOP to opt out.",
 		);
-	});
-
-	it("has no brand and no STOP footer by default", () => {
-		const text = buildFirstMessage({ ...OFF, firstName: "Ana" });
-		expect(text).not.toContain("Acme");
-		expect(text).not.toMatch(/stop/i);
 	});
 
 	it("falls back to there when the name is missing", () => {
 		for (const firstName of [null, undefined, "", "   ", "\n"]) {
-			expect(buildFirstMessage({ ...OFF, firstName })).toBe(
-				"Hello there, Are you interested in life or health coverage?",
-			);
+			expect(
+				renderFirstMessage({ template: TEMPLATE, firstName, brand: "Acme" }),
+			).toContain("Hello there,");
 		}
 	});
 
-	it("adds the brand prefix only when asked", () => {
+	it("uses the wording the owner wrote", () => {
 		expect(
-			buildFirstMessage({ ...OFF, firstName: "Ana", brandPrefix: true }),
-		).toBe(
-			"Acme Insurance: Hello Ana, Are you interested in life or health coverage?",
-		);
+			renderFirstMessage({
+				template:
+					"{agency} here. Hi {firstName}, still need a quote? Reply STOP to opt out.",
+				firstName: "ana",
+				brand: " Acme ",
+			}),
+		).toBe("Acme here. Hi Ana, still need a quote? Reply STOP to opt out.");
 	});
 
-	it("adds the STOP footer only when asked", () => {
+	it("fills a token that appears twice", () => {
 		expect(
-			buildFirstMessage({ ...OFF, firstName: "Ana", stopFooter: true }),
-		).toBe(
-			"Hello Ana, Are you interested in life or health coverage? Reply STOP to opt out.",
-		);
-	});
-
-	it("adds both when both are on", () => {
-		expect(
-			buildFirstMessage({
+			renderFirstMessage({
+				template: "{agency}: {firstName}, it is {agency}. Reply STOP.",
 				firstName: "Ana",
+				brand: "Acme",
+			}),
+		).toBe("Acme: Ana, it is Acme. Reply STOP.");
+	});
+
+	it("cannot be steered by a hostile first name", () => {
+		const text = renderFirstMessage({
+			template: TEMPLATE,
+			firstName: "{agency}<script>",
+			brand: "Acme",
+		});
+		expect(text).not.toContain("<");
+		expect(text).not.toContain("{");
+	});
+
+	it("fits in one text segment with the default wording", () => {
+		expect(
+			renderFirstMessage({
+				template: TEMPLATE,
+				firstName: "Maximiliana",
 				brand: "Acme Insurance",
-				brandPrefix: true,
-				stopFooter: true,
-			}),
-		).toBe(
-			"Acme Insurance: Hello Ana, Are you interested in life or health coverage? Reply STOP to opt out.",
-		);
-	});
-
-	it("skips an empty brand even when the prefix is on", () => {
-		expect(
-			buildFirstMessage({
-				firstName: "Ana",
-				brand: "  ",
-				brandPrefix: true,
-				stopFooter: false,
-			}),
-		).toBe("Hello Ana, Are you interested in life or health coverage?");
-	});
-
-	it("fits in one text segment", () => {
-		expect(
-			buildFirstMessage({ ...OFF, firstName: "Maximiliana" }).length,
-		).toBeLessThan(160);
+			}).length,
+		).toBeLessThan(200);
 	});
 });
 

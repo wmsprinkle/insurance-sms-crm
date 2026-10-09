@@ -384,7 +384,6 @@ describe("SmsDraftsService.approve", () => {
 				purpose: "conversation",
 				idempotencyKey: `${SMS_DRAFTS.idempotency.draftPrefix}draft-1`,
 				taskId: "task-1",
-				dryRun: false,
 			},
 		]);
 		expect(state.drafts[0]).toMatchObject({

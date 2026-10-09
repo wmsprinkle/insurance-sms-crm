@@ -49,7 +49,6 @@ const request = {
 	purpose: "conversation" as const,
 	idempotencyKey: "task-1:reply-1",
 	taskId: "task-1",
-	dryRun: false,
 };
 
 const MINUTE_MS = 60_000;
@@ -62,7 +61,7 @@ function telnyxClient(fetcher: Fetcher, dryRun: boolean) {
 			messagingProfileId: null,
 			fromNumber: "+18005550100",
 			messagesPerSecond: null,
-			dryRun,
+			canSend: !dryRun,
 		},
 		new RateLimiter(1000, 1000, { now: () => 0, sleep: async () => undefined }),
 		fetcher,
@@ -91,7 +90,7 @@ function stack(
 		client,
 		gate,
 		sender,
-		internal: new SmsInternalService(client, sender, sender),
+		internal: new SmsInternalService(client, sender),
 	};
 }
 

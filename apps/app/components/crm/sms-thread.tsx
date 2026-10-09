@@ -18,7 +18,6 @@ import { StatusIndicator } from "@crm/ui/components/status-indicator";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { SmsComposer } from "@/components/crm/sms-composer";
-import { SmsTestTools } from "@/components/crm/sms-test-tools";
 import { LocalDateTime } from "@/components/local-date-time";
 import {
 	smsComposerBlock,
@@ -146,8 +145,6 @@ export function SmsThread({ contactId }: { contactId: string }) {
 				contactId={contactId}
 				blockedReason={smsComposerBlock(data)}
 			/>
-
-			<SmsTestTools contactId={contactId} />
 		</div>
 	);
 }

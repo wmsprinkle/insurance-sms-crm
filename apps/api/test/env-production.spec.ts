@@ -14,7 +14,6 @@ const safe: RawEnvironment = {
 	APP_URL: "https://app.example.com",
 	AGENT_URL: "http://127.0.0.1:2000",
 	AGENT_BRIDGE_SECRET: "b".repeat(40),
-	DRY_RUN: "true",
 };
 
 describe("productionProblems", () => {
@@ -47,12 +46,6 @@ describe("productionProblems", () => {
 		expect(
 			productionProblems({ ...safe, AGENT_BRIDGE_SECRET: "short" }).join(),
 		).toMatch(/AGENT_BRIDGE_SECRET/);
-	});
-
-	it("refuses live sending without the Telnyx keys", () => {
-		const problems = productionProblems({ ...safe, DRY_RUN: "false" }).join();
-		expect(problems).toMatch(/TELNYX_PUBLIC_KEY/);
-		expect(problems).toMatch(/TELNYX_API_KEY/);
 	});
 
 	it("refuses a placeholder auth secret", () => {

@@ -4,7 +4,6 @@ export const SMS_ENV = {
 	messagingProfileId: "TELNYX_MESSAGING_PROFILE_ID",
 	fromNumber: "TELNYX_FROM_NUMBER",
 	messagesPerSecond: "TELNYX_MPS",
-	dryRun: "DRY_RUN",
 } as const;
 
 export type SmsEnv = {
@@ -13,7 +12,7 @@ export type SmsEnv = {
 	messagingProfileId: string | null;
 	fromNumber: string | null;
 	messagesPerSecond: number | null;
-	dryRun: boolean;
+	canSend: boolean;
 };
 
 type Source = Record<string, string | undefined>;
@@ -32,13 +31,14 @@ function positiveNumber(source: Source, name: string): number | null {
 
 export function readSmsEnv(source: Source = process.env): SmsEnv {
 	const apiKey = text(source, SMS_ENV.apiKey);
+	const fromNumber = text(source, SMS_ENV.fromNumber);
 
 	return {
 		apiKey,
 		publicKey: text(source, SMS_ENV.publicKey),
 		messagingProfileId: text(source, SMS_ENV.messagingProfileId),
-		fromNumber: text(source, SMS_ENV.fromNumber),
+		fromNumber,
 		messagesPerSecond: positiveNumber(source, SMS_ENV.messagesPerSecond),
-		dryRun: text(source, SMS_ENV.dryRun) !== "false" || apiKey === null,
+		canSend: apiKey !== null && fromNumber !== null,
 	};
 }

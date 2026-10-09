@@ -27,7 +27,6 @@ describe("H5: a bridge timeout is unknown, not unsent", () => {
 		purpose: "conversation" as const,
 		idempotencyKey: "k",
 		taskId: null,
-		dryRun: true,
 	};
 
 	it("reads a timeout as unknown", async () => {
@@ -49,7 +48,6 @@ describe("H5: a bridge timeout is unknown, not unsent", () => {
 		const delivery = await deliver(REPLY, {
 			...fake,
 			sendPath: path.path,
-			dryRun: true,
 		});
 
 		expect(delivery.status).toBe("drafted");
@@ -61,7 +59,7 @@ describe("H5: a bridge timeout is unknown, not unsent", () => {
 		const fake = fakeSms();
 		const path = recordingPath(SENT);
 
-		await deliver(REPLY, { ...fake, sendPath: path.path, dryRun: true });
+		await deliver(REPLY, { ...fake, sendPath: path.path });
 
 		expect(path.calls).toHaveLength(0);
 		expect(fake.drafts[0]?.idempotencyKey).toBe(REPLY.idempotencyKey);
@@ -72,7 +70,7 @@ describe("M2: one model reply per task", () => {
 	it("refuses a second send_sms in the same task", async () => {
 		const fake = fakeSms({ autoSend: true });
 		const path = recordingPath(SENT);
-		const deps = { ...fake, sendPath: path.path, dryRun: true };
+		const deps = { ...fake, sendPath: path.path };
 
 		expect((await deliver(REPLY, deps)).status).toBe("sent");
 		fake.receipts.add(REPLY.idempotencyKey);
@@ -91,7 +89,7 @@ describe("M2: one model reply per task", () => {
 	it("refuses a second reply after the first became a draft", async () => {
 		const fake = fakeSms();
 		const path = recordingPath(SENT);
-		const deps = { ...fake, sendPath: path.path, dryRun: true };
+		const deps = { ...fake, sendPath: path.path };
 
 		await deliver(REPLY, deps);
 		const second = await deliver(REPLY, deps);
@@ -108,7 +106,7 @@ describe("H1/H2: opt-out runs once and confirms once", () => {
 
 		const outcome = await optOutLead(
 			{ contactId: LEAD.id, reason: "opt_out", taskId: "t1" },
-			{ ...fake, sendPath: path.path, dryRun: true },
+			{ ...fake, sendPath: path.path },
 		);
 
 		expect(outcome).toMatchObject({
@@ -130,7 +128,7 @@ describe("H1/H2: opt-out runs once and confirms once", () => {
 	it("sends no second confirmation to a number already suppressed", async () => {
 		const fake = fakeSms();
 		const path = recordingPath(SENT);
-		const deps = { ...fake, sendPath: path.path, dryRun: true };
+		const deps = { ...fake, sendPath: path.path };
 
 		await optOutLead(
 			{ contactId: LEAD.id, reason: "opt_out", taskId: "t1" },
@@ -156,7 +154,7 @@ describe("H1/H2: opt-out runs once and confirms once", () => {
 
 		const outcome = await optOutLead(
 			{ contactId: LEAD.id, reason: "wrong_number", taskId: null },
-			{ ...fake, sendPath: path.path, dryRun: true },
+			{ ...fake, sendPath: path.path },
 		);
 
 		expect(outcome.ok).toBe(false);

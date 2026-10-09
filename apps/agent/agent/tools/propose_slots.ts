@@ -3,7 +3,7 @@ import { z } from "zod";
 import { focusOn } from "../lib/focus";
 import { prismaBookingStore, proposeSlots } from "../lib/sms-booking";
 import { apiCalendarPath } from "../lib/sms-calendar";
-import { apiSendPath, dryRunFrom } from "../lib/sms-outbound";
+import { apiSendPath } from "../lib/sms-outbound";
 import { NOT_AN_SMS_SESSION, smsSessionOf } from "../lib/sms-session";
 import { prismaSmsStore } from "../lib/sms-store";
 
@@ -22,7 +22,6 @@ export default defineTool({
 			delivery: {
 				store: prismaSmsStore,
 				sendPath: apiSendPath(),
-				dryRun: dryRunFrom(),
 			},
 			bookingLink: sms.bookingLink,
 			taskId: sms.taskId,

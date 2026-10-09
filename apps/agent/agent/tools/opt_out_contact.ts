@@ -2,7 +2,7 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { focusOn } from "../lib/focus";
 import { optOutLead } from "../lib/sms-opt-out";
-import { apiSendPath, dryRunFrom } from "../lib/sms-outbound";
+import { apiSendPath } from "../lib/sms-outbound";
 import { NOT_AN_SMS_SESSION, smsSessionOf } from "../lib/sms-session";
 import { prismaSmsStore } from "../lib/sms-store";
 
@@ -27,7 +27,6 @@ export default defineTool({
 			{
 				store: prismaSmsStore,
 				sendPath: apiSendPath(),
-				dryRun: dryRunFrom(),
 			},
 		);
 		if (!outcome.ok) return outcome;

@@ -192,7 +192,7 @@ export type GetStartedState = {
 	fromNumberMasked: string | null;
 	modelKeySet: boolean;
 	webhookUrl: string;
-	dryRun: boolean;
+	sendingLive: boolean;
 	calendarConnected: boolean;
 	leadCount: number;
 	brandName: string;
@@ -302,12 +302,18 @@ export function getStartedItems(state: GetStartedState): GetStartedItem[] {
 		},
 		{
 			id: "mode",
-			title: state.dryRun ? "Test mode is on" : "Test mode is off",
-			detail: state.dryRun
-				? "No texts are really sent. Set DRY_RUN=false to go live."
-				: "Texts are real and go to leads' phones.",
-			status: "info",
-			action: null,
+			title: state.sendingLive ? "Texting is live" : "Texting is paused",
+			detail: state.sendingLive
+				? "Texts go to leads' phones."
+				: "No texts go out yet. Turn texting on in Settings, Compliance.",
+			status: state.sendingLive ? "done" : "todo",
+			action: state.sendingLive
+				? null
+				: {
+						kind: "link",
+						label: "Start texting",
+						href: "/settings/compliance",
+					},
 		},
 		{
 			id: "calendar",

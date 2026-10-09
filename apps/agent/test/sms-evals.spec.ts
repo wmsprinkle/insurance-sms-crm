@@ -37,7 +37,6 @@ async function planFor(
 		store: fake.store,
 		sendPath: recordingPath({ status: "sent", telnyxId: "x", dryRun: true })
 			.path,
-		dryRun: true,
 		now: NOW,
 	});
 	return { plan, fake };

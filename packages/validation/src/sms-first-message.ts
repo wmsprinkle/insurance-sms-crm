@@ -1,8 +1,5 @@
 export const FIRST_MESSAGE = {
-	greeting: "Hello",
 	fallbackName: "there",
-	question: "Are you interested in life or health coverage?",
-	stopFooter: "Reply STOP to opt out.",
 	maxNameChars: 40,
 	placeholderNames: ["n/a", "na", "none", "null", "undefined", "unknown", "-"],
 } as const;
@@ -39,15 +36,15 @@ export function cleanFirstName(raw: string | null | undefined): string {
 }
 
 export type FirstMessageInput = {
+	template: string;
 	firstName: string | null | undefined;
 	brand: string;
-	brandPrefix: boolean;
-	stopFooter: boolean;
 };
 
-export function buildFirstMessage(input: FirstMessageInput): string {
-	const base = `${FIRST_MESSAGE.greeting} ${cleanFirstName(input.firstName)}, ${FIRST_MESSAGE.question}`;
-	const brand = input.brand.trim();
-	const named = input.brandPrefix && brand ? `${brand}: ${base}` : base;
-	return input.stopFooter ? `${named} ${FIRST_MESSAGE.stopFooter}` : named;
+export function renderFirstMessage(input: FirstMessageInput): string {
+	return input.template
+		.replaceAll("{firstName}", cleanFirstName(input.firstName))
+		.replaceAll("{agency}", input.brand.trim())
+		.replace(/\s+/g, " ")
+		.trim();
 }

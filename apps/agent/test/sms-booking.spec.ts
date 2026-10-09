@@ -87,7 +87,7 @@ function harness(input: {
 			if (!next) throw new Error("No scripted calendar answer left");
 			return next;
 		},
-		delivery: { store: sms.store, sendPath: path.path, dryRun: true },
+		delivery: { store: sms.store, sendPath: path.path },
 		bookingLink: input.bookingLink ?? null,
 		taskId: "t-reply",
 		now: NOW,

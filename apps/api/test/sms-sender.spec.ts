@@ -23,7 +23,7 @@ const env: SmsEnv = {
 	messagingProfileId: null,
 	fromNumber: "+18005550100",
 	messagesPerSecond: null,
-	dryRun: true,
+	canSend: false,
 };
 
 const noSleep = { now: () => 0, sleep: async () => undefined };
@@ -47,7 +47,7 @@ function sender(
 		);
 	}) as unknown as Fetcher;
 	const telnyx = new TelnyxClient(
-		{ ...env, dryRun: options.dryRun ?? true },
+		{ ...env, canSend: options.dryRun === false },
 		new RateLimiter(10, 10, noSleep),
 		fetcher,
 	);

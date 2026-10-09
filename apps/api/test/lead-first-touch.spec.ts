@@ -95,7 +95,8 @@ describe("FirstTouchService.enqueue", () => {
 		expect(parseFirstTouchTaskPayload(task?.payload)).toEqual({
 			type: "lead.created",
 			to: PHONE,
-			message: "Hello Ana, Are you interested in life or health coverage?",
+			message:
+				"Hello Ana, this is Acme Insurance. Are you interested in life or health coverage? Reply STOP to opt out.",
 			origin: "LEAD_IMPORT",
 		});
 	});
@@ -114,7 +115,7 @@ describe("FirstTouchService.enqueue", () => {
 		expect(state.tasks).toHaveLength(1);
 	});
 
-	it("ignores the legacy template and uses the fixed text", async () => {
+	it("renders the owner's wording with the business name filled in", async () => {
 		const { state, tx, service } = harness(
 			{ workspaceName: "Acme" },
 			{ firstMessageTemplate: "{agency} here for {firstName}. Reply STOP." },
@@ -123,43 +124,17 @@ describe("FirstTouchService.enqueue", () => {
 		await service.enqueue(tx, { ...LEAD, firstName: null }, IN_HOURS);
 
 		expect(parseFirstTouchTaskPayload(state.tasks[0]?.payload).message).toBe(
-			"Hello there, Are you interested in life or health coverage?",
+			"Acme here for there. Reply STOP.",
 		);
 	});
 
-	it("title-cases the first name", async () => {
-		const { state, tx, service } = harness();
+	it("uses the default wording when nothing is stored", async () => {
+		const { state, tx, service } = harness({ workspaceName: "Acme" });
 
 		await service.enqueue(tx, { ...LEAD, firstName: "  aNA " }, IN_HOURS);
 
 		expect(parseFirstTouchTaskPayload(state.tasks[0]?.payload).message).toBe(
-			"Hello Ana, Are you interested in life or health coverage?",
-		);
-	});
-
-	it("adds the business name and the STOP footer only when both are on", async () => {
-		const { state, tx, service } = harness(
-			{ workspaceName: "Acme" },
-			{ firstMessageBrandPrefix: true, firstMessageStopFooter: true },
-		);
-
-		await service.enqueue(tx, LEAD, IN_HOURS);
-
-		expect(parseFirstTouchTaskPayload(state.tasks[0]?.payload).message).toBe(
-			"Acme: Hello Ana, Are you interested in life or health coverage? Reply STOP to opt out.",
-		);
-	});
-
-	it("adds only the brand prefix when only that is on", async () => {
-		const { state, tx, service } = harness(
-			{ workspaceName: "Acme" },
-			{ firstMessageBrandPrefix: true },
-		);
-
-		await service.enqueue(tx, LEAD, IN_HOURS);
-
-		expect(parseFirstTouchTaskPayload(state.tasks[0]?.payload).message).toBe(
-			"Acme: Hello Ana, Are you interested in life or health coverage?",
+			"Hello Ana, this is Acme. Are you interested in life or health coverage? Reply STOP to opt out.",
 		);
 	});
 

@@ -1,0 +1,1 @@
+ALTER TABLE "appSetting" ADD COLUMN "smsLive" BOOLEAN NOT NULL DEFAULT false;

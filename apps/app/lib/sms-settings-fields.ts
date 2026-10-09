@@ -1,7 +1,9 @@
-import { buildFirstMessage } from "@crm/validation/sms-first-message";
+import { renderFirstMessage } from "@crm/validation/sms-first-message";
 import {
 	brandName,
+	firstMessageTemplate,
 	licensedStates,
+	replyTone,
 	resolveBrand,
 	type SmsAmbiguousMode,
 	type SmsDisclosureMode,
@@ -82,27 +84,24 @@ export function autoSendChoice(autoSend: boolean): "approve" | "auto" {
 }
 
 export function firstMessagePreview(
-	settings: Pick<
-		SmsSettings,
-		"brandName" | "firstMessageBrandPrefix" | "firstMessageStopFooter"
-	>,
+	settings: Pick<SmsSettings, "brandName" | "firstMessageTemplate">,
 	workspaceName: string | null | undefined,
 ): string {
-	return buildFirstMessage({
+	return renderFirstMessage({
+		template: settings.firstMessageTemplate,
 		firstName: PREVIEW_FIRST_NAME,
 		brand: resolveBrand(settings.brandName, workspaceName),
-		brandPrefix: settings.firstMessageBrandPrefix,
-		stopFooter: settings.firstMessageStopFooter,
 	});
 }
 
-export function showFirstMessageWarning(
-	settings: Pick<
-		SmsSettings,
-		"firstMessageBrandPrefix" | "firstMessageStopFooter"
-	>,
-): boolean {
-	return !settings.firstMessageBrandPrefix || !settings.firstMessageStopFooter;
+export function firstMessageProblem(value: string): string | null {
+	const parsed = firstMessageTemplate.safeParse(value);
+	return parsed.success ? null : (parsed.error.issues[0]?.message ?? null);
+}
+
+export function replyToneProblem(value: string): string | null {
+	const parsed = replyTone.safeParse(value);
+	return parsed.success ? null : (parsed.error.issues[0]?.message ?? null);
 }
 
 export function sameSmsSettings(a: SmsSettings, b: SmsSettings): boolean {
@@ -111,9 +110,8 @@ export function sameSmsSettings(a: SmsSettings, b: SmsSettings): boolean {
 		a.disclosureMode === b.disclosureMode &&
 		a.autoSend === b.autoSend &&
 		a.brandName === b.brandName &&
-		a.firstMessageBrandPrefix === b.firstMessageBrandPrefix &&
-		a.firstMessageStopFooter === b.firstMessageStopFooter &&
 		a.ambiguousMode === b.ambiguousMode &&
+		a.replyTone === b.replyTone &&
 		a.licensedStates.join() === b.licensedStates.join()
 	);
 }

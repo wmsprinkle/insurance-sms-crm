@@ -1,4 +1,5 @@
 import { type Db, SmsDirection } from "@crm/db";
+import { readSmsLive } from "@crm/db/settings";
 import { readSmsEnv } from "@crm/env/sms";
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
@@ -136,7 +137,7 @@ export class TodayService {
 		const byId = new Map(unknownContacts.map((c) => [c.id, c]));
 
 		return {
-			dryRun: env.dryRun,
+			sendingLive: env.canSend && (await readSmsLive(this.db)),
 			windowDays: Math.round(TODAY.kpiWindowMs / 86_400_000),
 			kpis: {
 				imported,
@@ -371,7 +372,6 @@ export class TodayService {
 				pendingDraft: drafts.length > 0,
 				unknownSend: unknownSends > 0,
 			}),
-			dryRun: readSmsEnv().dryRun,
 			handoffOpen: Boolean(handoff && !handoff.resolvedAt),
 			consent: consent
 				? {

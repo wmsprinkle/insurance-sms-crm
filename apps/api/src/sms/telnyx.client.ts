@@ -20,6 +20,8 @@ export type SendSmsResult = {
 
 export type Fetcher = typeof fetch;
 
+export type LiveSwitch = () => Promise<boolean>;
+
 export class TelnyxSendError extends Error {
 	constructor(
 		message: string,
@@ -62,10 +64,11 @@ export class TelnyxClient {
 		private readonly env: SmsEnv,
 		private readonly limiter: RateLimiter,
 		private readonly fetcher: Fetcher = fetch,
+		private readonly isLive: LiveSwitch = async () => true,
 	) {}
 
-	get dryRun(): boolean {
-		return this.env.dryRun;
+	async sendsForReal(): Promise<boolean> {
+		return this.env.canSend && (await this.isLive());
 	}
 
 	async reserveSlot(from?: string): Promise<void> {
@@ -89,7 +92,7 @@ export class TelnyxClient {
 
 		const from = input.from ?? this.env.fromNumber;
 
-		if (this.env.dryRun) {
+		if (!(await this.sendsForReal())) {
 			if (!options.slotReserved) {
 				await this.limiter.acquire(from ?? DRY_RUN_FROM);
 			}

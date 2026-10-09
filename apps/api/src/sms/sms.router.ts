@@ -1,15 +1,19 @@
 import { Inject } from "@nestjs/common";
-import { Input, Mutation, Query, Router, UseMiddlewares } from "nestjs-trpc";
+import {
+	Ctx,
+	Input,
+	Mutation,
+	Query,
+	Router,
+	UseMiddlewares,
+} from "nestjs-trpc";
 import type { z } from "zod";
+import { ComplianceAdminService } from "../compliance/compliance-admin.service";
+import type { AuthedTrpcContext } from "../trpc/context.types";
 import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import { restMeta } from "../trpc/openapi";
-import {
-	smsSendTestFirstMessageInput,
-	smsSendTestFirstMessageOutput,
-	smsSimulateInboundInput,
-	smsSimulateInboundOutput,
-} from "./simulate.contracts";
-import { SmsSimulateService } from "./simulate.service";
+import { sendingStateOutput, setSendingInput } from "./sending.contracts";
+import { SendingSwitchService } from "./sending-switch.service";
 import {
 	smsAgentSessionOutput,
 	smsMarkHandledOutput,
@@ -25,8 +29,36 @@ import { SmsThreadsService } from "./sms-threads.service";
 export class SmsRouter {
 	constructor(
 		@Inject(SmsThreadsService) private readonly threads: SmsThreadsService,
-		@Inject(SmsSimulateService) private readonly simulate: SmsSimulateService,
+		@Inject(SendingSwitchService)
+		private readonly sending: SendingSwitchService,
+		@Inject(ComplianceAdminService)
+		private readonly admin: ComplianceAdminService,
 	) {}
+
+	@Query({
+		output: sendingStateOutput,
+		meta: restMeta("GET", "/sms/sending", ["SMS"]),
+	})
+	async sendingState() {
+		return this.sending.state();
+	}
+
+	@Mutation({
+		input: setSendingInput,
+		output: sendingStateOutput,
+		meta: restMeta("PATCH", "/sms/sending", ["SMS"]),
+	})
+	async setSending(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof setSendingInput>,
+	) {
+		await this.admin.require(ctx.user.id, "complianceSettings");
+		const state = await this.sending.set(input.live);
+		await this.admin.record(ctx.user.id, "smsSendingChanged", {
+			live: state.live,
+		});
+		return state;
+	}
 
 	@Query({
 		input: smsThreadListInput,
@@ -62,31 +94,5 @@ export class SmsRouter {
 	})
 	async markHandled(@Input() input: z.infer<typeof smsThreadInput>) {
 		return this.threads.markHandled(input);
-	}
-
-	@Mutation({
-		input: smsSimulateInboundInput,
-		output: smsSimulateInboundOutput,
-		meta: restMeta("POST", "/sms/threads/{contactId}/simulate-inbound", [
-			"SMS",
-		]),
-	})
-	async simulateInbound(
-		@Input() input: z.infer<typeof smsSimulateInboundInput>,
-	) {
-		return this.simulate.simulateInbound(input);
-	}
-
-	@Mutation({
-		input: smsSendTestFirstMessageInput,
-		output: smsSendTestFirstMessageOutput,
-		meta: restMeta("POST", "/sms/threads/{contactId}/test-first-message", [
-			"SMS",
-		]),
-	})
-	async sendTestFirstMessage(
-		@Input() input: z.infer<typeof smsSendTestFirstMessageInput>,
-	) {
-		return this.simulate.sendTestFirstMessage(input);
 	}
 }

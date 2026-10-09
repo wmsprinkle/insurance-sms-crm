@@ -69,6 +69,7 @@ export function AppHeader({
 
 			<div className="ml-auto flex shrink-0 items-center gap-1.5">
 				{showEnrichment ? <EnrichmentQueue /> : null}
+				<ThemeToggle />
 				<UserMenu
 					user={user}
 					onSignOut={() => {
@@ -108,10 +109,23 @@ export function AppHeaderFallback() {
 	);
 }
 
-function UserMenu({ user, onSignOut }: { user: User; onSignOut: () => void }) {
+function ThemeToggle() {
 	const { resolvedTheme, setTheme } = useTheme();
-	const isDark = resolvedTheme === "dark";
 
+	return (
+		<Button
+			variant="ghost"
+			size="icon"
+			aria-label="Toggle light and dark mode"
+			onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+		>
+			<Asleep className="dark:hidden" />
+			<Light className="hidden dark:block" />
+		</Button>
+	);
+}
+
+function UserMenu({ user, onSignOut }: { user: User; onSignOut: () => void }) {
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
@@ -134,16 +148,6 @@ function UserMenu({ user, onSignOut }: { user: User; onSignOut: () => void }) {
 					<UserAvatar />
 					<span className="min-w-0 truncate">{user.email}</span>
 				</DropdownMenuLabel>
-				<DropdownMenuSeparator />
-				<DropdownMenuItem
-					onSelect={(event) => {
-						event.preventDefault();
-						setTheme(isDark ? "light" : "dark");
-					}}
-				>
-					{isDark ? <Light /> : <Asleep />}
-					{isDark ? "Light mode" : "Dark mode"}
-				</DropdownMenuItem>
 				<DropdownMenuSeparator />
 				<DropdownMenuItem onClick={onSignOut}>
 					<Logout />

@@ -46,7 +46,6 @@ export type Delivery =
 export type DeliveryDeps = {
 	store: SmsStore;
 	sendPath: SendPath;
-	dryRun: boolean;
 };
 
 const HANDOFF_EXEMPT = new Set<SmsSendPurpose>([
@@ -127,7 +126,6 @@ export async function deliver(
 		purpose: request.purpose,
 		idempotencyKey: request.idempotencyKey,
 		taskId: request.taskId,
-		dryRun: deps.dryRun,
 	});
 	const judged = judgeAttempt(attempt);
 

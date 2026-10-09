@@ -8,7 +8,7 @@ import {
 import { SMS_AGENT } from "../agent/lib/sms-config";
 import { type DeliveryRequest, deliver } from "../agent/lib/sms-delivery";
 import { handOff } from "../agent/lib/sms-handoff";
-import { apiSendPath, dryRunFrom } from "../agent/lib/sms-outbound";
+import { apiSendPath } from "../agent/lib/sms-outbound";
 import { fakeSms, LEAD, recordingPath } from "./support/sms-fakes";
 
 const REQUEST: DeliveryRequest = {
@@ -107,7 +107,6 @@ describe("deliver", () => {
 		const result = await deliver(REQUEST, {
 			store: fake.store,
 			sendPath: send.path,
-			dryRun: true,
 		});
 
 		expect(result).toMatchObject({
@@ -130,7 +129,6 @@ describe("deliver", () => {
 		const result = await deliver(REQUEST, {
 			store: fake.store,
 			sendPath: send.path,
-			dryRun: true,
 		});
 
 		expect(result).toMatchObject({ status: "sent", telnyxId: "tx-1" });
@@ -138,7 +136,6 @@ describe("deliver", () => {
 			to: LEAD.phone,
 			purpose: "conversation",
 			idempotencyKey: "send_sms:call-1",
-			dryRun: true,
 		});
 	});
 
@@ -148,7 +145,7 @@ describe("deliver", () => {
 
 		await deliver(
 			{ ...REQUEST, identify: true },
-			{ store: fake.store, sendPath: send.path, dryRun: true },
+			{ store: fake.store, sendPath: send.path },
 		);
 
 		expect(send.calls[0]?.text).toBe(`Acme Life: ${REQUEST.text}`);
@@ -161,7 +158,7 @@ describe("deliver", () => {
 
 		await deliver(
 			{ ...REQUEST, text, identify: true },
-			{ store: fake.store, sendPath: send.path, dryRun: true },
+			{ store: fake.store, sendPath: send.path },
 		);
 
 		expect(send.calls[0]?.text).toBe(text);
@@ -174,7 +171,6 @@ describe("deliver", () => {
 		await deliver(REQUEST, {
 			store: fake.store,
 			sendPath: send.path,
-			dryRun: true,
 		});
 
 		expect(send.calls[0]?.text).toBe(REQUEST.text);
@@ -188,7 +184,6 @@ describe("deliver", () => {
 			{
 				store: fake.store,
 				sendPath: recordingPath(SENT).path,
-				dryRun: true,
 			},
 		);
 
@@ -201,7 +196,7 @@ describe("deliver", () => {
 
 		await deliver(
 			{ ...REQUEST, text: "As an AI language model I cannot quote prices." },
-			{ store: fake.store, sendPath: send.path, dryRun: true },
+			{ store: fake.store, sendPath: send.path },
 		);
 
 		expect(send.calls[0]?.text).toBe(OUTBOUND_GUARD.safeFallback);
@@ -211,7 +206,7 @@ describe("deliver", () => {
 		const fake = fakeSms();
 		await deliver(
 			{ ...REQUEST, text: "Email me at a@b.com or call 512-555-0199." },
-			{ store: fake.store, sendPath: recordingPath(SENT).path, dryRun: true },
+			{ store: fake.store, sendPath: recordingPath(SENT).path },
 		);
 
 		expect(fake.drafts[0]?.body).not.toContain("a@b.com");
@@ -224,7 +219,7 @@ describe("deliver", () => {
 
 		await deliver(
 			{ ...REQUEST, text: "I'm an automated assistant for the agency." },
-			{ store: fake.store, sendPath: send.path, dryRun: true },
+			{ store: fake.store, sendPath: send.path },
 		);
 
 		expect(send.calls[0]?.text).toBe(OUTBOUND_GUARD.safeFallback);
@@ -239,7 +234,6 @@ describe("deliver", () => {
 				reason: "quiet-hours",
 				retryAt: "2026-10-04T13:00:00.000Z",
 			}).path,
-			dryRun: true,
 		});
 
 		expect(result).toMatchObject({
@@ -254,7 +248,6 @@ describe("deliver", () => {
 		const result = await deliver(REQUEST, {
 			store: fake.store,
 			sendPath: apiSendPath({}),
-			dryRun: true,
 		});
 
 		expect(result).toMatchObject({ status: "drafted", reason: "no-send-path" });
@@ -269,7 +262,6 @@ describe("deliver", () => {
 				reason: "suppressed",
 				retryAt: null,
 			}).path,
-			dryRun: true,
 		});
 
 		expect(result.status).toBe("refused");
@@ -284,7 +276,6 @@ describe("deliver", () => {
 		const result = await deliver(REQUEST, {
 			store: fake.store,
 			sendPath: send.path,
-			dryRun: true,
 		});
 
 		expect(result.status).toBe("refused");
@@ -298,7 +289,6 @@ describe("deliver", () => {
 		const result = await deliver(REQUEST, {
 			store: fake.store,
 			sendPath: recordingPath(SENT).path,
-			dryRun: true,
 		});
 
 		expect(result.status).toBe("refused");
@@ -309,7 +299,7 @@ describe("handOff", () => {
 	it("sends one handoff text even in approval mode, then stops", async () => {
 		const fake = fakeSms();
 		const send = recordingPath(SENT);
-		const deps = { store: fake.store, sendPath: send.path, dryRun: true };
+		const deps = { store: fake.store, sendPath: send.path };
 		const input = {
 			contactId: LEAD.id,
 			reason: "asks about a claim",
@@ -347,7 +337,6 @@ describe("apiSendPath", () => {
 		purpose: "conversation" as const,
 		idempotencyKey: "k",
 		taskId: null,
-		dryRun: true,
 	};
 
 	it("is unavailable without API_URL or the bridge secret", async () => {
@@ -414,25 +403,9 @@ describe("explainHold", () => {
 		const result = await deliver(REQUEST, {
 			store: fake.store,
 			sendPath: recordingPath(SENT).path,
-			dryRun: true,
 		});
 		expect(result.status === "drafted" && result.detail).toContain(
 			"Auto send is off",
-		);
-	});
-});
-
-describe("dryRunFrom", () => {
-	it("is on unless DRY_RUN is exactly false", () => {
-		expect(dryRunFrom({})).toBe(true);
-		expect(dryRunFrom({ DRY_RUN: "true" })).toBe(true);
-		expect(dryRunFrom({ DRY_RUN: "False" })).toBe(true);
-		expect(dryRunFrom({ DRY_RUN: "false" })).toBe(false);
-	});
-
-	it("does not need the Telnyx key, which only the API holds", () => {
-		expect(dryRunFrom({ DRY_RUN: "false", TELNYX_API_KEY: undefined })).toBe(
-			false,
 		);
 	});
 });

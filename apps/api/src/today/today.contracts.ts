@@ -7,7 +7,7 @@ import { TIMELINE_KINDS } from "./timeline";
 const leadStatus = z.enum(LEAD_STATUSES);
 
 export const todaySummaryOutput = z.object({
-	dryRun: z.boolean(),
+	sendingLive: z.boolean(),
 	windowDays: z.number().int(),
 	kpis: z.object({
 		imported: z.number().int(),
@@ -91,7 +91,6 @@ export const todayLeadOutput = z.object({
 	email: z.string().nullable(),
 	status: leadStatus,
 	attention: z.string().nullable(),
-	dryRun: z.boolean(),
 	handoffOpen: z.boolean(),
 	consent: z
 		.object({

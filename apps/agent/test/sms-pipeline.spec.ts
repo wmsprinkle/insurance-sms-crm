@@ -56,7 +56,7 @@ const FIRST_TOUCH: LeasedTask = {
 };
 
 function deps(fake: FakeSms, path = recordingPath(SENT)) {
-	return { store: fake.store, sendPath: path.path, dryRun: true, now: NOW };
+	return { store: fake.store, sendPath: path.path, now: NOW };
 }
 
 describe("session tokens", () => {

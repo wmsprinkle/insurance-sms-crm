@@ -158,3 +158,19 @@ export function maskKey(key: string): string {
 	const trimmed = key.trim();
 	return trimmed.length > 4 ? `••••${trimmed.slice(-4)}` : "••••";
 }
+
+export async function readSmsLive(db: Db): Promise<boolean> {
+	const row = await db.appSetting.findUnique({
+		where: { id: SETTINGS_ID },
+		select: { smsLive: true },
+	});
+	return row?.smsLive ?? false;
+}
+
+export async function writeSmsLive(db: Db, live: boolean): Promise<void> {
+	await db.appSetting.upsert({
+		where: { id: SETTINGS_ID },
+		create: { id: SETTINGS_ID, smsLive: live },
+		update: { smsLive: live },
+	});
+}

@@ -160,6 +160,7 @@ export const COMPLIANCE = {
 	adminAudit: {
 		sessionId: "compliance:admin",
 		smsSettingsChanged: "settings.sms.changed",
+		smsSendingChanged: "settings.sms.sending.changed",
 		calendarSettingsChanged: "settings.calendar.changed",
 		leadsImported: "leads.import.committed",
 	},

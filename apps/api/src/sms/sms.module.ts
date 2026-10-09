@@ -1,21 +1,18 @@
-import type { Db } from "@crm/db";
 import { readSmsEnv } from "@crm/env/sms";
 import { Logger, Module } from "@nestjs/common";
 import { AgentModule } from "../agent/agent.module";
 import { ComplianceModule } from "../compliance/compliance.module";
-import { SendGateService } from "../compliance/send-gate";
-import { DATABASE } from "../database/database.constants";
 import { TrpcModule } from "../trpc/trpc.module";
 import { SmsDraftsRouter } from "./drafts.router";
 import { SmsDraftsService } from "./drafts.service";
 import { KeywordService } from "./keyword.service";
 import { RateLimiter } from "./rate-limiter";
-import { SmsSimulateService } from "./simulate.service";
+import { SendingSwitchService } from "./sending-switch.service";
 import { SmsRouter } from "./sms.router";
 import { SmsService } from "./sms.service";
 import { SMS } from "./sms-config";
 import { SmsInternalController } from "./sms-internal.controller";
-import { SMS_DRY_RUN_SENDER, SmsInternalService } from "./sms-internal.service";
+import { SmsInternalService } from "./sms-internal.service";
 import { SmsSender } from "./sms-sender.service";
 import { SmsThreadsService } from "./sms-threads.service";
 import { TelnyxClient } from "./telnyx.client";
@@ -25,14 +22,16 @@ import {
 	TelnyxWebhookController,
 } from "./telnyx-webhook.controller";
 
-function telnyxClient(forceDryRun: boolean): TelnyxClient {
+function telnyxClient(sending: SendingSwitchService): TelnyxClient {
 	const env = readSmsEnv();
 	return new TelnyxClient(
-		{ ...env, dryRun: env.dryRun || forceDryRun },
+		env,
 		new RateLimiter(
 			env.messagesPerSecond ?? SMS.rate.defaultMessagesPerSecond,
 			SMS.rate.burst,
 		),
+		fetch,
+		() => sending.isLive(),
 	);
 }
 
@@ -44,20 +43,15 @@ function telnyxClient(forceDryRun: boolean): TelnyxClient {
 		SmsSender,
 		KeywordService,
 		SmsThreadsService,
-		SmsSimulateService,
 		SmsRouter,
 		SmsInternalService,
 		SmsDraftsService,
 		SmsDraftsRouter,
+		SendingSwitchService,
 		{
 			provide: TelnyxClient,
-			useFactory: () => telnyxClient(false),
-		},
-		{
-			provide: SMS_DRY_RUN_SENDER,
-			inject: [DATABASE, SendGateService],
-			useFactory: (db: Db, gate: SendGateService) =>
-				new SmsSender(db, gate, telnyxClient(true)),
+			inject: [SendingSwitchService],
+			useFactory: telnyxClient,
 		},
 		{
 			provide: TELNYX_PUBLIC_KEY,
@@ -74,6 +68,6 @@ function telnyxClient(forceDryRun: boolean): TelnyxClient {
 			},
 		},
 	],
-	exports: [TelnyxClient, SmsService, SmsSender],
+	exports: [TelnyxClient, SmsService, SmsSender, SendingSwitchService],
 })
 export class SmsModule {}

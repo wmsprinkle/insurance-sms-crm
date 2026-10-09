@@ -7,6 +7,9 @@ export const SMS = {
 		timeoutMs: 10 * SECOND_MS,
 		dryRunIdPrefix: "dryrun-",
 	},
+	sending: {
+		cacheMs: 5 * SECOND_MS,
+	},
 	rate: {
 		defaultMessagesPerSecond: 1,
 		burst: 1,

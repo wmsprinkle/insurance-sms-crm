@@ -15,6 +15,7 @@ import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
 import { CalendarSettingsForm } from "./calendar-settings-form";
 import { DraftsQueue } from "./drafts-queue";
 import { LimitsSection } from "./limits-section";
+import { SendingSwitch } from "./sending-switch";
 import { SmsSettingsForm } from "./sms-settings-form";
 
 export const metadata: Metadata = {
@@ -50,6 +51,7 @@ async function Compliance() {
 	const queryClient = getServerQueryClient();
 
 	await Promise.all([
+		queryClient.prefetchQuery(trpc.sms.sendingState.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.sms.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.complianceLimits.queryOptions()),
 		queryClient.prefetchQuery(trpc.settings.calendar.queryOptions()),
@@ -60,6 +62,7 @@ async function Compliance() {
 	return (
 		<HydrateClient>
 			<div className="flex max-w-4xl flex-col gap-6">
+				<SendingSwitch />
 				<SmsSettingsForm />
 				<CalendarSettingsForm />
 				<DraftsQueue />

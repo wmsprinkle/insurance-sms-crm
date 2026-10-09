@@ -100,7 +100,6 @@ const keys = testKeys();
 const saved = {
 	API_URL: process.env.API_URL,
 	AGENT_BRIDGE_SECRET: process.env.AGENT_BRIDGE_SECRET,
-	DRY_RUN: process.env.DRY_RUN,
 };
 
 function telnyxFetch(_url: string | URL | Request, init?: RequestInit) {
@@ -157,13 +156,13 @@ const telnyx = new TelnyxClient(
 		messagingProfileId: "qa-profile",
 		fromNumber: AGENCY_NUMBER,
 		messagesPerSecond: 1_000,
-		dryRun: false,
+		canSend: true,
 	},
 	new RateLimiter(1_000, 1_000),
 	telnyxFetch as unknown as Fetcher,
 );
 const sender = new SmsSender(db, gate, telnyx);
-const smsInternal = new SmsInternalService(db, sender, sender);
+const smsInternal = new SmsInternalService(db, sender);
 const drafts = new SmsDraftsService(db, smsInternal);
 const trigger = new AgentTriggerService(db);
 const smsService = new SmsService(
@@ -283,7 +282,6 @@ function conversationText(
 		taskId: null,
 		purpose: "conversation",
 		idempotencyKey,
-		dryRun: false,
 	});
 }
 
@@ -292,7 +290,6 @@ let fetchSpy: ReturnType<typeof spyOn>;
 beforeAll(async () => {
 	process.env.API_URL = API_URL;
 	process.env.AGENT_BRIDGE_SECRET = SECRET;
-	process.env.DRY_RUN = "false";
 	fetchSpy = spyOn(globalThis, "fetch").mockImplementation(apiFetch as never);
 	setSystemTime(NOW);
 
@@ -337,7 +334,6 @@ afterAll(() => {
 	setSystemTime();
 	process.env.API_URL = saved.API_URL ?? "";
 	process.env.AGENT_BRIDGE_SECRET = saved.AGENT_BRIDGE_SECRET ?? "";
-	process.env.DRY_RUN = saved.DRY_RUN ?? "";
 });
 
 describe("free-text opt-out suppresses without a model turn", () => {

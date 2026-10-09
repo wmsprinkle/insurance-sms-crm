@@ -3,7 +3,7 @@ import { OUTBOUND_GUARD, outboundSmsInput } from "../hooks/outbound-guard";
 import { focusOn } from "../lib/focus";
 import { SMS_AGENT } from "../lib/sms-config";
 import { deliver } from "../lib/sms-delivery";
-import { apiSendPath, dryRunFrom } from "../lib/sms-outbound";
+import { apiSendPath } from "../lib/sms-outbound";
 import {
 	NO_TASK_FOR_SEND,
 	NOT_AN_SMS_SESSION,
@@ -37,7 +37,6 @@ export default defineTool({
 			{
 				store: prismaSmsStore,
 				sendPath: apiSendPath(),
-				dryRun: dryRunFrom(),
 			},
 		);
 	},

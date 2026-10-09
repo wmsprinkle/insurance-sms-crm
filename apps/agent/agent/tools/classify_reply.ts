@@ -10,7 +10,7 @@ import { z } from "zod";
 import { focusOn } from "../lib/focus";
 import { SMS_AGENT } from "../lib/sms-config";
 import { optOutLead } from "../lib/sms-opt-out";
-import { apiSendPath, dryRunFrom } from "../lib/sms-outbound";
+import { apiSendPath } from "../lib/sms-outbound";
 import { readQualification } from "../lib/sms-qualification";
 import { smsSessionOf } from "../lib/sms-session";
 import { prismaSmsStore } from "../lib/sms-store";
@@ -47,7 +47,6 @@ export default defineTool({
 				{
 					store: prismaSmsStore,
 					sendPath: apiSendPath(),
-					dryRun: dryRunFrom(),
 				},
 			);
 			return {

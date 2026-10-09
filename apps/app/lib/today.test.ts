@@ -190,7 +190,7 @@ describe("getStartedItems", () => {
 		fromNumberMasked: "+1 833 *** 4120",
 		modelKeySet: true,
 		webhookUrl: "https://api.acme.test/webhooks/telnyx",
-		dryRun: true,
+		sendingLive: true,
 		calendarConnected: true,
 		leadCount: 12,
 		brandName: "Acme Insurance",
@@ -202,7 +202,7 @@ describe("getStartedItems", () => {
 
 	it("marks everything done when set up", () => {
 		const items = getStartedItems(READY);
-		expect(getStartedProgress(items)).toEqual({ done: 6, total: 6 });
+		expect(getStartedProgress(items)).toEqual({ done: 7, total: 7 });
 		expect(find(items, "telnyx")?.detail).toBe("Sending from +1 833 *** 4120.");
 	});
 
@@ -296,12 +296,16 @@ describe("getStartedItems", () => {
 		});
 	});
 
-	it("shows test mode as information, not a to-do", () => {
-		const on = find(getStartedItems(READY), "mode");
-		const off = find(getStartedItems({ ...READY, dryRun: false }), "mode");
+	it("asks the owner to start texting until texting is live", () => {
+		const paused = find(
+			getStartedItems({ ...READY, sendingLive: false }),
+			"mode",
+		);
+		const live = find(getStartedItems(READY), "mode");
 
-		expect(on?.status).toBe("info");
-		expect(on?.title).toBe("Test mode is on");
-		expect(off?.title).toBe("Test mode is off");
+		expect(paused?.status).toBe("todo");
+		expect(paused?.title).toBe("Texting is paused");
+		expect(live?.status).toBe("done");
+		expect(live?.title).toBe("Texting is live");
 	});
 });

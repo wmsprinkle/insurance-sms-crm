@@ -1,5 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { isGoogleConfigured, isMicrosoftConfigured } from "@crm/auth";
+import {
+	isAuth0Configured,
+	isGoogleConfigured,
+	isMicrosoftConfigured,
+} from "@crm/auth";
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 import request from "supertest";
@@ -64,6 +68,7 @@ describe("Auth (e2e)", () => {
 		expect(response.body.result.data).toEqual({
 			google: isGoogleConfigured(),
 			microsoft: isMicrosoftConfigured(),
+			auth0: isAuth0Configured(),
 			providers: [],
 		});
 	});

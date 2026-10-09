@@ -6,13 +6,11 @@ export const SMS_AMBIGUOUS_MODES = ["human", "llm"] as const;
 
 export type SmsAmbiguousMode = (typeof SMS_AMBIGUOUS_MODES)[number];
 
-export const FIRST_MESSAGE_RISK_WARNING =
-	"Toll-free verification reviewers usually require business identification and opt-out language in the first message. The default first message has neither. Turn these on if the carrier rejects the number.";
-
 export type SmsDisclosureMode = (typeof SMS_DISCLOSURE_MODES)[number];
 
 export const SMS_SETTINGS_LIMITS = {
 	firstMessage: { minLength: 20, maxLength: 320 },
+	replyTone: { maxLength: 300 },
 	brandName: { maxLength: 80 },
 	licensedStates: { maxCount: 60 },
 } as const;
@@ -25,7 +23,7 @@ export const SMS_TEMPLATE_TOKENS = {
 export const SMS_BRAND_FALLBACK = "Our team";
 
 export const DEFAULT_FIRST_MESSAGE_TEMPLATE =
-	"Hi {firstName}, this is {agency}. You asked us about an insurance quote, so we are following up here. Reply with any questions. Reply STOP to opt out.";
+	"Hello {firstName}, this is {agency}. Are you interested in life or health coverage? Reply STOP to opt out.";
 
 export const DEFAULT_SMS_SETTINGS = {
 	firstMessageTemplate: DEFAULT_FIRST_MESSAGE_TEMPLATE,
@@ -33,9 +31,8 @@ export const DEFAULT_SMS_SETTINGS = {
 	autoSend: false,
 	brandName: "",
 	licensedStates: [] as string[],
-	firstMessageBrandPrefix: false,
-	firstMessageStopFooter: false,
 	ambiguousMode: "human",
+	replyTone: "",
 } as const satisfies SmsSettings;
 
 export const firstMessageTemplate = z
@@ -50,8 +47,24 @@ export const firstMessageTemplate = z
 		`The first message cannot be longer than ${SMS_SETTINGS_LIMITS.firstMessage.maxLength} characters.`,
 	)
 	.refine(
+		(value) => value.includes(SMS_TEMPLATE_TOKENS.agency),
+		`The first message must keep ${SMS_TEMPLATE_TOKENS.agency}. It becomes your business name.`,
+	)
+	.refine(
 		(value) => /\bSTOP\b/.test(value),
 		"The first message must tell the lead to reply STOP to opt out.",
+	);
+
+export const replyTone = z
+	.string()
+	.trim()
+	.max(
+		SMS_SETTINGS_LIMITS.replyTone.maxLength,
+		`The reply tone cannot be longer than ${SMS_SETTINGS_LIMITS.replyTone.maxLength} characters.`,
+	)
+	.refine(
+		(value) => !/[<>`]|https?:|www\./i.test(value),
+		"The reply tone cannot hold a link, a tag or a code block.",
 	);
 
 export const brandName = z
@@ -89,9 +102,8 @@ export const smsSettings = z.object({
 	autoSend: z.boolean(),
 	brandName,
 	licensedStates,
-	firstMessageBrandPrefix: z.boolean().default(false),
-	firstMessageStopFooter: z.boolean().default(false),
 	ambiguousMode: z.enum(SMS_AMBIGUOUS_MODES).default("human"),
+	replyTone: replyTone.default(""),
 });
 
 export type SmsSettings = z.infer<typeof smsSettings>;

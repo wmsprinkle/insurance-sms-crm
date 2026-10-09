@@ -15,8 +15,6 @@ import { gatePurpose, SMS_INTERNAL, sendResponse } from "./sms-internal";
 import { SendOutcomeUnknownError, SmsSender } from "./sms-sender.service";
 import { isUniqueViolation } from "./unique-violation";
 
-export const SMS_DRY_RUN_SENDER = Symbol("SMS_DRY_RUN_SENDER");
-
 const sentReceipt = z.object({
 	response: smsSendResponse,
 	contactId: z.string().optional(),
@@ -44,8 +42,7 @@ export class SmsInternalService {
 
 	constructor(
 		@InjectDatabase() private readonly db: Db,
-		@Inject(SmsSender) private readonly live: SmsSender,
-		@Inject(SMS_DRY_RUN_SENDER) private readonly dry: SmsSender,
+		@Inject(SmsSender) private readonly sender: SmsSender,
 	) {}
 
 	async send(original: SmsSendRequest): Promise<SmsSendResponse> {
@@ -65,9 +62,8 @@ export class SmsInternalService {
 
 		let response: SmsSendResponse;
 		try {
-			const sender = request.dryRun ? this.dry : this.live;
 			response = sendResponse(
-				await sender.send({
+				await this.sender.send({
 					to: request.to,
 					contactId: request.contactId,
 					text: request.text,

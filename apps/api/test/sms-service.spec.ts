@@ -53,7 +53,7 @@ function service(seed: Parameters<typeof fakeDb>[0] = {}) {
 			messagingProfileId: null,
 			fromNumber: "+18005550100",
 			messagesPerSecond: null,
-			dryRun: true,
+			canSend: false,
 		},
 		new RateLimiter(10, 10, { now: () => 0, sleep: async () => undefined }),
 	);

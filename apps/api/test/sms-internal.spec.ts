@@ -36,7 +36,6 @@ const request: SmsSendRequest = {
 	purpose: "conversation",
 	idempotencyKey: "task-1:reply-1",
 	taskId: "task-1",
-	dryRun: false,
 };
 
 const sentOutcome: SendOutcome = {
@@ -59,15 +58,11 @@ function scriptedSender(outcomes: SendOutcome[]) {
 	return { calls, sender };
 }
 
-function service(
-	seed: Parameters<typeof fakeDb>[0],
-	live: SmsSender,
-	dry: SmsSender = live,
-) {
+function service(seed: Parameters<typeof fakeDb>[0], sender: SmsSender) {
 	const { state, db } = fakeDb({ contacts: [contact], ...seed });
 	return {
 		state,
-		sms: new SmsInternalService(db as unknown as Db, live, dry),
+		sms: new SmsInternalService(db as unknown as Db, sender),
 	};
 }
 
@@ -212,18 +207,6 @@ describe("SmsInternalService", () => {
 			error: SMS_INTERNAL.errors.inProgress,
 		});
 		expect(calls).toHaveLength(0);
-	});
-
-	it("uses the dry-run sender when the request asks for a dry run", async () => {
-		const live = scriptedSender([]);
-		const dry = scriptedSender([{ ...sentOutcome, dryRun: true }]);
-		const { sms } = service({}, live.sender, dry.sender);
-
-		const response = await sms.send({ ...request, dryRun: true });
-
-		expect(response).toMatchObject({ status: "sent", dryRun: true });
-		expect(live.calls).toHaveLength(0);
-		expect(dry.calls).toHaveLength(1);
 	});
 
 	it("sends a fixed opt-out confirmation keyed per suppression, not per call", async () => {
@@ -411,7 +394,7 @@ describe("SmsInternalService with the real gate", () => {
 				messagingProfileId: null,
 				fromNumber: "+18005550100",
 				messagesPerSecond: null,
-				dryRun: true,
+				canSend: false,
 			},
 			new RateLimiter(10, 10, { now: () => 0, sleep: async () => undefined }),
 			(async () => {
@@ -428,7 +411,7 @@ describe("SmsInternalService with the real gate", () => {
 		return {
 			state,
 			fetches: () => fetches,
-			sms: new SmsInternalService(client, sender, sender),
+			sms: new SmsInternalService(client, sender),
 		};
 	}
 

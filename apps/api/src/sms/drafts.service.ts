@@ -449,7 +449,6 @@ export class SmsDraftsService {
 		const response = await this.sender.send({
 			...request,
 			to: contact.phone,
-			dryRun: false,
 		});
 		return sendOutcome(response);
 	}

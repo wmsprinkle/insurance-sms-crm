@@ -1,4 +1,4 @@
-import { apiSendPath, dryRunFrom } from "./sms-outbound";
+import { apiSendPath } from "./sms-outbound";
 import { runSmsTask, type SmsRunDeps, type SmsTurnStart } from "./sms-pipeline";
 import { prismaSmsStore } from "./sms-store";
 import { completeTask, type LeasedTask, noteSession } from "./tasks";
@@ -7,7 +7,6 @@ export function liveSmsDeps(): SmsRunDeps {
 	return {
 		store: prismaSmsStore,
 		sendPath: apiSendPath(),
-		dryRun: dryRunFrom(),
 		complete: completeTask,
 		noteSession,
 	};

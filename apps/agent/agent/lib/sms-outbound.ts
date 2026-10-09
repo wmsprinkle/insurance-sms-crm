@@ -1,4 +1,3 @@
-import { SMS_ENV } from "@crm/env/sms";
 import {
 	parseSmsSendResponse,
 	SMS_SEND_PATH,
@@ -16,10 +15,6 @@ export type SendAttempt =
 export type SendPath = (request: SmsSendRequest) => Promise<SendAttempt>;
 
 type Env = Record<string, string | undefined>;
-
-export function dryRunFrom(env: Env = process.env): boolean {
-	return env[SMS_ENV.dryRun]?.trim() !== "false";
-}
 
 function reasonOf(cause: unknown): string {
 	return cause instanceof Error ? cause.message : String(cause);

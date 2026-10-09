@@ -26,7 +26,7 @@ const liveEnv: SmsEnv = {
 	messagingProfileId: "profile-1",
 	fromNumber: "+18005550100",
 	messagesPerSecond: null,
-	dryRun: false,
+	canSend: true,
 };
 
 type FetchCall = { url: string; init: RequestInit };
@@ -76,7 +76,7 @@ describe("TelnyxClient", () => {
 	it("fakes an id and never calls Telnyx in dry run", async () => {
 		const { fetcher, calls } = recordingFetcher(200, {});
 		const client = new TelnyxClient(
-			{ ...liveEnv, dryRun: true },
+			{ ...liveEnv, canSend: false },
 			new RateLimiter(10, 10, fakeClock()),
 			fetcher,
 		);

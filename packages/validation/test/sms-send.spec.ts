@@ -13,7 +13,6 @@ const REQUEST = {
 	purpose: "conversation",
 	idempotencyKey: "send_sms:call-1",
 	taskId: null,
-	dryRun: true,
 };
 
 describe("smsSendRequest", () => {
