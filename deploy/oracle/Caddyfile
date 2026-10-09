@@ -1,0 +1,27 @@
+__HOST__ {
+	encode zstd gzip
+
+	@blocked {
+		path_regexp blocked (?i)^/+internal(/|$)|dev-login|\\
+	}
+	handle @blocked {
+		respond "not found" 404
+	}
+
+	@api path /webhooks/telnyx /leads/ingest
+	handle @api {
+		reverse_proxy 127.0.0.1:3001 {
+			transport http {
+				response_header_timeout 120s
+			}
+		}
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:3000 {
+			transport http {
+				response_header_timeout 120s
+			}
+		}
+	}
+}

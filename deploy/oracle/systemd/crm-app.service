@@ -1,0 +1,12 @@
+[Unit]
+Description=CRM web app
+After=network.target crm-api.service
+
+[Service]
+User=__USER__
+ExecStart=__REPO__/deploy/oracle/run-unit.sh apps/app /usr/local/bin/bun run start -p 3000 -H 127.0.0.1
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

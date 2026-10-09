@@ -1,0 +1,12 @@
+[Unit]
+Description=CRM cron caller
+After=network.target crm-api.service
+
+[Service]
+User=__USER__
+ExecStart=__REPO__/deploy/oracle/run-unit.sh . /usr/bin/node scripts/local-cron.mjs
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
