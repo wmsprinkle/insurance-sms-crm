@@ -80,10 +80,10 @@ describe("firstMessageProblem", () => {
 		expect(firstMessageProblem(SETTINGS.firstMessageTemplate)).toBeNull();
 	});
 
-	it("names the missing business name", () => {
+	it("does not require the business name", () => {
 		expect(
 			firstMessageProblem("Hello {firstName}, want a quote? Reply STOP."),
-		).toMatch(/\{agency\}/);
+		).toBeNull();
 	});
 });
 

@@ -257,11 +257,10 @@ export function SmsSettingsForm() {
 								}
 							/>
 							<FieldDescription>
-								Change the words as you like. Keep{" "}
-								<code>{SMS_TEMPLATE_TOKENS.agency}</code>, which becomes your
-								business name, and the line "Reply STOP to opt out." Use{" "}
-								<code>{SMS_TEMPLATE_TOKENS.firstName}</code> for the lead's
-								first name.
+								Change the words as you like. Keep the line "Reply STOP to opt
+								out." Use <code>{SMS_TEMPLATE_TOKENS.firstName}</code> for the
+								lead's first name. Use <code>{SMS_TEMPLATE_TOKENS.agency}</code>{" "}
+								if you want your business name in the text.
 							</FieldDescription>
 							{firstMessageError ? (
 								<FieldError>{firstMessageError}</FieldError>

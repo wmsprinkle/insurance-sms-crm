@@ -14,8 +14,7 @@ assistant should not handle goes to a person.
 - **Lead intake.** Import a CSV or post to the lead webhook. Every lead needs a consent
   record: how and when they opted in, and the text they agreed to.
 - **First message.** One text goes to each new lead at the next allowed time. Owners and
-  admins edit the wording in Settings. The business name and the opt-out line are always
-  kept.
+  admins edit the wording in Settings. The opt-out line is always kept.
 - **AI replies.** The assistant classifies each reply, asks the qualifying questions,
   offers call times and books the meeting. Owners and admins choose whether replies wait
   for approval or go out at once, and can set the tone.

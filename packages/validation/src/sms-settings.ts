@@ -47,10 +47,6 @@ export const firstMessageTemplate = z
 		`The first message cannot be longer than ${SMS_SETTINGS_LIMITS.firstMessage.maxLength} characters.`,
 	)
 	.refine(
-		(value) => value.includes(SMS_TEMPLATE_TOKENS.agency),
-		`The first message must keep ${SMS_TEMPLATE_TOKENS.agency}. It becomes your business name.`,
-	)
-	.refine(
 		(value) => /\bSTOP\b/.test(value),
 		"The first message must tell the lead to reply STOP to opt out.",
 	);

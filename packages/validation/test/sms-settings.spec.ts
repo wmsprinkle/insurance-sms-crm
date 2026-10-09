@@ -42,12 +42,12 @@ describe("firstMessageTemplate", () => {
 		).toBe(true);
 	});
 
-	it("rejects a template without the business name", () => {
+	it("accepts a template without the business name", () => {
 		expect(
 			firstMessageTemplate.safeParse(
 				"Hi {firstName}, about your quote. Reply STOP to opt out.",
 			).success,
-		).toBe(false);
+		).toBe(true);
 	});
 
 	it("rejects a template without STOP", () => {
