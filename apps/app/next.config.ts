@@ -1,16 +1,8 @@
-import {
-	DEV_LOGIN_WARNING,
-	devLoginFromEnvironment,
-} from "@crm/auth/dev-login";
 import { loadRootEnv } from "@crm/env";
 import type { NextConfig } from "next";
 import { securityHeaders } from "./lib/security-headers";
 
 loadRootEnv();
-
-if (devLoginFromEnvironment(process.env).enabled) {
-	console.warn(DEV_LOGIN_WARNING);
-}
 
 const apiUrl =
 	process.env.API_URL ??

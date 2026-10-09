@@ -41,16 +41,15 @@ Sign-in setup: [`OAUTH_SETUP.md`](./OAUTH_SETUP.md).
 
 ## Checked and sound
 
-- **Cookies.** Better Auth sets the prefix, `HttpOnly`, `SameSite=Lax`, and `Secure` when `NODE_ENV=production` (`packages/auth/src/auth.ts`). Session life is 7 days.
+- **Cookies.** Better Auth sets the prefix, `HttpOnly`, `SameSite=Lax`, and `Secure` when `NODE_ENV=production` (`packages/auth/src/auth.ts`). Session life is 30 days, renewed daily while in use.
 - **CSRF.** Better Auth checks the origin against `trustedOrigins`. No CORS is enabled, so a cross-site page cannot read or send JSON with cookies.
 - **Telnyx webhook.** Ed25519 check, 5-minute window, 256 KiB body cap, unique `telnyxId`. It answers 503 with no key.
 - **Bridges.** Both use `timingSafeEqual` and fail closed on an empty secret.
-- **tRPC.** A mutation with no `PROCEDURE_ROLES` entry is refused. `simulateInbound` needs an admin and dry run.
+- **tRPC.** A mutation with no `PROCEDURE_ROLES` entry is refused. Turning texting on or off needs an owner or an admin.
 - **CSV.** Import limits: 5 MiB, 5,000 rows, 100 columns. The product has no CSV export, so no formula-injection sink exists.
 - **XSS.** No `dangerouslySetInnerHTML` or HTML sink. SMS text renders as React text.
 - **Open redirect.** All callbacks come from `window.location.origin`.
 - **Secrets.** The only `NEXT_PUBLIC_` variable is the API URL.
-- **DEV_LOGIN.** Off unless exactly `true`. It stops boot in production and with non-local URLs. The endpoint refuses non-local hosts and origins.
 - **better-auth.** Version 1.6.25 is installed for the app. The older 1.4.22 copy comes only from the `@better-auth/cli` dev tool.
 - **DB.** `smsMessage.telnyxId` is unique. Receipts use the event id as the claim. The test database must end in `_test`.
 

@@ -7,14 +7,13 @@ Sign-in is Google, Microsoft or Auth0, whichever you configure, through Better A
 1. A provider must confirm the email address. An unverified email is refused.
 2. `ALLOWED_SIGN_IN` is checked on every sign-in, after the provider answers. Remove an address and that person cannot start a new session.
 3. Accounts never link by email alone. No provider is trusted for linking.
-4. The sign-in page shows only the buttons you configured. With none, it shows "No way in yet".
+4. The sign-in page shows only the buttons you configured. With none, it says sign-in is not available yet.
 5. In production the API refuses to boot with no OAuth credentials, a non-https `API_URL` or `APP_URL`, or a weak `AGENT_BRIDGE_SECRET`.
-6. `DEV_LOGIN` signs in only requests that come straight from this machine to `localhost` or `127.0.0.1`. A request through a proxy or tunnel is refused. See "Local development".
 
 ## Create the Google OAuth client
 
 1. Open <https://console.cloud.google.com/> and pick or create a project.
-2. **APIs & Services → Library**: enable **Gmail API** and **Google Calendar API**.
+2. **APIs & Services → Library**: enable **Gmail API** and **Google Calendar API**. If either is off, Google sign-in fails.
 3. **APIs & Services → OAuth consent screen**: choose **External** (or **Internal** for a Workspace domain). Set the app name and your support email. Add yourself under **Test users** while the app is in Testing.
 4. Add these scopes: `openid`, `email`, `profile`, `.../auth/gmail.readonly`, `.../auth/calendar.readonly`, `.../auth/calendar.events`, `.../auth/calendar.freebusy`.
 5. **APIs & Services → Credentials → Create credentials → OAuth client ID**. Type: **Web application**.
@@ -40,11 +39,11 @@ ALLOWED_SIGN_IN="you@gmail.com"
 
 Restart the API and app. Open `http://localhost:3000/sign-in`. Click **Continue with Google**.
 
-## Public URL (ngrok or a real host)
+## Public URL
 
 1. Set `API_URL` and `APP_URL` to the public https URLs.
 2. Add the matching origin and redirect URI in the Google client (steps 6 and 7).
-3. Set `NODE_ENV=production`, `DEV_LOGIN` unset on any shared host, and `AGENT_BRIDGE_SECRET` to 32 or more random characters.
+3. Set `NODE_ENV=production` and `AGENT_BRIDGE_SECRET` to 32 or more random characters.
 4. Restart. A wrong value stops the boot with a list of what to fix.
 
 ## Auth0 (optional)
@@ -54,25 +53,3 @@ Create a Regular Web Application in Auth0. Allowed Callback URL: `<API_URL>/api/
 ## Microsoft (optional)
 
 Create an app registration in Entra ID. Redirect URI (Web): `<API_URL>/api/auth/callback/microsoft`. Set `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET` and, for one tenant, `MICROSOFT_TENANT_ID`. Microsoft often omits the verified-email claim. The CRM then refuses that sign-in. Use an account whose email Microsoft marks as verified, or use Google.
-
-## Local development
-
-`DEV_LOGIN="true"` adds a "Continue as <email>" button. It works on the machine that runs the CRM, including the production stack from `scripts/run-public.sh`. Leave it unset on every other host.
-
-The bypass is on only when all of these are true:
-
-1. `DEV_LOGIN` is exactly `true`.
-2. `ALLOWED_SIGN_IN` holds exactly one full email address. A domain or a list stops the boot.
-3. The request itself is local. The TCP peer is `127.0.0.1` or `::1`. The `Host` header is `localhost`, `127.0.0.1` or `[::1]`, on any port. The request has no `x-forwarded-*`, `forwarded`, `x-real-ip`, `ngrok-*` or `cf-*` header.
-
-Anything that arrives through the edge proxy or the ngrok tunnel fails rule 3. The button does not render. The endpoint answers 403. The edge proxy and the ngrok policy also return 404 for any path that contains `dev-login`.
-
-The app decides, once, on the original browser request. A dedicated route handler (`apps/app/app/api/auth/dev-login/route.ts`) checks Host, origin and forwarding headers. Next route handlers cannot see the TCP peer. The edge proxy sits on a different listener and always forwards through a proxy or tunnel, so a request through it fails the header rule or never arrives (404).
-
-The route then calls the API server to server with `x-crm-dev-login-proof`. That header is an HMAC of `AGENT_BRIDGE_SECRET`. The API refuses the call without a valid proof (constant-time compare), without a loopback TCP peer, or when `AGENT_BRIDGE_SECRET` is unset. The generic `/api/*` proxy refuses every path that contains `dev-login`. The route relays the API `Set-Cookie` headers unchanged.
-
-Residual risk: a process on this machine can send forged headers to `localhost:3000`. That process already has local access. Safari does not store `Secure` cookies on `http://localhost`, which Better Auth sets in production. Use Chrome or Firefox for this button.
-
-The session is a normal session for that one address. Google OAuth and `ALLOWED_SIGN_IN` are unchanged. The API and the app log a warning at boot when `DEV_LOGIN` is on.
-
-Use `http://localhost:3000/sign-in`. Chrome and Firefox keep the secure session cookie on `http://localhost`. Safari does not.

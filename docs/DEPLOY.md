@@ -98,7 +98,7 @@ Set the variables in section 7 **before** the first deploy.
 
 ## 7. Environment variables
 
-Set each for **Production**, project-wide. Never set `DEV_LOGIN`. `NODE_ENV` is `production` on Vercel by itself. Never set `API_INTERNAL_URL` or `AGENT_URL`: bindings inject them.
+Set each for **Production**, project-wide. `NODE_ENV` is `production` on Vercel by itself. Never set `API_INTERNAL_URL` or `AGENT_URL`: bindings inject them.
 
 Let `<domain>` = the single public host, for example `https://crm.example.com`.
 
@@ -115,9 +115,9 @@ Let `<domain>` = the single public host, for example `https://crm.example.com`.
 | `BETTER_AUTH_SECRET` | 32+ random characters | Section 4 |
 | `AGENT_BRIDGE_SECRET` | 32+ random characters | Section 4 |
 | `CRON_SECRET` | 16+ random characters. Vercel Cron sends it as a Bearer token. | Section 4 |
-| `DRY_RUN` | `true` until Telnyx is verified, then `false` | You choose |
 | `ALLOWED_SIGN_IN` | Your email, or `a@x.com,b@x.com` | You choose |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | OAuth client | Google Cloud, `docs/OAUTH_SETUP.md` |
+| `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET` | Auth0 sign-in. Set all three or none. | Auth0, `docs/OAUTH_SETUP.md` |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google sign-in and Calendar booking | Google Cloud, `docs/OAUTH_SETUP.md` |
 
 ### API
 
@@ -128,11 +128,11 @@ Let `<domain>` = the single public host, for example `https://crm.example.com`.
 | `TELNYX_FROM_NUMBER` | `+1…` E.164 | Telnyx Portal → Numbers |
 | `TELNYX_PUBLIC_KEY` | Base64 key | Telnyx Portal → Keys & Credentials → Public Key |
 | `LEAD_INGEST_SECRETS` | Optional. `webform:<16+ chars>` | You choose |
-| `REDIS_URL` | Optional. Needed only for website tracking. | Upstash via Vercel Marketplace |
+| `REDIS_URL` | Optional. A shared cache for several API instances. | Upstash via Vercel Marketplace |
 | `BLOB_READ_WRITE_TOKEN` | Optional. Logos and avatars. | Vercel → Storage → Blob |
 | `CRM_TELEMETRY_DISABLED` | Optional. `1` turns off anonymous telemetry. | You choose |
 
-The API refuses to boot in production if: no Google or Microsoft pair, `API_URL` or `APP_URL` is not https or is localhost, `AGENT_URL` is set with a short `AGENT_BRIDGE_SECRET`, or `DRY_RUN=false` lacks `TELNYX_API_KEY` or `TELNYX_PUBLIC_KEY`. Do not weaken these checks.
+The API refuses to boot in production if: no Google pair, Microsoft pair or Auth0 trio is set, `API_URL` or `APP_URL` is not https or is localhost, or `AGENT_URL` is set with a short `AGENT_BRIDGE_SECRET`. Do not weaken these checks.
 
 ### Agent
 
@@ -163,15 +163,14 @@ With `ANTHROPIC_API_KEY` set, the agent calls Claude direct. The agent holds no 
 - [ ] Open `<domain>/sign-in`. Sign in with Google. You land in the workspace. [HUMAN]
 - [ ] Open a contact → Agent tab. No 401, 502 or 503. (401 = secrets differ. 502 = agent binding broken. 503 = secret unset.) [HUMAN]
 - [ ] Settings → Today → Get started shows `<domain>/webhooks/telnyx`. [HUMAN]
-- [ ] With `DRY_RUN=true`: import a lead. A draft appears within 2 minutes. This proves the agent cron and agent → api. [HUMAN]
-- [ ] Send one real test SMS to your own phone, then reply. The reply appears in Inbox. [HUMAN]
-- [ ] Only then set `DRY_RUN=false`. Redeploy. [HUMAN]
+- [ ] With texting paused (Settings → Compliance → Texting): import a lead. A draft appears within 2 minutes. This proves the agent cron and agent → api. [HUMAN]
+- [ ] Only then turn on Texting. Send one real test SMS to your own phone, then reply. The reply appears in Inbox. [HUMAN]
 - [ ] Toll-free number verification is complete (`docs/TOLLFREE_VERIFICATION.md`). Carriers block unverified numbers. [HUMAN]
 
 ## 10. Rollback
 
 - **Code:** Vercel → Project → Deployments → pick the last good deployment → ⋯ → **Instant Rollback**. 
-- **Stop all texting at once:** set `DRY_RUN=true`, then redeploy.
+- **Stop all texting at once:** turn off Texting in Settings → Compliance. It takes effect within seconds, with no redeploy.
 - **Database:** migrations only go forward. Before you merge a change that adds a migration, make a Neon branch (Neon → Branches → Create) as a restore point. To restore, use Neon → Restore. Rolling back code does not roll back the schema.
 
 ## 11. Known limits

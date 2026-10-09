@@ -4,12 +4,12 @@ A ready-to-fill packet for task 21. A person fills the blanks and submits it in 
 Telnyx Portal (Messaging → Toll-Free Verification) or through
 `POST /v2/messaging_tollfree/verification/requests`. The CRM does not submit it.
 
-Source: `../RESEARCH.md` §2.3 and the Telnyx pages it links. Re-check the Telnyx form
-before you submit; field names change.
+Source: the Telnyx toll-free verification pages. Re-check the Telnyx form before you
+submit; field names change.
 
 Why it matters: unverified toll-free numbers are blocked from sending (since
 2024-01-31). Review normally takes up to 5 business days and can take 4 weeks. Keep
-`DRY_RUN` on until the approval arrives.
+texting paused (Settings, Compliance) until the approval arrives.
 
 Fill every `«…»`.
 

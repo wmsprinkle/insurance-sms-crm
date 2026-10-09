@@ -1,8 +1,4 @@
 import { AUTH_COOKIE_PREFIX } from "@crm/auth/cookies";
-import {
-	devLoginFromEnvironment,
-	isLoopbackAppRequest,
-} from "@crm/auth/dev-login";
 import { Skeleton } from "@crm/ui/components/skeleton";
 import { getSessionCookie } from "better-auth/cookies";
 import type { Metadata } from "next";
@@ -13,7 +9,6 @@ import { Suspense } from "react";
 import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { getSession } from "@/lib/session";
 import { getPublicTrpcClient } from "@/lib/trpc/server";
-import { DevSignIn } from "./dev-sign-in";
 import { type SocialProviderId, SocialSignIn } from "./social-sign-in";
 import { type SsoProvider, SsoSignIn } from "./sso-sign-in";
 
@@ -100,12 +95,6 @@ async function SignIn({
 	if (options?.google ?? false) configured.push("google");
 	if (options?.microsoft ?? false) configured.push("microsoft");
 
-	const configuredDevLogin = devLoginFromEnvironment(process.env);
-	const devLogin =
-		configuredDevLogin.enabled && isLoopbackAppRequest(requestHeaders)
-			? configuredDevLogin
-			: ({ enabled: false } as const);
-
 	const providers = options?.providers ?? [];
 
 	const insisted = configured.find((provider) => provider === method);
@@ -117,20 +106,13 @@ async function SignIn({
 				? configured
 				: [];
 
-	if (!showSso && social.length === 0 && !devLogin.enabled) {
+	if (!showSso && social.length === 0) {
 		return (
 			<>
 				<AuthHeading
-					title="No way in yet"
-					description="This app has no sign-in method configured, so nobody can get in — including you."
+					title="Sign-in is not available yet"
+					description="Sign-in has not been set up for this workspace. Ask the person who manages it to finish setup, then try again."
 				/>
-
-				<p className="mx-auto max-w-[40ch] text-center text-muted-foreground text-sm/5">
-					Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET, MICROSOFT_CLIENT_ID and
-					MICROSOFT_CLIENT_SECRET, or AUTH0_DOMAIN, AUTH0_CLIENT_ID and
-					AUTH0_CLIENT_SECRET in the root .env file and restart. Steps:
-					docs/OAUTH_SETUP.md.
-				</p>
 			</>
 		);
 	}
@@ -146,12 +128,6 @@ async function SignIn({
 			{social.map((provider) => (
 				<SocialSignIn key={provider} provider={provider} />
 			))}
-			{devLogin.enabled ? (
-				<DevSignIn
-					email={devLogin.email}
-					primary={!showSso && social.length === 0}
-				/>
-			) : null}
 		</>
 	);
 }

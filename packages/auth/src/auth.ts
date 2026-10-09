@@ -13,7 +13,6 @@ import {
 import { organization } from "better-auth/plugins/organization";
 import { API_KEY_EXPIRATION, API_KEY_HEADER, API_KEY_PREFIX } from "./api-keys";
 import { AUTH_COOKIE_PREFIX } from "./cookies";
-import { devLoginPlugin } from "./dev-login-plugin";
 import { env } from "./env";
 import { ensureWorkspaceMembership } from "./organization";
 import {
@@ -130,14 +129,6 @@ export const auth = betterAuth({
 	},
 
 	plugins: [
-		...(env.devLogin.enabled
-			? [
-					devLoginPlugin(
-						env.devLogin.email,
-						process.env.AGENT_BRIDGE_SECRET?.trim(),
-					),
-				]
-			: []),
 		...(slackOAuth || auth0OAuth
 			? [
 					genericOAuth({

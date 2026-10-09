@@ -1,9 +1,3 @@
-import {
-	DEV_LOGIN_WARNING,
-	devLoginFromEnvironment,
-	isLoopbackUrl,
-} from "@crm/auth/dev-login";
-import { Logger } from "@nestjs/common";
 import { plainToInstance, Type } from "class-transformer";
 import {
 	IsEnum,
@@ -53,10 +47,6 @@ export class EnvironmentVariables {
 			'ALLOWED_SIGN_IN is required — it is the only thing deciding who can sign in. Set it to your email domain, e.g. ALLOWED_SIGN_IN="acme.com", or to a single address for a one-person install.',
 	})
 	ALLOWED_SIGN_IN!: string;
-
-	@IsOptional()
-	@IsString()
-	DEV_LOGIN?: string;
 
 	@IsOptional()
 	@IsString()
@@ -190,9 +180,15 @@ function isHttps(value: string | undefined): boolean {
 	}
 }
 
+const LOOPBACK_HOSTS: ReadonlySet<string> = new Set([
+	"localhost",
+	"127.0.0.1",
+	"[::1]",
+]);
+
 function isLoopback(value: string): boolean {
 	try {
-		return isLoopbackUrl(value);
+		return LOOPBACK_HOSTS.has(new URL(value).hostname);
 	} catch {
 		return false;
 	}
@@ -275,10 +271,6 @@ export function validateEnv(config: RawEnvironment): EnvironmentVariables {
 		throw new Error(
 			`Invalid environment configuration:\n  - ${details}\n\nSee .env.example at the root of the repo.`,
 		);
-	}
-
-	if (devLoginFromEnvironment(config).enabled) {
-		new Logger("Env").warn(DEV_LOGIN_WARNING);
 	}
 
 	const unsafe = productionProblems(config);

@@ -7,8 +7,6 @@
 		".": "./src/index.ts",
 		"./client": "./src/client.ts",
 		"./cookies": "./src/cookies.ts",
-		"./dev-login": "./src/dev-login.ts",
-		"./dev-login-proof": "./src/dev-login-proof.ts",
 		"./scopes": "./src/scopes.ts",
 		"./workspace": "./src/workspace.ts"
 	},

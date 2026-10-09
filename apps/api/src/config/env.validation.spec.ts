@@ -8,7 +8,7 @@ const base = {
 	ALLOWED_SIGN_IN: "me@gmail.com",
 };
 
-describe("validateEnv DEV_LOGIN", () => {
+describe("validateEnv production", () => {
 	const production = {
 		...base,
 		BETTER_AUTH_SECRET: "k3Jd9sLq2VxP8mZr4TnB7cYw1HfA6eUg0oIa5SdQ",
@@ -19,7 +19,7 @@ describe("validateEnv DEV_LOGIN", () => {
 		APP_URL: "https://app.example.com",
 	};
 
-	it("boots without DEV_LOGIN, in production too", () => {
+	it("boots with a safe production configuration", () => {
 		expect(() => validateEnv(production)).not.toThrow();
 	});
 
@@ -27,31 +27,5 @@ describe("validateEnv DEV_LOGIN", () => {
 		expect(() =>
 			validateEnv({ ...production, API_URL: "http://api.example.com" }),
 		).toThrow(/Refusing to start in production/);
-	});
-
-	it("boots with DEV_LOGIN on localhost", () => {
-		expect(() => validateEnv({ ...base, DEV_LOGIN: "true" })).not.toThrow();
-	});
-
-	it("boots with DEV_LOGIN in production behind a public URL", () => {
-		expect(() =>
-			validateEnv({ ...production, DEV_LOGIN: "true" }),
-		).not.toThrow();
-	});
-
-	it("refuses a list of addresses", () => {
-		expect(() =>
-			validateEnv({
-				...base,
-				DEV_LOGIN: "true",
-				ALLOWED_SIGN_IN: "a@gmail.com,b@gmail.com",
-			}),
-		).toThrow(/exactly one full email address/);
-	});
-
-	it("refuses a domain-only allow-list", () => {
-		expect(() =>
-			validateEnv({ ...base, DEV_LOGIN: "true", ALLOWED_SIGN_IN: "acme.com" }),
-		).toThrow(/exactly one full email address/);
 	});
 });
