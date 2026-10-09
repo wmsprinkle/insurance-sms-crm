@@ -24,12 +24,52 @@ const INJECTION_PATTERNS: readonly RegExp[] = [
 	/<\/?(system|instruction|prompt|assistant)>/i,
 	/^\s*(system|assistant|developer)\s*:/im,
 	/<<<|>>>/,
+	/\b(ignora|ignore|ignorez|ignorar|olvida|olvide|oubliez)\b.{0,40}\b(instrucciones|instrucci[oó]n|reglas|instructions|r[eè]gles|anteriores|pr[eé]c[eé]dentes)\b/i,
+	/\b(what|which)\b.{0,30}\b(were you told|are your (instructions|rules|guidelines)|is your (prompt|system))/i,
+	/(print|show|repeat|output|display|reveal|recite|tell me)\b.{0,30}\b(everything|all|words|text)\b.{0,20}\b(above|before)\b/i,
+	/(translate|summari[sz]e|paraphrase|encode|spell)\b.{0,20}\b(your|the)\s+(instructions?|prompt|rules)\b/i,
+	/\[\s*(system|admin|developer|assistant)\s*\]/i,
+	/"\s*(action|tool|tool_?name|function)\s*"\s*:/i,
+	/\b(call|invoke|run|use|execute)\b.{0,20}\b(tool|function)\b/i,
+	/\b(send_sms|book_meeting|opt_out_contact|handoff_to_human|record_qualification|propose_slots|classify_reply|load_skill)\b/i,
+	/\bbase64\b|\bdecode (this|the following)\b/i,
+	/\b(i am|i['’]m|as)\b.{0,12}\b(admin(istrator)?|developer|owner|operator|engineer|support staff)\b.{0,60}\b(authori[sz]e|override|disable|bypass|unlock)/i,
+	/(reveal|show|give|print|leak|tell me)\b.{0,20}\b(api[ _-]?key|password|secret|token|credentials?)/i,
+	/\b(send|text|message|forward)\b.{0,30}\b(to|this)\b.{0,10}\+?\d[\d\s().-]{7,}/i,
 ];
 
 const RAW_INJECTION_PATTERNS: readonly RegExp[] = [/\bDAN\b/];
 
 const LEET_FROM = "013457@$";
 const LEET_TO = "oieastas";
+
+const CONFUSABLES: Readonly<Record<string, string>> = {
+	а: "a",
+	е: "e",
+	о: "o",
+	р: "p",
+	с: "c",
+	х: "x",
+	у: "y",
+	і: "i",
+	ј: "j",
+	ѕ: "s",
+	ԁ: "d",
+	һ: "h",
+	ɡ: "g",
+	ο: "o",
+	α: "a",
+	ε: "e",
+	ι: "i",
+	ν: "v",
+	τ: "t",
+	ρ: "p",
+	κ: "k",
+	β: "b",
+};
+
+const SPACED_LETTERS_RE = /(?:^|\s)((?:\p{L}[\s.\-_*·]+){3,}\p{L})(?=\s|$)/gu;
+const SPLIT_WORD_RE = /(\p{L})[-_*·.](?=\p{L})/gu;
 
 const INVISIBLE_RE = /[​-‍⁠﻿­]/g;
 
@@ -48,6 +88,16 @@ const MODEL_TALK_PATTERNS: readonly RegExp[] = [
 	/\bi (don['’]t|do not|cannot|can['’]t) have (the ability|access|feelings|personal)/i,
 	/\bi was (trained|programmed|designed) (to|by)\b/i,
 	/\b(openai|deepseek|anthropic|gpt)\b/i,
+	/\b(built|made|trained|powered|based|running)\s+(on|by|with)\s+(claude|gemini|llama|mistral|qwen|glm|grok|copilot|chatgpt)\b/i,
+	/\bi(?:['’]m| am)\s+(claude|gemini|chatgpt|copilot|llama|grok)\b/i,
+	/\bthe\s+(claude|gemini|gpt|llama|mistral|qwen|glm)\s+(model|family)\b/i,
+];
+
+const SENSITIVE_REQUEST_PATTERNS: readonly RegExp[] = [
+	/\b(ssn|social security|social-security)\b/i,
+	/\b(credit|debit)\s+card\b|\bcard\s+(number|details)\b|\bcvv\b/i,
+	/\b(bank account|routing number|account number)\b/i,
+	/\b(password|passcode|\bpin\b)\b/i,
 ];
 
 const PROMPT_LEAK_PATTERNS: readonly RegExp[] = [
@@ -93,6 +143,8 @@ export function normalizeForInjection(text: string): string {
 		text.normalize("NFKC").replace(INVISIBLE_RE, "").toLowerCase(),
 	)
 		.map((char) => {
+			const confusable = CONFUSABLES[char];
+			if (confusable) return confusable;
 			const index = LEET_FROM.indexOf(char);
 			return index === -1 ? char : (LEET_TO[index] ?? char);
 		})
@@ -101,13 +153,26 @@ export function normalizeForInjection(text: string): string {
 		.trim();
 }
 
+function joinSplitLetters(text: string): string {
+	return text
+		.replace(
+			SPACED_LETTERS_RE,
+			(match) => ` ${match.replace(/[\s.\-_*·]/g, "")}`,
+		)
+		.replace(SPLIT_WORD_RE, "$1");
+}
+
 export function detectInjection(text: string): boolean {
 	if (!text) return false;
 	if (RAW_INJECTION_PATTERNS.some((pattern) => pattern.test(text))) return true;
 	const collapsed = text.normalize("NFKC").replace(INVISIBLE_RE, "");
 	const normalized = normalizeForInjection(text);
+	const joined = joinSplitLetters(normalized);
 	return INJECTION_PATTERNS.some(
-		(pattern) => pattern.test(collapsed) || pattern.test(normalized),
+		(pattern) =>
+			pattern.test(collapsed) ||
+			pattern.test(normalized) ||
+			pattern.test(joined),
 	);
 }
 
@@ -122,6 +187,17 @@ export function breaksCharacter(
 		MODEL_TALK_PATTERNS.some((pattern) => pattern.test(message)) ||
 		PROMPT_LEAK_PATTERNS.some((pattern) => pattern.test(message))
 	);
+}
+
+export function asksForSensitiveData(message: string): boolean {
+	return SENSITIVE_REQUEST_PATTERNS.some((pattern) => pattern.test(message));
+}
+
+const DEFANGED_DOT_RE =
+	/\s*(?:\[\s*\.\s*\]|\(\s*\.\s*\)|\{\s*\.\s*\}|\s+dot\s+)\s*/gi;
+
+export function refang(message: string): string {
+	return message.replace(DEFANGED_DOT_RE, ".");
 }
 
 export function mentionsPrice(message: string): boolean {
@@ -186,6 +262,7 @@ export type OutboundVerdict =
 			reason:
 				| "breaks_character"
 				| "price_or_guarantee"
+				| "sensitive_request"
 				| "empty_after_sanitize";
 	  };
 
@@ -202,6 +279,14 @@ export function guardOutbound(input: {
 		};
 	}
 
+	if (asksForSensitiveData(input.message)) {
+		return {
+			kind: "fallback",
+			message: OUTBOUND_GUARD.safeFallback,
+			reason: "sensitive_request",
+		};
+	}
+
 	if (mentionsPrice(input.message)) {
 		return {
 			kind: "fallback",
@@ -210,7 +295,9 @@ export function guardOutbound(input: {
 		};
 	}
 
-	const message = capLength(stripContactInfo(input.message, input.bookingLink));
+	const message = capLength(
+		stripContactInfo(refang(input.message), input.bookingLink),
+	);
 
 	if (!message) {
 		return {

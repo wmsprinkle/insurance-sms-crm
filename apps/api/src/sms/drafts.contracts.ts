@@ -80,6 +80,7 @@ const SMS_GUARD_REASONS = [
 	"breaks_character",
 	"empty_after_sanitize",
 	"price_or_guarantee",
+	"sensitive_request",
 ] as const;
 
 type SmsGuardReason = (typeof SMS_GUARD_REASONS)[number];

@@ -51,6 +51,8 @@ const GUARDED = {
 		"Nothing was left after the guard removed contact details. The guard suggests a safe reply instead.",
 	price_or_guarantee:
 		"The text names a price or a guarantee. The guard suggests a safe reply instead.",
+	sensitive_request:
+		"The text asks for a card, bank, password or Social Security number. The guard suggests a safe reply instead.",
 } satisfies Record<
 	Extract<SmsSendOutcome, { status: "guarded" }>["reason"],
 	string
