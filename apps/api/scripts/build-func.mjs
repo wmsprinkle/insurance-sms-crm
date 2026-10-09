@@ -177,8 +177,6 @@ writeFileSync(
 	JSON.stringify({
 		version: 3,
 		routes: [{ src: "/(.*)", dest: "/api/index" }],
-		crons: JSON.parse(readFileSync(join(repoRoot, "vercel.json"), "utf8"))
-			.crons,
 	}),
 );
 
